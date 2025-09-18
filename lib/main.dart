@@ -14,11 +14,11 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light; // Sempre modo light
 
   void changeThemeMode(ThemeMode themeMode) {
     setState(() {
-      _themeMode = themeMode;
+      _themeMode = ThemeMode.light; // Sempre forçar light
     });
   }
 

@@ -1,6 +1,5 @@
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/inspector.dart';
-import 'package:inspecao/models/establishment.dart';
 
 enum InspectionStatus {
   agendada,
@@ -34,6 +33,8 @@ class Inspection {
   final String? observacoes;
   final List<String> fotos;
   final String? establishmentId; // Nova referência ao estabelecimento
+  final String? inspectorId; // ID do inspetor responsável
+  final bool isTemplate; // Se é um template de auditoria
   
   // Campos de controle para sincronização
   final bool isSynced;
@@ -58,6 +59,8 @@ class Inspection {
     this.observacoes,
     this.fotos = const [],
     this.establishmentId,
+    this.inspectorId,
+    this.isTemplate = false,
     this.isSynced = false,
     required this.createdAt,
     required this.updatedAt,
@@ -81,6 +84,8 @@ class Inspection {
     String? observacoes,
     List<String>? fotos,
     String? establishmentId,
+    String? inspectorId,
+    bool? isTemplate,
     bool? isSynced,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -103,6 +108,8 @@ class Inspection {
       observacoes: observacoes ?? this.observacoes,
       fotos: fotos ?? this.fotos,
       establishmentId: establishmentId ?? this.establishmentId,
+      inspectorId: inspectorId ?? this.inspectorId,
+      isTemplate: isTemplate ?? this.isTemplate,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -127,6 +134,8 @@ class Inspection {
     'observacoes': observacoes,
     'fotos': fotos,
     'establishmentId': establishmentId,
+    'inspectorId': inspectorId,
+    'isTemplate': isTemplate,
     'isSynced': isSynced,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
@@ -150,6 +159,8 @@ class Inspection {
       observacoes: json['observacoes'],
       fotos: List<String>.from(json['fotos'] ?? []),
       establishmentId: json['establishmentId'],
+      inspectorId: json['inspectorId'],
+      isTemplate: json['isTemplate'] ?? false,
       isSynced: json['isSynced'] ?? false,
     createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
     updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),

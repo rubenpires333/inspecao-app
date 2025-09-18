@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/user.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/role_service.dart';
 import 'package:inspecao/screens/login_screen.dart';
 import 'package:inspecao/screens/inspections_screen.dart';
-import 'package:inspecao/screens/inspection_detail_screen.dart';
-import 'package:inspecao/screens/create_inspection_screen.dart';
 import 'package:inspecao/screens/calendar_screen.dart';
 import 'package:inspecao/screens/map_screen.dart';
 import 'package:inspecao/screens/reports_screen.dart';
 import 'package:inspecao/screens/inspectors_screen.dart';
 import 'package:inspecao/screens/profile_screen.dart';
-import 'package:inspecao/widgets/notification_center.dart';
+import 'package:inspecao/screens/notifications_screen.dart';
+import 'package:inspecao/screens/audit_templates_screen.dart';
 import 'package:inspecao/models/notification.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Inspection> _inspections = [];
   List<AppNotification> _notifications = [];
   Map<String, Establishment> _establishmentsCache = {};
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -39,16 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  Future<void> _navigateToCreateInspection() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CreateInspectionScreen(),
-      ),
-    );
-    // Recarregar dados após criar inspeção
-    _loadData();
-  }
 
   Future<void> _loadData() async {
     final user = await _dataService.getCurrentUser();
@@ -115,470 +106,750 @@ class _HomeScreenState extends State<HomeScreen> {
     final canceladas = _inspections.where((i) => i.status == InspectionStatus.cancelada).length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Olá, ${_currentUser?.nome ?? 'Usuário'}'),
-            if (_currentUser != null)
-              Text(
-                RoleService.getRoleDisplayName(_currentUser!.role),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+      backgroundColor: const Color(0xFFE3F0E9), // Background específico sempre
+      body: Column(
+        children: [
+          // Header fixo
+          _buildGoAuditsHeader(),
+          // Conteúdo com scroll
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 100),
+                child: Column(
+                  children: [
+                    // Seção My Actions
+                    _buildMyActionsSection(agendadas, emAndamento, concluidas, canceladas),
+                    // Seção My Audits
+                    _buildMyAuditsSection(agendadas, emAndamento, concluidas, canceladas),
+                    // Seção Recent Audits
+                    _buildRecentAuditsSection(),
+                  ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoAuditsHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1976D2), // lightPrimary sempre
+            Color(0xFF1565C0), // lightPrimary com opacidade
           ],
         ),
-        actions: [
-          Stack(
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: () => _showNotificationCenter(),
-              ),
-              if (_notifications.where((n) => !n.isRead).isNotEmpty)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '${_notifications.where((n) => !n.isRead).length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+              // App Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Logo e nome
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'web/icons/icon-192.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF1976D2), // lightPrimary sempre
+                                size: 20,
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                      textAlign: TextAlign.center,
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Inspeção Pro',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Ícones de ação
+                  Row(
+                    children: [
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                            onPressed: () => _showNotificationCenter(),
+                          ),
+                          if (_notifications.where((n) => !n.isRead).isNotEmpty)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  '${_notifications.where((n) => !n.isRead).length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: _isLoading 
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: _isLoading ? null : () async {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          
+                          try {
+                            // Aguardar um pouco para mostrar o loading
+                            await Future.delayed(const Duration(milliseconds: 500));
+                            
+                            // Recarregar a tela completamente
+                            if (mounted) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => HomeScreen(changeThemeMode: widget.changeThemeMode),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // Em caso de erro, apenas recarregar dados
+                            await _loadData();
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
+                        },
+                      ),
+                      PopupMenuButton(
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                              title: const Text('Meu Perfil'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                          if (RoleService.canManageInspectors(_currentUser?.role ?? UserRole.inspetor))
+                            PopupMenuItem(
+                              child: ListTile(
+                                leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
+                                title: const Text('Inspetores'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const InspectorsScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(
+                                Theme.of(context).brightness == Brightness.dark 
+                                    ? Icons.light_mode 
+                                    : Icons.dark_mode,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              title: Text(
+                                Theme.of(context).brightness == Brightness.dark 
+                                    ? 'Modo Claro' 
+                                    : 'Modo Escuro',
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                widget.changeThemeMode(
+                                  Theme.of(context).brightness == Brightness.dark 
+                                      ? ThemeMode.light 
+                                      : ThemeMode.dark,
+                                );
+                              },
+                            ),
+                          ),
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                              title: const Text('Sair'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _logout();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // New Inspection Button
+              if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AuditTemplatesScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF1976D2), // lightPrimary sempre
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    child: const Text(
+                      'Start Audit',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          PopupMenuButton(
-            icon: const Icon(Icons.account_circle),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                child: ListTile(
-                  leading: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
-                  title: const Text('Meu Perfil'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                    );
-                  },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyActionsSection(int agendadas, int emAndamento, int concluidas, int canceladas) {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Actions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : const Color(0xFF2E2E2E),
                 ),
               ),
-              if (RoleService.canManageInspectors(_currentUser?.role ?? UserRole.inspetor))
-                PopupMenuItem(
-                  child: ListTile(
-                    leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
-                    title: const Text('Inspetores'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const InspectorsScreen()),
-                      );
-                    },
+              TextButton(
+                onPressed: () => setState(() => _selectedIndex = 1),
+                child: Text(
+                  'View All',
+                  style: const TextStyle(
+                    color: Color(0xFF1976D2), // lightPrimary sempre
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              PopupMenuItem(
-                child: ListTile(
-                  leading: Icon(
-                    Theme.of(context).brightness == Brightness.dark 
-                        ? Icons.light_mode 
-                        : Icons.dark_mode,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                  title: Text(
-                    Theme.of(context).brightness == Brightness.dark 
-                        ? 'Modo Claro' 
-                        : 'Modo Escuro',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    widget.changeThemeMode(
-                      Theme.of(context).brightness == Brightness.dark 
-                          ? ThemeMode.light 
-                          : ThemeMode.dark,
-                    );
-                  },
                 ),
               ),
-              PopupMenuItem(
-                child: ListTile(
-                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
-                  title: const Text('Sair'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _logout();
-                  },
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionStatusCard(
+                  'Open',
+                  agendadas.toString(),
+                  const Color(0xFFE3F2FD),
+                  const Color(0xFF1976D2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionStatusCard(
+                  'In Progress',
+                  emAndamento.toString(),
+                  const Color(0xFFFFF3E0),
+                  const Color(0xFFFF9800),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionStatusCard(
+                  'Overdue',
+                  '0', // Implementar lógica de overdue
+                  const Color(0xFFFFEBEE),
+                  const Color(0xFFE53935),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionStatusCard(
+                  'Rejected',
+                  canceladas.toString(),
+                  const Color(0xFFFFEBEE),
+                  const Color(0xFFE53935),
                 ),
               ),
             ],
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 24),
-              if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
-                _buildQuickActions(),
-              if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
-                const SizedBox(height: 24),
-              _buildStatsSection(agendadas, emAndamento, concluidas, canceladas),
-              const SizedBox(height: 24),
-              _buildRecentInspections(),
-            ],
+    );
+  }
+
+  Widget _buildActionStatusCard(String title, String count, Color backgroundColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '⚡ Ações Rápidas',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
-              Expanded(
-                child: _buildActionCard(
-                  '📋 Nova Inspeção',
-                  'Criar nova inspeção',
-                  Icons.add_circle_outline,
-                  Theme.of(context).colorScheme.primary,
-                  () => _navigateToCreateInspection(),
-                ),
-              ),
-            if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
-              const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                '📅 Calendário',
-                'Ver agendamentos',
-                Icons.calendar_today,
-                Theme.of(context).colorScheme.tertiary,
-                () => setState(() => _selectedIndex = 2),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+  Widget _buildMyAuditsSection(int agendadas, int emAndamento, int concluidas, int canceladas) {
+    // Calcular inspeções submetidas (concluídas mas não rejeitadas)
+    final submitted = _inspections.where((i) => 
+        i.status == InspectionStatus.concluida && 
+        i.observacoes != null && 
+        i.observacoes!.isNotEmpty
+    ).length;
+    
+    // Calcular período dinâmico baseado nas inspeções
+    final now = DateTime.now();
+    final startDate = now.subtract(const Duration(days: 6));
+    final endDate = now;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 8),
               Text(
-                title,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                'My Audits',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : const Color(0xFF2E2E2E),
                 ),
-                textAlign: TextAlign.center,
               ),
               Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.grey[300] 
+                      : Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsSection(int agendadas, int emAndamento, int concluidas, int canceladas) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '📈 Estatísticas',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.3,
-          children: [
-            _buildModernStatusCard(
-              'Agendadas',
-              agendadas.toString(),
-              Theme.of(context).colorScheme.primary,
-              Icons.schedule,
-              '⏰',
-            ),
-            _buildModernStatusCard(
-              'Em Andamento',
-              emAndamento.toString(),
-              Colors.orange,
-              Icons.play_circle_filled,
-              '🔄',
-            ),
-            _buildModernStatusCard(
-              'Concluídas',
-              concluidas.toString(),
-              Colors.green,
-              Icons.check_circle,
-              '✅',
-            ),
-            _buildModernStatusCard(
-              'Canceladas',
-              canceladas.toString(),
-              Colors.red.shade400,
-              Icons.cancel,
-              '❌',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentInspections() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '🕐 Inspeções Recentes',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _selectedIndex = 1),
-              child: const Text('Ver todas'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (_inspections.isEmpty)
-          Card(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhuma inspeção encontrada',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Crie sua primeira inspeção para começar',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          ListView.builder(
+          const SizedBox(height: 16),
+          GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _inspections.take(3).length,
-            itemBuilder: (context, index) {
-              final inspection = _inspections[index];
-              return _buildModernInspectionCard(inspection);
-            },
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.6,
+            children: [
+              _buildAuditStatusCard(
+                'In Progress',
+                emAndamento.toString(),
+                Icons.access_time,
+                const Color(0xFFFF9800),
+              ),
+              _buildAuditStatusCard(
+                'Rejected',
+                canceladas.toString(),
+                Icons.refresh,
+                const Color(0xFFE53935),
+              ),
+              _buildAuditStatusCard(
+                'Submitted',
+                submitted.toString(),
+                Icons.upload,
+                const Color(0xFF1976D2),
+              ),
+              _buildAuditStatusCard(
+                'Completed',
+                concluidas.toString(),
+                Icons.check_circle,
+                const Color(0xFF4CAF50),
+              ),
+            ],
           ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildModernInspectionCard(Inspection inspection) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InspectionDetailScreen(inspection: inspection),
+  Widget _buildAuditStatusCard(String title, String count, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF2E2E2E),
             ),
-          );
-          _loadData(); // Recarregar dados após voltar
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            count,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentAuditsSection() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(inspection.status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getStatusIcon(inspection.status),
-                  color: _getStatusColor(inspection.status),
-                  size: 20,
+              Text(
+                'Recent audits',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : const Color(0xFF2E2E2E),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _getInspectionDisplayTitle(inspection),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            inspection.endereco,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              TextButton(
+                onPressed: () => setState(() => _selectedIndex = 1),
+                child: Text(
+                  'View All',
+                  style: const TextStyle(
+                    color: Color(0xFF1976D2), // lightPrimary sempre
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_inspections.isNotEmpty)
+            _buildRecentAuditCard(_inspections.first)
+          else
+            _buildEmptyRecentAudits(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentAuditCard(Inspection inspection) {
+    final establishment = _establishmentsCache[inspection.establishmentId];
+    final establishmentName = establishment?.nome ?? 'Organização não identificada';
+    
+    // Calcular score baseado nos itens da inspeção
+    final totalItems = inspection.itens.length;
+    final conformItems = inspection.itens.where((item) => item.status == ItemStatus.conforme).length;
+    final score = totalItems > 0 ? (conformItems / totalItems * 100).round() : 0;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1976D2), // lightPrimary sempre
+            Color(0xFF1565C0), // lightPrimary com opacidade
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1976D2).withOpacity(0.3), // lightPrimary sempre
+            spreadRadius: 2,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título
+          Text(
+            inspection.titulo,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // ID | Organização | Localização
+          Text(
+            '${inspection.id} | $establishmentName | ${inspection.endereco}',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          
+          // Autor e Data
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _currentUser?.nome ?? 'Inspetor',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                _formatDate(inspection.dataAgendada),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Status e Percentage
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Status
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(inspection.status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: _getStatusColor(inspection.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getStatusColor(inspection.status),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
                   inspection.statusText,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  style: TextStyle(
                     color: _getStatusColor(inspection.status),
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
+              
+              // Percentage em círculo
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$score%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          
+          // Score
+          Text(
+            'Score: $score.0%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildModernStatusCard(String title, String value, Color color, IconData icon, String emoji) {
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
-            ],
+  Widget _buildEmptyRecentAudits() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.assignment_outlined,
+            size: 48,
+            color: Colors.grey[400],
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              emoji,
-              style: const TextStyle(fontSize: 24),
+          const SizedBox(height: 16),
+          Text(
+            'No recent audits',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
             ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your first inspection to get started',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatDateShort(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${date.day} ${months[date.month - 1]} \'${date.year.toString().substring(2)}';
+  }
+
+
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
@@ -593,44 +864,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  IconData _getStatusIcon(InspectionStatus status) {
-    switch (status) {
-      case InspectionStatus.agendada:
-        return Icons.schedule;
-      case InspectionStatus.emAndamento:
-        return Icons.play_circle;
-      case InspectionStatus.concluida:
-        return Icons.check_circle;
-      case InspectionStatus.cancelada:
-        return Icons.cancel;
-    }
-  }
-
-  String _getInspectionDisplayTitle(Inspection inspection) {
-    if (inspection.establishmentId == null) {
-      return inspection.titulo;
-    }
-    
-    final establishment = _establishmentsCache[inspection.establishmentId];
-    if (establishment != null) {
-      return '${inspection.titulo} - ${establishment.nome}';
-    }
-    
-    return inspection.titulo;
-  }
 
   List<BottomNavigationBarItem> _buildBottomNavItems() {
     final userRole = _currentUser?.role ?? UserRole.inspetor;
     final items = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
-        icon: Icon(Icons.dashboard_outlined),
-        activeIcon: Icon(Icons.dashboard),
-        label: 'Dashboard',
+        icon: Icon(Icons.home_outlined),
+        activeIcon: Icon(Icons.home),
+        label: 'Home',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.assignment_outlined),
         activeIcon: Icon(Icons.assignment),
-        label: 'Inspeções',
+        label: 'Audits',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.calendar_month_outlined),
@@ -658,11 +904,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showNotificationCenter() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: NotificationCenter(),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationsScreen(),
       ),
     );
   }
@@ -670,6 +915,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFE3F0E9), // Background específico sempre
       body: _getSelectedScreen(),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -685,7 +931,7 @@ class _HomeScreenState extends State<HomeScreen> {
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: Theme.of(context).colorScheme.primary,
+          selectedItemColor: const Color(0xFF1976D2), // lightPrimary sempre
           unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           backgroundColor: Theme.of(context).colorScheme.surface,
           elevation: 0,

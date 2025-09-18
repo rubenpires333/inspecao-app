@@ -9,6 +9,7 @@ import 'package:inspecao/models/evidence.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/models/action_plan.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:inspecao/models/organization.dart';
 
 class DataService {
   static const String _inspectionsKey = 'inspections';
@@ -724,4 +725,338 @@ class DataService {
     }
     return inspection.titulo;
   }
+
+  // Métodos para templates de auditoria
+  Future<List<AuditTemplate>> getAuditTemplates() async {
+    // Simular carregamento de templates do servidor
+    await Future.delayed(const Duration(seconds: 1));
+    
+    return [
+      AuditTemplate(
+        id: '1',
+        title: 'Scaffolding Inspection Checklist',
+        description: 'A comprehensive checklist for scaffolding safety inspections',
+        category: 'Construction',
+        questionCount: 27,
+        questions: _generateScaffoldingQuestions(),
+      ),
+      AuditTemplate(
+        id: '2',
+        title: 'Construction Quality Inspection',
+        description: 'Quality control checklist for construction projects',
+        category: 'Construction',
+        questionCount: 50,
+        questions: _generateConstructionQuestions(),
+      ),
+      AuditTemplate(
+        id: '3',
+        title: 'Construction Safety Audit',
+        description: 'Safety audit checklist for construction sites',
+        category: 'Construction',
+        questionCount: 18,
+        questions: _generateSafetyQuestions(),
+      ),
+      AuditTemplate(
+        id: '4',
+        title: 'Internal OHSMS Audit (AS/NZS4801:2001)',
+        description: 'Occupational Health and Safety Management System audit',
+        category: 'Construction',
+        questionCount: 94,
+        questions: _generateSafetyQuestions(),
+      ),
+      AuditTemplate(
+        id: '5',
+        title: 'Safety Walkthrough Checklist',
+        description: 'General safety walkthrough inspection checklist',
+        category: 'Construction',
+        questionCount: 12,
+        questions: _generateSafetyQuestions(),
+      ),
+      AuditTemplate(
+        id: '6',
+        title: 'Restaurant Visit Report',
+        description: 'Health and safety inspection for restaurants',
+        category: 'Food & Hospitality',
+        questionCount: 35,
+        questions: _generateRestaurantQuestions(),
+      ),
+    ];
+  }
+
+  // Lista de templates do usuário (simulando armazenamento local)
+  static List<AuditTemplate> _userTemplates = [];
+
+  static void _initializeUserTemplates() {
+    if (_userTemplates.isEmpty) {
+      _userTemplates = [
+        // Template padrão já disponível para o usuário
+        AuditTemplate(
+          id: 'user_1',
+          title: 'Construction Safety Audit',
+          description: 'Safety audit checklist for construction sites',
+          category: 'Construction',
+          questionCount: 18,
+          questions: _generateSafetyQuestionsStatic(),
+        ),
+        AuditTemplate(
+          id: 'user_2',
+          title: 'Restaurant Visit Report',
+          description: 'Health and safety inspection for restaurants',
+          category: 'Food & Hospitality',
+          questionCount: 35,
+          questions: _generateRestaurantQuestionsStatic(),
+        ),
+      ];
+    }
+  }
+
+  Future<void> addUserTemplate(AuditTemplate template) async {
+    // Simular salvamento do template para o usuário
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Adicionar template à lista do usuário
+    _userTemplates.add(template);
+    
+    // Aqui você salvaria o template no banco de dados local ou servidor
+    print('Template ${template.title} added to user templates');
+  }
+
+  Future<List<AuditTemplate>> getUserTemplates() async {
+    // Simular carregamento dos templates do usuário
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    // Inicializar templates padrão se necessário
+    _initializeUserTemplates();
+    
+    return List.from(_userTemplates);
+  }
+
+  static List<AuditQuestion> _generateSafetyQuestionsStatic() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'Are the current emergency evacuation plan & procedure displayed in appropriate positions around site?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Are fire extinguishers marked correctly on evacuation plan?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '3',
+        text: 'Are all workers wearing appropriate safety equipment?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '4',
+        text: 'Are safety barriers properly installed?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+    ];
+  }
+
+  static List<AuditQuestion> _generateRestaurantQuestionsStatic() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'Is the kitchen area clean and sanitized?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Are food storage temperatures appropriate?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+    ];
+  }
+
+  Future<void> createInspection(Inspection inspection) async {
+    // Simular criação de inspeção
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Aqui você salvaria a inspeção no banco de dados local ou servidor
+    print('Inspection ${inspection.titulo} created successfully');
+  }
+
+  List<AuditQuestion> _generateScaffoldingQuestions() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'General Information',
+        type: 'text',
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Project',
+        type: 'text',
+      ),
+      AuditQuestion(
+        id: '3',
+        text: 'Before Using The Scaffold',
+        type: 'text',
+      ),
+      AuditQuestion(
+        id: '4',
+        text: 'Comments',
+        type: 'text',
+      ),
+    ];
+  }
+
+  List<AuditQuestion> _generateConstructionQuestions() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'Is the lumber the correct grade as specified on the plans?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Are the correct trusses installed per the engineered layout?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+    ];
+  }
+
+  List<AuditQuestion> _generateSafetyQuestions() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'Are the current emergency evacuation plan & procedure displayed in appropriate positions around site?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Are fire extinguishers marked correctly on evacuation plan?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '3',
+        text: 'Are all workers wearing appropriate safety equipment?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '4',
+        text: 'Are safety barriers properly installed?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+    ];
+  }
+
+  List<AuditQuestion> _generateRestaurantQuestions() {
+    return [
+      AuditQuestion(
+        id: '1',
+        text: 'Is the kitchen area clean and sanitized?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+      AuditQuestion(
+        id: '2',
+        text: 'Are food storage temperatures appropriate?',
+        type: 'choice',
+        options: ['Yes', 'No', 'N/A'],
+      ),
+    ];
+  }
+
+  // Métodos para organizações/empresas
+  Future<List<Organization>> getOrganizations() async {
+    // Simular carregamento de organizações do servidor
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    return [
+      Organization(
+        id: '1',
+        name: 'MSN',
+        description: 'Microsoft Network',
+        isActive: true,
+      ),
+      Organization(
+        id: '2',
+        name: 'Google',
+        description: 'Google LLC',
+        isActive: true,
+      ),
+      Organization(
+        id: '3',
+        name: 'Apple',
+        description: 'Apple Inc.',
+        isActive: true,
+      ),
+      Organization(
+        id: '4',
+        name: 'Amazon',
+        description: 'Amazon.com Inc.',
+        isActive: true,
+      ),
+    ];
+  }
+
+  Future<Organization?> getCurrentOrganization() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? orgJson = prefs.getString('current_organization');
+    
+    if (orgJson == null) {
+      // Retornar MSN como padrão
+      final organizations = await getOrganizations();
+      final defaultOrg = organizations.firstWhere((org) => org.name == 'MSN');
+      await setCurrentOrganization(defaultOrg);
+      return defaultOrg;
+    }
+    
+    return Organization.fromJson(json.decode(orgJson));
+  }
+
+  Future<void> setCurrentOrganization(Organization organization) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_organization', json.encode(organization.toJson()));
+  }
 }
+
+// Modelo para templates de auditoria
+class AuditTemplate {
+  final String id;
+  final String title;
+  final String description;
+  final String category;
+  final int questionCount;
+  final List<AuditQuestion> questions;
+
+  AuditTemplate({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.questionCount,
+    required this.questions,
+  });
+}
+
+class AuditQuestion {
+  final String id;
+  final String text;
+  final String type; // 'choice', 'text', 'number', etc.
+  final List<String>? options; // Para perguntas de escolha
+
+  AuditQuestion({
+    required this.id,
+    required this.text,
+    required this.type,
+    this.options,
+  });
+}
+

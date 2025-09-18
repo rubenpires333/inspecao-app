@@ -102,17 +102,18 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFE3F0E9), // Background específico sempre
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).primaryColor,
-              Theme.of(context).primaryColor.withOpacity(0.8),
-              Theme.of(context).scaffoldBackgroundColor,
+              Color(0xFF1976D2), // lightPrimary
+              Color(0xFF1976D2), // lightPrimary
+              Color(0xFFE3F0E9), // Background específico
             ],
-            stops: const [0.0, 0.6, 1.0],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
         child: Center(
