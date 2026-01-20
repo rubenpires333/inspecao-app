@@ -31,16 +31,28 @@ class ApiService {
   }
 
   // Métodos de autenticação
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await _dio.post('/api/auth/login', data: {
-      'email': email,
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    final response = await _dio.post('/api/v1/auth/login', data: {
+      'username': username,
       'password': password,
     });
     return response.data;
   }
 
   Future<void> logout() async {
-    await _dio.post('/api/auth/logout');
+    await _dio.post('/api/v1/auth/logout');
+  }
+
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    final response = await _dio.post('/api/v1/auth/refresh-token', data: {
+      'refreshToken': refreshToken,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _dio.get('/api/v1/auth/profile');
+    return response.data;
   }
 
   // Sincronização de inspeções

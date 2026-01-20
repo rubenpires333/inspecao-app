@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:inspecao/screens/login_screen.dart';
 import 'package:inspecao/screens/home_screen.dart';
 import 'package:inspecao/services/data_service.dart';
+import 'package:inspecao/services/auth_service.dart';
+import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/config/app_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
   final Function(ThemeMode) changeThemeMode;
@@ -66,9 +70,35 @@ class _SplashScreenState extends State<SplashScreen>
     // Aguardar um tempo mínimo para mostrar o splash
     await Future.delayed(const Duration(milliseconds: 2500));
     
-    // Verificar se o usuário está logado
-    final user = await _dataService.getCurrentUser();
-    _isLoggedIn = user != null;
+    try {
+      // Inicializar API service
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Inicializar AuthService e verificar autenticação
+      final prefs = await SharedPreferences.getInstance();
+      final authService = AuthService(apiService, prefs);
+      
+      // Inicializar token se existir
+      await authService.initializeToken();
+      
+      // Verificar se o usuário está autenticado
+      final isAuthenticated = await authService.isAuthenticated();
+      
+      if (isAuthenticated) {
+        // Verificar se o usuário existe localmente
+        final user = await authService.getCurrentUser();
+        _isLoggedIn = user != null;
+      } else {
+        _isLoggedIn = false;
+      }
+    } catch (e) {
+      // Em caso de erro, verificar usuário local como fallback
+      final user = await _dataService.getCurrentUser();
+      _isLoggedIn = user != null;
+    }
     
     // Navegar para a tela apropriada
     if (mounted) {
@@ -174,7 +204,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Column(
                       children: [
                         Text(
-                          'Inspeção Pro',
+                          'INSPEV',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

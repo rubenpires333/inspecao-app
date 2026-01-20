@@ -185,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 12),
                       const Text(
-                        'Inspeção Pro',
+                        'INSPEV',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,

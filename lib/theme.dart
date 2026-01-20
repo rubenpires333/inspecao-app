@@ -2,43 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LightModeColors {
-  static const lightPrimary = Color(0xFF1976D2);
+  // Paleta de Cores ERIS - Requisito R49
+  // Cor 1: #00778b (PANTONE 7506 C) - Cor Principal Escura
+  static const lightPrimary = Color(0xFF00778B);
   static const lightOnPrimary = Color(0xFFFFFFFF);
-  static const lightPrimaryContainer = Color(0xFFD4E4FF);
-  static const lightOnPrimaryContainer = Color(0xFF001C3B);
-  static const lightSecondary = Color(0xFF0D7377);
+  // Cor 2: #478d9d (PANTONE P 119-13 U) - Cor Média
+  static const lightSecondary = Color(0xFF478D9D);
   static const lightOnSecondary = Color(0xFFFFFFFF);
-  static const lightTertiary = Color(0xFF14A085);
+  // Cor 3: #6fa3b0 (PANTONE 16-4610 TCX) - Cor Clara
+  static const lightTertiary = Color(0xFF6FA3B0);
   static const lightOnTertiary = Color(0xFFFFFFFF);
+  
+  // Containers e variações baseadas na paleta ERIS
+  static const lightPrimaryContainer = Color(0xFFB8DDE5); // Versão clara da cor principal
+  static const lightOnPrimaryContainer = Color(0xFF003D47); // Versão escura para contraste
+  static const lightSecondaryContainer = Color(0xFFC4E1E8); // Versão clara da cor secundária
+  static const lightOnSecondaryContainer = Color(0xFF1F4A54); // Versão escura para contraste
+  
+  // Cores de erro e sistema
   static const lightError = Color(0xFFBA1A1A);
   static const lightOnError = Color(0xFFFFFFFF);
   static const lightErrorContainer = Color(0xFFFFDAD6);
   static const lightOnErrorContainer = Color(0xFF410002);
-  static const lightInversePrimary = Color(0xFF90CAF9);
+  static const lightInversePrimary = Color(0xFF6FA3B0); // Usar cor clara para inverso
   static const lightShadow = Color(0xFF000000);
   static const lightSurface = Color(0xFFFAFAFA);
   static const lightOnSurface = Color(0xFF1C1C1C);
-  static const lightAppBarBackground = Color(0xFF1976D2);
+  static const lightAppBarBackground = Color(0xFF00778B); // Cor principal ERIS
 }
 
 class DarkModeColors {
-  static const darkPrimary = Color(0xFF90CAF9);
-  static const darkOnPrimary = Color(0xFF001C3B);
-  static const darkPrimaryContainer = Color(0xFF0D47A1);
-  static const darkOnPrimaryContainer = Color(0xFFD4E4FF);
-  static const darkSecondary = Color(0xFF4DB6AC);
-  static const darkOnSecondary = Color(0xFF003A3B);
-  static const darkTertiary = Color(0xFF66BB6A);
-  static const darkOnTertiary = Color(0xFF003D2F);
+  // Paleta de Cores ERIS - Requisito R49 (Modo Escuro)
+  // Usar versões mais claras das cores para contraste no modo escuro
+  static const darkPrimary = Color(0xFF6FA3B0); // Cor clara ERIS para modo escuro
+  static const darkOnPrimary = Color(0xFF003D47); // Versão escura para contraste
+  static const darkPrimaryContainer = Color(0xFF005A6B); // Versão média da cor principal
+  static const darkOnPrimaryContainer = Color(0xFFB8DDE5); // Versão clara para contraste
+  
+  static const darkSecondary = Color(0xFF478D9D); // Cor média ERIS
+  static const darkOnSecondary = Color(0xFF1F4A54); // Versão escura para contraste
+  static const darkSecondaryContainer = Color(0xFF2F5F6B); // Versão escura da cor secundária
+  static const darkOnSecondaryContainer = Color(0xFFC4E1E8); // Versão clara para contraste
+  
+  static const darkTertiary = Color(0xFF6FA3B0); // Cor clara ERIS
+  static const darkOnTertiary = Color(0xFF003D47); // Versão escura para contraste
+  
+  // Cores de erro e sistema
   static const darkError = Color(0xFFFFB4AB);
   static const darkOnError = Color(0xFF690005);
   static const darkErrorContainer = Color(0xFF93000A);
   static const darkOnErrorContainer = Color(0xFFFFDAD6);
-  static const darkInversePrimary = Color(0xFF1976D2);
+  static const darkInversePrimary = Color(0xFF00778B); // Cor principal ERIS para inverso
   static const darkShadow = Color(0xFF000000);
   static const darkSurface = Color(0xFF121212);
   static const darkOnSurface = Color(0xFFE0E0E0);
-  static const darkAppBarBackground = Color(0xFF0D47A1);
+  static const darkAppBarBackground = Color(0xFF005A6B); // Versão escura da cor principal ERIS
 }
 
 class FontSizes {
@@ -62,13 +80,15 @@ class FontSizes {
 ThemeData get lightTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.light(
-    primary: LightModeColors.lightPrimary,
+    primary: LightModeColors.lightPrimary, // #00778b - Cor Principal ERIS
     onPrimary: LightModeColors.lightOnPrimary,
     primaryContainer: LightModeColors.lightPrimaryContainer,
     onPrimaryContainer: LightModeColors.lightOnPrimaryContainer,
-    secondary: LightModeColors.lightSecondary,
+    secondary: LightModeColors.lightSecondary, // #478d9d - Cor Média ERIS
     onSecondary: LightModeColors.lightOnSecondary,
-    tertiary: LightModeColors.lightTertiary,
+    secondaryContainer: LightModeColors.lightSecondaryContainer,
+    onSecondaryContainer: LightModeColors.lightOnSecondaryContainer,
+    tertiary: LightModeColors.lightTertiary, // #6fa3b0 - Cor Clara ERIS
     onTertiary: LightModeColors.lightOnTertiary,
     error: LightModeColors.lightError,
     onError: LightModeColors.lightOnError,
@@ -172,13 +192,15 @@ ThemeData get lightTheme => ThemeData(
 ThemeData get darkTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.dark(
-    primary: DarkModeColors.darkPrimary,
+    primary: DarkModeColors.darkPrimary, // #6fa3b0 - Cor Clara ERIS (modo escuro)
     onPrimary: DarkModeColors.darkOnPrimary,
     primaryContainer: DarkModeColors.darkPrimaryContainer,
     onPrimaryContainer: DarkModeColors.darkOnPrimaryContainer,
-    secondary: DarkModeColors.darkSecondary,
+    secondary: DarkModeColors.darkSecondary, // #478d9d - Cor Média ERIS
     onSecondary: DarkModeColors.darkOnSecondary,
-    tertiary: DarkModeColors.darkTertiary,
+    secondaryContainer: DarkModeColors.darkSecondaryContainer,
+    onSecondaryContainer: DarkModeColors.darkOnSecondaryContainer,
+    tertiary: DarkModeColors.darkTertiary, // #6fa3b0 - Cor Clara ERIS
     onTertiary: DarkModeColors.darkOnTertiary,
     error: DarkModeColors.darkError,
     onError: DarkModeColors.darkOnError,

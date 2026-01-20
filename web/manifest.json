@@ -1,11 +1,11 @@
 {
-    "name": "Inspeção Pro",
-    "short_name": "Inspeção Pro",
+    "name": "INSPEV",
+    "short_name": "INSPEV",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Inspeção Pro - Sistema de Gestão de Inspeção e Vistoria",
+    "background_color": "#00778B",
+    "theme_color": "#00778B",
+    "description": "INSPEV - Sistema de Gestão de Inspeção e Vistoria",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _dataService = DataService();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -43,49 +44,171 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (context) => HomeScreen(changeThemeMode: widget.changeThemeMode)),
         );
       } else {
-        _showError('Credenciais inválidas');
+        _showError('Credenciais inválidas. Verifique seu email e senha.');
       }
     } catch (e) {
-      _showError('Erro ao fazer login: $e');
+      _showError(_getErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  String _getErrorMessage(dynamic error) {
+    final errorMessage = error.toString().toLowerCase();
+    
+    // Tratar diferentes tipos de erro e retornar mensagens amigáveis
+    if (errorMessage.contains('credenciais inválidas') || 
+        errorMessage.contains('invalid credentials') ||
+        errorMessage.contains('401') ||
+        errorMessage.contains('unauthorized')) {
+      return 'Email ou senha incorretos. Verifique suas credenciais.';
+    }
+    
+    if (errorMessage.contains('network') || 
+        errorMessage.contains('connection') ||
+        errorMessage.contains('timeout') ||
+        errorMessage.contains('socket') ||
+        errorMessage.contains('connection refused') ||
+        errorMessage.contains('failed host lookup')) {
+      return 'Erro de conexão. Verifique:\n- Sua conexão com a internet\n- Se o servidor está rodando\n- Se o IP está correto (dispositivo físico)';
+    }
+    
+    if (errorMessage.contains('400') || 
+        errorMessage.contains('bad request')) {
+      return 'Dados inválidos. Verifique os campos preenchidos.';
+    }
+    
+    if (errorMessage.contains('500') || 
+        errorMessage.contains('internal server error') ||
+        errorMessage.contains('server error')) {
+      // Verificar se é erro de autenticação no Keycloak
+      if (errorMessage.contains('keycloak') || 
+          errorMessage.contains('autenticação') ||
+          errorMessage.contains('authentication')) {
+        return 'Erro na autenticação. Verifique suas credenciais ou entre em contato com o suporte.';
+      }
+      return 'Erro no servidor. Tente novamente em alguns instantes.';
+    }
+    
+    if (errorMessage.contains('403') || 
+        errorMessage.contains('forbidden')) {
+      return 'Acesso negado. Entre em contato com o administrador.';
+    }
+    
+    if (errorMessage.contains('404') || 
+        errorMessage.contains('not found')) {
+      return 'Serviço não encontrado. Verifique a configuração.';
+    }
+    
+    // Mensagem genérica para outros erros
+    return 'Erro ao fazer login. Tente novamente.';
+  }
+
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    if (!mounted) return;
+    
+    // Usar Overlay para criar um toast customizado no topo
+    final overlay = Overlay.of(context);
+    OverlayEntry? overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 300),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, -50 * (1 - value)), // Desce de cima para baixo
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade700,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
+
+    overlay.insert(overlayEntry);
+
+    // Remover o overlay após 4 segundos com animação
+    Future.delayed(const Duration(seconds: 4), () {
+      if (overlayEntry != null && mounted) {
+        overlayEntry.remove();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.secondary,
             ],
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 60),
-                _buildHeader(),
-                const SizedBox(height: 48),
-                _buildLoginCard(),
-                const SizedBox(height: 24),
-                _buildDemoInfo(),
-              ],
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom - 48,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 60),
+                  _buildHeader(),
+                  const SizedBox(height: 48),
+                  _buildLoginCard(),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),
@@ -96,38 +219,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.secondary,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.assignment_turned_in,
-            size: 64,
-            color: Colors.white,
-          ),
+        Image.asset(
+          'web/icons/icon-192.png',
+          width: 96,
+          height: 96,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback para ícone se a imagem não carregar
+            return const Icon(
+              Icons.assignment_turned_in,
+              size: 96,
+              color: Colors.white,
+            );
+          },
         ),
         const SizedBox(height: 24),
         Text(
-          ' Inspeção Pro 🔍',
+          'INSPEV',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+            color: Colors.white,
           ),
           textAlign: TextAlign.center,
         ),
@@ -135,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           'Gestão de Inspeções e Vistorias',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            color: Colors.white.withOpacity(0.9),
           ),
           textAlign: TextAlign.center,
         ),
@@ -184,7 +295,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
@@ -216,14 +344,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       Icons.lock_outline,
                       color: Theme.of(context).colorScheme.primary,
                     ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                   ),
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Digite sua senha';
@@ -290,82 +446,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildDemoInfo() {
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '🚀 Demo Mode',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Use diferentes emails para testar roles:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            _buildRoleExample('admin@empresa.com', 'Administrador - Acesso completo'),
-            const SizedBox(height: 8),
-            _buildRoleExample('supervisor@empresa.com', 'Supervisor - Criar inspeções'),
-            const SizedBox(height: 8),
-            _buildRoleExample('inspector@empresa.com', 'Inspetor - Executar inspeções'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleExample(String email, String description) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            email,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            description,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 }

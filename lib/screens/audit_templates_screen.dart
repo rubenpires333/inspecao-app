@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/models/organization.dart';
+import 'package:inspecao/screens/checklists_screen.dart';
 
 class AuditTemplatesScreen extends StatefulWidget {
   const AuditTemplatesScreen({super.key});
@@ -11,7 +12,7 @@ class AuditTemplatesScreen extends StatefulWidget {
 
 class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
   final _dataService = DataService();
-  List<AuditTemplate> _filteredTemplates = [];
+  List<Category> _filteredCategories = [];
   List<Organization> _organizations = [];
   List<Organization> _filteredOrganizations = [];
   Organization? _currentOrganization;
@@ -34,15 +35,15 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
       final organizations = await _dataService.getOrganizations();
       final currentOrg = await _dataService.getCurrentOrganization();
       
-      // Carregar templates do usuário
-      final templates = await _dataService.getUserTemplates();
+      // Carregar categorias
+      final categories = await _dataService.getCategories();
       
       if (mounted) {
         setState(() {
           _organizations = organizations;
           _filteredOrganizations = organizations;
+          _filteredCategories = categories;
           _currentOrganization = currentOrg;
-          _filteredTemplates = templates;
           _isLoading = false;
         });
       }
@@ -90,219 +91,16 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
     });
   }
 
-  void _showTemplatePreview(AuditTemplate template) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Content
-            Expanded(
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            template.title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2E2E2E),
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.grey,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Questions list
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: template.questions.length,
-                        itemBuilder: (context, index) {
-                          final question = template.questions[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey[200]!),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${index + 1}. ${question.text}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF2E2E2E),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                if (question.type == 'choice' && question.options != null)
-                                  Wrap(
-                                    spacing: 8,
-                                    children: question.options!.map((option) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[100],
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        child: Text(
-                                          option,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  )
-                                else
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[100],
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      'Text input',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  // Action buttons
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: const BorderSide(color: Color(0xFF1976D2)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Close',
-                              style: TextStyle(
-                                color: Color(0xFF1976D2),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _addTemplate(template);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1976D2),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Add',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  void _navigateToChecklists(Category category) {
+    // Navegar para tela de checklists da categoria
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChecklistsScreen(category: category),
       ),
     );
   }
 
-  void _addTemplate(AuditTemplate template) async {
-    // Adicionar template aos templates do usuário
-    await _dataService.addUserTemplate(template);
-    
-    // Mostrar feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${template.title} added to your templates'),
-        backgroundColor: const Color(0xFF1976D2),
-      ),
-    );
-    
-    // Voltar para a tela anterior
-    Navigator.pop(context);
-  }
 
   Widget _buildHeader() {
     return Container(
@@ -476,12 +274,12 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
     );
   }
 
-  Widget _buildTemplatesGrid() {
+  Widget _buildCategoriesGrid() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_filteredTemplates.isEmpty) {
+    if (_filteredCategories.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -493,7 +291,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No templates found',
+              'No categories found',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
@@ -521,20 +319,20 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
         mainAxisSpacing: 16,
         childAspectRatio: 0.8,
       ),
-      itemCount: _filteredTemplates.length,
+      itemCount: _filteredCategories.length,
       itemBuilder: (context, index) {
-        final template = _filteredTemplates[index];
-        return _buildTemplateCard(template);
+        final category = _filteredCategories[index];
+        return _buildCategoryCard(category);
       },
     );
   }
 
-  Widget _buildTemplatesList() {
+  Widget _buildCategoriesList() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_filteredTemplates.isEmpty) {
+    if (_filteredCategories.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -546,7 +344,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No templates found',
+              'No categories found',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
@@ -568,17 +366,17 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredTemplates.length,
+      itemCount: _filteredCategories.length,
       itemBuilder: (context, index) {
-        final template = _filteredTemplates[index];
-        return _buildTemplateListItem(template);
+        final category = _filteredCategories[index];
+        return _buildCategoryListItem(category);
       },
     );
   }
 
-  Widget _buildTemplateCard(AuditTemplate template) {
+  Widget _buildCategoryCard(Category category) {
     return GestureDetector(
-      onTap: () => _showTemplatePreview(template),
+      onTap: () => _navigateToChecklists(category),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -595,28 +393,35 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Template image
+            // Category image
             Expanded(
               flex: 3,
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: _getCategoryColor(template.category).withOpacity(0.1),
+                  color: category.colorValue.withOpacity(0.1),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
                   ),
                 ),
                 child: Center(
-                  child: Icon(
-                    _getCategoryIcon(template.category),
-                    color: _getCategoryColor(template.category),
-                    size: 48,
+                  child: Image.asset(
+                    category.iconUrl,
+                    width: 48,
+                    height: 48,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.assignment,
+                        size: 48,
+                        color: category.colorValue,
+                      );
+                    },
                   ),
                 ),
               ),
             ),
-            // Template info
+            // Category info
             Expanded(
               flex: 2,
               child: Padding(
@@ -625,7 +430,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      template.title,
+                      category.displayName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -636,7 +441,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${template.questionCount} questions',
+                      'Checklists available',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -652,7 +457,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
     );
   }
 
-  Widget _buildTemplateListItem(AuditTemplate template) {
+  Widget _buildCategoryListItem(Category category) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -673,17 +478,26 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: _getCategoryColor(template.category).withOpacity(0.1),
+            color: category.colorValue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(25),
           ),
-          child: Icon(
-            _getCategoryIcon(template.category),
-            color: _getCategoryColor(template.category),
-            size: 24,
+          child: Center(
+            child: Image.asset(
+              category.iconUrl,
+              width: 24,
+              height: 24,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.assignment,
+                  size: 24,
+                  color: category.colorValue,
+                );
+              },
+            ),
           ),
         ),
         title: Text(
-          template.title,
+          category.displayName,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -691,7 +505,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
           ),
         ),
         subtitle: Text(
-          '${template.questionCount} questions',
+          'Checklists available',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[600],
@@ -702,7 +516,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
           color: Colors.grey,
           size: 16,
         ),
-        onTap: () => _showTemplatePreview(template),
+        onTap: () => _navigateToChecklists(category),
       ),
     );
   }
@@ -870,47 +684,6 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
     );
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Construction':
-        return Colors.orange;
-      case 'Retail':
-        return Colors.blue;
-      case 'Manufacturing':
-        return Colors.purple;
-      case 'Hotels & Vacation Rentals':
-        return Colors.teal;
-      case 'Food & Hospitality':
-        return Colors.red;
-      case 'Transport & Automotive':
-        return Colors.green;
-      case 'Facility & Services':
-        return Colors.indigo;
-      default:
-        return const Color(0xFF1976D2);
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'Construction':
-        return Icons.construction;
-      case 'Retail':
-        return Icons.shopping_cart;
-      case 'Manufacturing':
-        return Icons.precision_manufacturing;
-      case 'Hotels & Vacation Rentals':
-        return Icons.hotel;
-      case 'Food & Hospitality':
-        return Icons.restaurant;
-      case 'Transport & Automotive':
-        return Icons.directions_car;
-      case 'Facility & Services':
-        return Icons.cleaning_services;
-      default:
-        return Icons.assignment;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -924,7 +697,7 @@ class _AuditTemplatesScreenState extends State<AuditTemplatesScreen> {
               _buildOrganizationSelector(),
               _buildAddNewTemplateButton(),
               Expanded(
-                child: _isCardView ? _buildTemplatesGrid() : _buildTemplatesList(),
+                child: _isCardView ? _buildCategoriesGrid() : _buildCategoriesList(),
               ),
             ],
           ),

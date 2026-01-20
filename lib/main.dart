@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Inspecao Pro - Sistema de Gestão de Inspeção e Vistoria',
+      title: 'INSPEV - Sistema de Gestão de Inspeção e Vistoria',
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: _themeMode,

@@ -10,6 +10,9 @@ import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/models/action_plan.dart';
 import 'package:inspecao/models/establishment.dart';
 import 'package:inspecao/models/organization.dart';
+import 'package:inspecao/services/auth_service.dart';
+import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/config/app_config.dart';
 
 class DataService {
   static const String _inspectionsKey = 'inspections';
@@ -250,55 +253,25 @@ class DataService {
     await saveInspections(sampleInspections);
   }
 
-  // Método de login simples (demo)
+  // Método de login via API backend
   Future<User?> login(String email, String password) async {
-    // Demo: diferentes usuários baseados no email
-    if (email.isNotEmpty && password.isNotEmpty) {
-      User user;
+    try {
+      // Obter instâncias dos serviços
+      final prefs = await SharedPreferences.getInstance();
+      final apiService = ApiService();
       
-      if (email.contains('admin')) {
-        user = User(
-          id: '1',
-          nome: 'Administrador',
-          email: email,
-          role: UserRole.admin,
-          dataCriacao: DateTime(2024, 1, 15),
-          ultimoAcesso: DateTime.now(),
-        );
-      } else if (email.contains('supervisor')) {
-        user = User(
-          id: '2',
-          nome: 'Supervisor',
-          email: email,
-          role: UserRole.supervisor,
-          dataCriacao: DateTime(2024, 2, 10),
-          ultimoAcesso: DateTime.now(),
-        );
-      } else if (email.contains('inspector') || email.contains('inspetor')) {
-        user = User(
-          id: '3',
-          nome: 'Inspetor',
-          email: email,
-          role: UserRole.inspetor,
-          dataCriacao: DateTime(2024, 3, 5),
-          ultimoAcesso: DateTime.now(),
-        );
-      } else {
-        // Default: admin para outros emails
-        user = User(
-          id: '1',
-          nome: 'Administrador',
-          email: email,
-          role: UserRole.admin,
-          dataCriacao: DateTime(2024, 1, 15),
-          ultimoAcesso: DateTime.now(),
-        );
+      // Inicializar API service se necessário
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
       }
       
+      final authService = AuthService(apiService, prefs);
+      final user = await authService.login(email, password);
       await setCurrentUser(user);
       return user;
+    } catch (e) {
+      rethrow;
     }
-    return null;
   }
 
   // Método para obter inspeções filtradas por role do usuário
@@ -831,6 +804,111 @@ class DataService {
     return List.from(_userTemplates);
   }
 
+  // Métodos para checklists por categoria
+  Future<List<Checklist>> getChecklistsByCategory(String categoryName) async {
+    // Simular carregamento de checklists do servidor
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    switch (categoryName) {
+      case 'Construction':
+        return [
+          Checklist(
+            id: '1',
+            title: 'Scaffolding Inspection Checklist',
+            description: 'A comprehensive checklist for scaffolding safety inspections',
+            category: 'Construction',
+            questionCount: 27,
+            sections: 4,
+            estimatedTime: '15-20 minutes',
+            difficulty: 'Medium',
+            isActive: true,
+          ),
+          Checklist(
+            id: '2',
+            title: 'Construction Quality Inspection',
+            description: 'Quality control checklist for construction projects',
+            category: 'Construction',
+            questionCount: 50,
+            sections: 6,
+            estimatedTime: '25-30 minutes',
+            difficulty: 'High',
+            isActive: true,
+          ),
+          Checklist(
+            id: '3',
+            title: 'Construction Safety Audit',
+            description: 'Safety audit checklist for construction sites',
+            category: 'Construction',
+            questionCount: 18,
+            sections: 3,
+            estimatedTime: '10-15 minutes',
+            difficulty: 'Low',
+            isActive: true,
+          ),
+        ];
+      case 'Food & Hospitality':
+        return [
+          Checklist(
+            id: '4',
+            title: 'Food Safety & Hygiene Checklist',
+            description: 'Comprehensive food safety and hygiene inspection',
+            category: 'Food & Hospitality',
+            questionCount: 179,
+            sections: 8,
+            estimatedTime: '45-60 minutes',
+            difficulty: 'High',
+            isActive: true,
+          ),
+          Checklist(
+            id: '5',
+            title: 'Restaurant Visit Report',
+            description: 'Health and safety inspection for restaurants',
+            category: 'Food & Hospitality',
+            questionCount: 91,
+            sections: 5,
+            estimatedTime: '30-40 minutes',
+            difficulty: 'Medium',
+            isActive: true,
+          ),
+          Checklist(
+            id: '6',
+            title: 'Food and Beverage Audit Checklist',
+            description: 'Detailed audit for food and beverage operations',
+            category: 'Food & Hospitality',
+            questionCount: 58,
+            sections: 4,
+            estimatedTime: '20-25 minutes',
+            difficulty: 'Medium',
+            isActive: true,
+          ),
+          Checklist(
+            id: '7',
+            title: 'Critical Figure of 8 Checklist',
+            description: 'Critical safety checklist for food operations',
+            category: 'Food & Hospitality',
+            questionCount: 28,
+            sections: 2,
+            estimatedTime: '10-15 minutes',
+            difficulty: 'Low',
+            isActive: true,
+          ),
+          Checklist(
+            id: '8',
+            title: 'Reservations Check',
+            description: 'Reservation system and process verification',
+            category: 'Food & Hospitality',
+            questionCount: 9,
+            sections: 1,
+            estimatedTime: '5-10 minutes',
+            difficulty: 'Low',
+            isActive: true,
+          ),
+        ];
+      default:
+        return [];
+    }
+  }
+
   static List<AuditQuestion> _generateSafetyQuestionsStatic() {
     return [
       AuditQuestion(
@@ -1025,6 +1103,80 @@ class DataService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('current_organization', json.encode(organization.toJson()));
   }
+
+  // Métodos para categorias dinâmicas
+  Future<List<Category>> getCategories() async {
+    // Simular carregamento de categorias do servidor
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    return [
+      Category(
+        id: '1',
+        name: 'Construction',
+        displayName: 'Construction',
+        color: Colors.orange.value,
+        iconUrl: 'assets/images/categories/construction.png',
+        isActive: true,
+      ),
+      Category(
+        id: '2',
+        name: 'Retail',
+        displayName: 'Retail',
+        color: Colors.blue.value,
+        iconUrl: 'assets/images/categories/retail.png',
+        isActive: true,
+      ),
+      Category(
+        id: '3',
+        name: 'Manufacturing',
+        displayName: 'Manufacturing',
+        color: Colors.purple.value,
+        iconUrl: 'assets/images/categories/manufacturing.png',
+        isActive: true,
+      ),
+      Category(
+        id: '4',
+        name: 'Hotels & Vacation Rentals',
+        displayName: 'Hotels & Vacation Rentals',
+        color: Colors.teal.value,
+        iconUrl: 'assets/images/categories/hotels.png',
+        isActive: true,
+      ),
+      Category(
+        id: '5',
+        name: 'Food & Hospitality',
+        displayName: 'Food & Hospitality',
+        color: Colors.red.value,
+        iconUrl: 'assets/images/categories/food.png',
+        isActive: true,
+      ),
+      Category(
+        id: '6',
+        name: 'Transport & Automotive',
+        displayName: 'Transport & Automotive',
+        color: Colors.green.value,
+        iconUrl: 'assets/images/categories/transport.png',
+        isActive: true,
+      ),
+      Category(
+        id: '7',
+        name: 'Facility & Services',
+        displayName: 'Facility & Services',
+        color: Colors.indigo.value,
+        iconUrl: 'assets/images/categories/facility.png',
+        isActive: true,
+      ),
+    ];
+  }
+
+  Future<Category?> getCategoryByName(String categoryName) async {
+    final categories = await getCategories();
+    try {
+      return categories.firstWhere((category) => category.name == categoryName);
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 // Modelo para templates de auditoria
@@ -1058,5 +1210,101 @@ class AuditQuestion {
     required this.type,
     this.options,
   });
+}
+
+// Modelo para categorias
+class Category {
+  final String id;
+  final String name;
+  final String displayName;
+  final int color; // Color value
+  final String iconUrl; // URL da imagem do ícone
+  final bool isActive;
+
+  Category({
+    required this.id,
+    required this.name,
+    required this.displayName,
+    required this.color,
+    required this.iconUrl,
+    required this.isActive,
+  });
+
+  Color get colorValue => Color(color);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'displayName': displayName,
+      'color': color,
+      'iconUrl': iconUrl,
+      'isActive': isActive,
+    };
+  }
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'],
+      name: json['name'],
+      displayName: json['displayName'],
+      color: json['color'],
+      iconUrl: json['iconUrl'],
+      isActive: json['isActive'],
+    );
+  }
+}
+
+// Modelo para checklists
+class Checklist {
+  final String id;
+  final String title;
+  final String description;
+  final String category;
+  final int questionCount;
+  final int sections;
+  final String estimatedTime;
+  final String difficulty; // Low, Medium, High
+  final bool isActive;
+
+  Checklist({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.questionCount,
+    required this.sections,
+    required this.estimatedTime,
+    required this.difficulty,
+    required this.isActive,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'category': category,
+      'questionCount': questionCount,
+      'sections': sections,
+      'estimatedTime': estimatedTime,
+      'difficulty': difficulty,
+      'isActive': isActive,
+    };
+  }
+
+  factory Checklist.fromJson(Map<String, dynamic> json) {
+    return Checklist(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      category: json['category'],
+      questionCount: json['questionCount'],
+      sections: json['sections'],
+      estimatedTime: json['estimatedTime'],
+      difficulty: json['difficulty'],
+      isActive: json['isActive'],
+    );
+  }
 }
 
