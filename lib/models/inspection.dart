@@ -2,10 +2,18 @@ import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/inspector.dart';
 
 enum InspectionStatus {
-  agendada,
-  emAndamento,
-  concluida,
-  cancelada,
+  rascunho,           // RASCUNHO
+  emAndamento,        // EM_ANDAMENTO
+  concluida,          // CONCLUIDA
+  sincronizada,       // SINCRONIZADA
+  porVerificar,       // POR_VERIFICAR
+  verificada,         // VERIFICADA
+  invalida,           // INVALIDA
+  relatorioGerado,    // RELATORIO_GERADO
+  parecerDdrsDdrf,    // PARECER_DDRS_DDRF
+  assinaturaCa,       // ASSINATURA_CA
+  finalizada,         // FINALIZADA
+  disponibilizada,    // DISPONIBILIZADA
 }
 
 enum InspectionType {
@@ -122,7 +130,7 @@ class Inspection {
     'titulo': titulo,
     'descricao': descricao,
     'tipo': tipo.name,
-    'status': status.name,
+    'status': Inspection.toBackendStatus(status),
     'dataAgendada': dataAgendada.toIso8601String(),
     'endereco': endereco,
     'latitude': latitude,
@@ -147,7 +155,9 @@ class Inspection {
     titulo: json['titulo'],
     descricao: json['descricao'],
     tipo: InspectionType.values.byName(json['tipo']),
-    status: InspectionStatus.values.byName(json['status']),
+    status: json['status'] is String 
+        ? Inspection.fromBackendStatus(json['status'])
+        : InspectionStatus.values.byName(json['status']),
     dataAgendada: DateTime.parse(json['dataAgendada']),
     endereco: json['endereco'],
     latitude: json['latitude'],
@@ -169,14 +179,92 @@ class Inspection {
 
   String get statusText {
     switch (status) {
-      case InspectionStatus.agendada:
-        return 'Agendada';
+      case InspectionStatus.rascunho:
+        return 'Rascunho';
       case InspectionStatus.emAndamento:
         return 'Em Andamento';
       case InspectionStatus.concluida:
         return 'Concluída';
-      case InspectionStatus.cancelada:
-        return 'Cancelada';
+      case InspectionStatus.sincronizada:
+        return 'Sincronizada';
+      case InspectionStatus.porVerificar:
+        return 'Por Verificar';
+      case InspectionStatus.verificada:
+        return 'Verificada';
+      case InspectionStatus.invalida:
+        return 'Inválida';
+      case InspectionStatus.relatorioGerado:
+        return 'Relatório Gerado';
+      case InspectionStatus.parecerDdrsDdrf:
+        return 'Parecer DDRS/DDRF';
+      case InspectionStatus.assinaturaCa:
+        return 'Assinatura CA';
+      case InspectionStatus.finalizada:
+        return 'Finalizada';
+      case InspectionStatus.disponibilizada:
+        return 'Disponibilizada';
+    }
+  }
+  
+  /// Mapeia status do backend (UPPERCASE) para enum local
+  static InspectionStatus fromBackendStatus(String backendStatus) {
+    switch (backendStatus.toUpperCase()) {
+      case 'RASCUNHO':
+        return InspectionStatus.rascunho;
+      case 'EM_ANDAMENTO':
+        return InspectionStatus.emAndamento;
+      case 'CONCLUIDA':
+        return InspectionStatus.concluida;
+      case 'SINCRONIZADA':
+        return InspectionStatus.sincronizada;
+      case 'POR_VERIFICAR':
+        return InspectionStatus.porVerificar;
+      case 'VERIFICADA':
+        return InspectionStatus.verificada;
+      case 'INVALIDA':
+        return InspectionStatus.invalida;
+      case 'RELATORIO_GERADO':
+        return InspectionStatus.relatorioGerado;
+      case 'PARECER_DDRS_DDRF':
+        return InspectionStatus.parecerDdrsDdrf;
+      case 'ASSINATURA_CA':
+        return InspectionStatus.assinaturaCa;
+      case 'FINALIZADA':
+        return InspectionStatus.finalizada;
+      case 'DISPONIBILIZADA':
+        return InspectionStatus.disponibilizada;
+      default:
+        return InspectionStatus.rascunho; // Default
+    }
+  }
+  
+  /// Converte enum local para status do backend (UPPERCASE)
+  static String toBackendStatus(InspectionStatus status) {
+    switch (status) {
+      case InspectionStatus.rascunho:
+        return 'RASCUNHO';
+      case InspectionStatus.emAndamento:
+        return 'EM_ANDAMENTO';
+      case InspectionStatus.concluida:
+        return 'CONCLUIDA';
+      case InspectionStatus.sincronizada:
+        return 'SINCRONIZADA';
+      case InspectionStatus.porVerificar:
+        return 'POR_VERIFICAR';
+      case InspectionStatus.verificada:
+        return 'VERIFICADA';
+      case InspectionStatus.invalida:
+        return 'INVALIDA';
+      case InspectionStatus.relatorioGerado:
+        return 'RELATORIO_GERADO';
+      case InspectionStatus.parecerDdrsDdrf:
+        return 'PARECER_DDRS_DDRF';
+      case InspectionStatus.assinaturaCa:
+        return 'ASSINATURA_CA';
+      case InspectionStatus.finalizada:
+        return 'FINALIZADA';
+      case InspectionStatus.disponibilizada:
+        return 'DISPONIBILIZADA';
     }
   }
 

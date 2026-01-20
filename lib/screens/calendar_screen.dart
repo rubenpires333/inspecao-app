@@ -71,14 +71,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 

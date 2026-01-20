@@ -195,7 +195,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
           ? 'Inspeção ${DataService.getInspectionTypeText(_selectedType).toLowerCase()}'
           : _descricaoController.text.trim(),
       tipo: _selectedType,
-      status: InspectionStatus.agendada,
+      status: InspectionStatus.rascunho,
       dataAgendada: DateTime(
         _selectedDate.year,
         _selectedDate.month,

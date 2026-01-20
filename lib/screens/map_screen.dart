@@ -265,27 +265,59 @@ class _MapScreenState extends State<MapScreen> {
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 
   IconData _getStatusIcon(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Icons.schedule;
+      case InspectionStatus.rascunho:
+        return Icons.edit;
       case InspectionStatus.emAndamento:
         return Icons.play_circle;
       case InspectionStatus.concluida:
         return Icons.check_circle;
-      case InspectionStatus.cancelada:
+      case InspectionStatus.sincronizada:
+        return Icons.sync;
+      case InspectionStatus.porVerificar:
+        return Icons.visibility;
+      case InspectionStatus.verificada:
+        return Icons.verified;
+      case InspectionStatus.invalida:
         return Icons.cancel;
+      case InspectionStatus.relatorioGerado:
+        return Icons.description;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Icons.gavel;
+      case InspectionStatus.assinaturaCa:
+        return Icons.verified_user;
+      case InspectionStatus.finalizada:
+        return Icons.check_circle_outline;
+      case InspectionStatus.disponibilizada:
+        return Icons.public;
     }
   }
 
@@ -467,7 +499,7 @@ class _MapScreenState extends State<MapScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        _buildLegendItem(Colors.blue, 'Agendadas'),
+                        _buildLegendItem(Colors.grey, 'Rascunho'),
                         const SizedBox(width: 20),
                         _buildLegendItem(Colors.orange, 'Em Andamento'),
                       ],
@@ -477,7 +509,7 @@ class _MapScreenState extends State<MapScreen> {
                       children: [
                         _buildLegendItem(Colors.green, 'Concluídas'),
                         const SizedBox(width: 20),
-                        _buildLegendItem(Colors.red, 'Canceladas'),
+                        _buildLegendItem(Colors.red, 'Inválidas'),
                       ],
                     ),
                   ],
@@ -528,12 +560,12 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ),
                           PopupMenuItem(
-                            value: InspectionStatus.agendada,
+                            value: InspectionStatus.rascunho,
                             child: Row(
                               children: [
-                                Icon(Icons.schedule, color: Colors.blue, size: 16),
+                                Icon(Icons.edit, color: Colors.grey, size: 16),
                                 const SizedBox(width: 8),
-                                const Text('Agendadas'),
+                                const Text('Rascunho'),
                               ],
                             ),
                           ),

@@ -1,6 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:inspecao/models/inspection.dart';
-import 'package:inspecao/models/evidence.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -55,6 +53,21 @@ class ApiService {
     return response.data;
   }
 
+  /// Busca permissões do usuário pelo keycloakId
+  Future<Set<String>> getUserPermissions(String keycloakId) async {
+    try {
+      final response = await _dio.get('/api/v1/usuarios/$keycloakId/permissoes');
+      final permissoes = response.data['permissoes'] as List<dynamic>?;
+      return permissoes != null 
+          ? Set<String>.from(permissoes.map((p) => p.toString()))
+          : <String>{};
+    } catch (e) {
+      // Se não conseguir buscar permissões, retorna conjunto vazio
+      // O RoleService usará fallback baseado no role
+      return <String>{};
+    }
+  }
+
   // Sincronização de inspeções
   Future<List<Map<String, dynamic>>> syncInspections(List<Map<String, dynamic>> inspections) async {
     final response = await _dio.post('/api/inspections/sync', data: {
@@ -66,6 +79,35 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getInspectionsFromServer() async {
     final response = await _dio.get('/api/inspections');
     return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  /// Busca minhas inspeções ativas (do inspetor logado) - para home screen
+  /// Retorna apenas inspeções com status RASCUNHO, EM_ANDAMENTO ou POR_VERIFICAR
+  Future<List<Map<String, dynamic>>> getMinhasInspecoesAtivas() async {
+    final response = await _dio.get('/api/v1/mobile/inspecoes/minhas');
+    if (response.data is List) {
+      return List<Map<String, dynamic>>.from(response.data);
+    }
+    return [];
+  }
+
+  /// Busca todas as inspeções ativas - para tela "Ver Todas Inspeções"
+  /// Retorna todas as inspeções com status RASCUNHO, EM_ANDAMENTO ou POR_VERIFICAR
+  Future<List<Map<String, dynamic>>> getInspecoesAtivas() async {
+    final response = await _dio.get('/api/v1/mobile/inspecoes/ativas');
+    if (response.data is List) {
+      return List<Map<String, dynamic>>.from(response.data);
+    }
+    return [];
+  }
+
+  /// Busca inspeções não sincronizadas - para modo offline
+  Future<List<Map<String, dynamic>>> getInspecoesNaoSincronizadas() async {
+    final response = await _dio.get('/api/v1/mobile/inspecoes/nao-sincronizadas');
+    if (response.data is List) {
+      return List<Map<String, dynamic>>.from(response.data);
+    }
+    return [];
   }
 
   Future<Map<String, dynamic>> createInspectionOnServer(Map<String, dynamic> inspection) async {

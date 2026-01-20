@@ -5,8 +5,9 @@ import 'package:inspecao/models/establishment.dart';
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/role_service.dart';
+import 'package:inspecao/exceptions/forced_logout_exception.dart';
 import 'package:inspecao/screens/login_screen.dart';
-import 'package:inspecao/screens/inspections_screen.dart';
+import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/calendar_screen.dart';
 import 'package:inspecao/screens/map_screen.dart';
 import 'package:inspecao/screens/reports_screen.dart';
@@ -14,6 +15,7 @@ import 'package:inspecao/screens/inspectors_screen.dart';
 import 'package:inspecao/screens/profile_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
 import 'package:inspecao/screens/audit_templates_screen.dart';
+import 'package:inspecao/screens/create_inspection_screen.dart';
 import 'package:inspecao/models/notification.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,38 +35,164 @@ class _HomeScreenState extends State<HomeScreen> {
   List<AppNotification> _notifications = [];
   Map<String, Establishment> _establishmentsCache = {};
   bool _isLoading = false;
+  
+  // Filtros para Inspeções Recentes
+  InspectionStatus? _statusFilter;
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _searchController.addListener(_filterRecentInspections);
+    _loadData().then((_) {
+      // Para inspetores, começar na tela de inspeções (índice 0)
+      if (_currentUser != null && _currentUser!.role == UserRole.inspetor) {
+        setState(() {
+          _selectedIndex = 0; // Primeira tela será inspeções
+        });
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+  
+  void _filterRecentInspections() {
+    setState(() {
+      // O filtro será aplicado automaticamente quando o estado mudar
+    });
+  }
+  
+  void _setStatusFilter(InspectionStatus? status) {
+    setState(() {
+      _statusFilter = status;
+    });
+  }
+  
+  List<Inspection> _applyFiltersToRecentInspections(List<Inspection> inspections) {
+    final searchTerm = _searchController.text.toLowerCase();
+    
+    return inspections.where((inspection) {
+      // Filtro de busca
+      final matchesSearch = searchTerm.isEmpty ||
+          inspection.titulo.toLowerCase().contains(searchTerm) ||
+          inspection.endereco.toLowerCase().contains(searchTerm);
+      
+      // Filtro de status
+      final matchesStatus = _statusFilter == null || inspection.status == _statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    }).toList();
+  }
+  
+  Widget _buildStatusFilter(String title, int count, InspectionStatus? status) {
+    final isSelected = _statusFilter == status;
+    
+    return GestureDetector(
+      onTap: () => _setStatusFilter(status),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1976D2) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF1976D2) : Colors.grey[300]!,
+          ),
+        ),
+        child: Text(
+          '$title ($count)',
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF666666),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+  
+  int _getAllCount(List<Inspection> inspections) {
+    return inspections.length;
+  }
+  
+  int _getStatusCount(List<Inspection> inspections, InspectionStatus status) {
+    return inspections.where((i) => i.status == status).length;
   }
 
 
   Future<void> _loadData() async {
-    final user = await _dataService.getCurrentUser();
-    List<Inspection> inspections = [];
-    List<AppNotification> notifications = [];
-    
-    if (user != null) {
-      inspections = await _dataService.getInspectionsForUser(user);
-      notifications = await _dataService.getNotifications();
-    }
-    
-    // Carregar estabelecimentos para cache
-    final establishments = await _dataService.getAllEstablishments();
-    final establishmentsMap = <String, Establishment>{};
-    for (final establishment in establishments) {
-      establishmentsMap[establishment.id] = establishment;
-    }
-    
-    if (mounted) {
-      setState(() {
-        _currentUser = user;
-        _inspections = inspections;
-        _notifications = notifications;
-        _establishmentsCache = establishmentsMap;
-      });
+    try {
+      setState(() => _isLoading = true);
+      
+      final user = await _dataService.getCurrentUser();
+      List<Inspection> inspections = [];
+      List<AppNotification> notifications = [];
+      Map<String, Establishment> establishmentsMap = {};
+      
+      if (user != null) {
+        // Carregar inspeções da API
+        inspections = await _dataService.getInspectionsForUser(user);
+        
+        // Carregar notificações da API
+        try {
+          notifications = await _dataService.getNotifications();
+        } catch (e) {
+          // Se não houver notificações, continuar com lista vazia
+          notifications = [];
+        }
+        
+        // Carregar estabelecimentos da API
+        try {
+          final establishments = await _dataService.getAllEstablishments();
+          for (final establishment in establishments) {
+            establishmentsMap[establishment.id] = establishment;
+          }
+        } catch (e) {
+          // Se não houver estabelecimentos, continuar com mapa vazio
+          establishmentsMap = {};
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _inspections = inspections;
+          _notifications = notifications;
+          _establishmentsCache = establishmentsMap;
+          _isLoading = false;
+        });
+      }
+    } on ForcedLogoutException catch (e) {
+      // Forçar logout e redirecionar para tela de login
+      if (mounted) {
+        await _dataService.logout();
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
+        );
+        // Mostrar mensagem ao usuário
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Tratar erro de forma adequada
+      if (mounted) {
+        setState(() {
+          _inspections = [];
+          _notifications = [];
+          _establishmentsCache = {};
+        });
+      }
+      // Log do erro para debug
+      print('Erro ao carregar dados: $e');
     }
   }
 
@@ -78,32 +206,538 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _getSelectedScreen() {
-    final userRole = _currentUser?.role ?? UserRole.inspetor;
-    
-    switch (_selectedIndex) {
-      case 0:
-        return _buildDashboard();
-      case 1:
-        return const InspectionsScreen();
-      case 2:
-        return const CalendarScreen();
-      case 3:
-        return const MapScreen();
-      case 4:
-        if (RoleService.canViewReports(userRole)) {
-          return const ReportsScreen();
-        }
-        return _buildDashboard();
-      default:
-        return _buildDashboard();
+    if (_currentUser == null) {
+      return _buildInspectionsList(); // Para inspetores, mostrar lista de inspeções
     }
+    final menuItems = _getMenuItemsForUser(_currentUser!);
+    
+    // Garantir que o índice selecionado existe no menu do usuário
+    if (_selectedIndex >= menuItems.length) {
+      _selectedIndex = 0;
+    }
+    
+    final selectedMenuItem = menuItems[_selectedIndex];
+    
+    switch (selectedMenuItem['screen']) {
+      case 'dashboard':
+        return _buildDashboard();
+      case 'inspections':
+        return _buildInspectionsList(); // Lista de inspeções customizada
+      case 'calendar':
+        return const CalendarScreen();
+      case 'map':
+        return const MapScreen();
+      case 'reports':
+          return const ReportsScreen();
+      case 'inspectors':
+        return const InspectorsScreen();
+      case 'templates':
+        return const AuditTemplatesScreen();
+      default:
+        return _buildInspectionsList(); // Default para inspetores
+    }
+  }
+  
+  /// Lista de inspeções customizada para a home (filtrada por inspetor)
+  Widget _buildInspectionsList() {
+    // Filtrar inspeções vinculadas ao inspetor atual
+    final userInspections = _currentUser != null
+        ? _inspections.where((inspection) {
+            // Se o usuário é inspetor, mostrar apenas inspeções vinculadas a ele
+            if (_currentUser!.role == UserRole.inspetor) {
+              return inspection.inspectorId == _currentUser!.id;
+            }
+            // Para outros roles, mostrar todas
+            return true;
+          }).toList()
+        : _inspections;
+    
+    // Ordenar por data mais recente
+    userInspections.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFFE3F0E9),
+      body: Column(
+        children: [
+          // Header
+          _buildInspectionsHeader(),
+          // Lista de inspeções
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: userInspections.isEmpty
+                  ? _buildEmptyInspections()
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: userInspections.length,
+                      itemBuilder: (context, index) {
+                        final inspection = userInspections[index];
+                        return _buildInspectionCard(inspection);
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInspectionsHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1976D2),
+            Color(0xFF1565C0),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'web/icons/icon-192.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF1976D2),
+                                size: 20,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'INSPEV',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                            onPressed: () => _showNotificationCenter(),
+                          ),
+                          if (_notifications.where((n) => !n.isRead).isNotEmpty)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  '${_notifications.where((n) => !n.isRead).length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      PopupMenuButton(
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                              title: const Text('Meu Perfil'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                          if (_currentUser != null && RoleService.canManageInspectors(_currentUser!))
+                            PopupMenuItem(
+                              child: ListTile(
+                                leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
+                                title: const Text('Inspetores'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const InspectorsScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(
+                                Theme.of(context).brightness == Brightness.dark 
+                                    ? Icons.light_mode 
+                                    : Icons.dark_mode,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                              title: Text(
+                                Theme.of(context).brightness == Brightness.dark 
+                                    ? 'Modo Claro' 
+                                    : 'Modo Escuro',
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                widget.changeThemeMode(
+                                  Theme.of(context).brightness == Brightness.dark 
+                                      ? ThemeMode.light 
+                                      : ThemeMode.dark,
+                                );
+                              },
+                            ),
+                          ),
+                          PopupMenuItem(
+                            child: ListTile(
+                              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                              title: const Text('Sair'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _logout();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildInspectionCard(Inspection inspection) {
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+    
+    switch (inspection.status) {
+      case InspectionStatus.rascunho:
+        statusColor = Colors.grey;
+        statusText = 'Rascunho';
+        statusIcon = Icons.edit;
+        break;
+      case InspectionStatus.emAndamento:
+        statusColor = Colors.orange;
+        statusText = 'Em Andamento';
+        statusIcon = Icons.access_time;
+        break;
+      case InspectionStatus.concluida:
+        statusColor = Colors.blue;
+        statusText = 'Concluída';
+        statusIcon = Icons.check_circle;
+        break;
+      case InspectionStatus.sincronizada:
+        statusColor = Colors.cyan;
+        statusText = 'Sincronizada';
+        statusIcon = Icons.sync;
+        break;
+      case InspectionStatus.porVerificar:
+        statusColor = Colors.amber;
+        statusText = 'Por Verificar';
+        statusIcon = Icons.visibility;
+        break;
+      case InspectionStatus.verificada:
+        statusColor = Colors.lightBlue;
+        statusText = 'Verificada';
+        statusIcon = Icons.verified;
+        break;
+      case InspectionStatus.invalida:
+        statusColor = Colors.red;
+        statusText = 'Inválida';
+        statusIcon = Icons.cancel;
+        break;
+      case InspectionStatus.relatorioGerado:
+        statusColor = Colors.purple;
+        statusText = 'Relatório Gerado';
+        statusIcon = Icons.description;
+        break;
+      case InspectionStatus.parecerDdrsDdrf:
+        statusColor = Colors.indigo;
+        statusText = 'Parecer DDRS/DDRF';
+        statusIcon = Icons.gavel;
+        break;
+      case InspectionStatus.assinaturaCa:
+        statusColor = Colors.teal;
+        statusText = 'Assinatura CA';
+        statusIcon = Icons.verified_user;
+        break;
+      case InspectionStatus.finalizada:
+        statusColor = Colors.green;
+        statusText = 'Finalizada';
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case InspectionStatus.disponibilizada:
+        statusColor = Colors.lightGreen;
+        statusText = 'Disponibilizada';
+        statusIcon = Icons.public;
+        break;
+    }
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InspectionDetailScreen(inspection: inspection),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      inspection.titulo,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          statusText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatDate(inspection.dataAgendada),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const Spacer(),
+                  if (!inspection.isSynced)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Não sincronizada',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildEmptyInspections() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.assignment_outlined,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Nenhuma inspeção encontrada',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Suas inspeções aparecerão aqui',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Retorna os itens de menu disponíveis baseado no usuário (permissões da API ou role)
+  List<Map<String, dynamic>> _getMenuItemsForUser(User user) {
+    final items = <Map<String, dynamic>>[];
+    
+    // Para inspetores: Início, Inspeção, Calendário, Mapa
+    if (user.role == UserRole.inspetor) {
+      items.add({
+        'screen': 'inspections',
+        'icon': Icons.assignment_outlined,
+        'label': 'Inspeções',
+      });
+      items.add({
+        'screen': 'calendar',
+        'icon': Icons.calendar_today_outlined,
+        'label': 'Calendário',
+      });
+      items.add({
+        'screen': 'map',
+        'icon': Icons.map_outlined,
+        'label': 'Mapa',
+      });
+      return items;
+    }
+    
+    // Para outros roles: Dashboard primeiro
+    items.add({
+      'screen': 'dashboard',
+      'icon': Icons.dashboard_outlined,
+      'label': 'Início',
+    });
+    
+    // Inspeções - Foco principal (execução de inspeções)
+    if (RoleService.canExecuteInspections(user) || RoleService.canViewAllInspections(user)) {
+      items.add({
+        'screen': 'inspections',
+        'icon': Icons.assignment_outlined,
+        'label': 'Inspeções',
+      });
+    }
+    
+    // Calendário - Todos podem ver
+    items.add({
+      'screen': 'calendar',
+      'icon': Icons.calendar_today_outlined,
+      'label': 'Calendário',
+    });
+    
+    // Mapa - Todos podem ver
+    items.add({
+      'screen': 'map',
+      'icon': Icons.map_outlined,
+      'label': 'Mapa',
+    });
+    
+    // Relatórios - Apenas com permissão
+    if (RoleService.canViewReports(user)) {
+      items.add({
+        'screen': 'reports',
+        'icon': Icons.assessment_outlined,
+        'label': 'Relatórios',
+      });
+    }
+    
+    // Inspetores - Apenas gestão
+    if (RoleService.canManageInspectors(user)) {
+      items.add({
+        'screen': 'inspectors',
+        'icon': Icons.people_outline,
+        'label': 'Inspetores',
+      });
+    }
+    
+    // Templates - Apenas gestão
+    if (RoleService.canManageTemplates(user)) {
+      items.add({
+        'screen': 'templates',
+        'icon': Icons.description_outlined,
+        'label': 'Templates',
+      });
+    }
+    
+    return items;
   }
 
   Widget _buildDashboard() {
-    final agendadas = _inspections.where((i) => i.status == InspectionStatus.agendada).length;
-    final emAndamento = _inspections.where((i) => i.status == InspectionStatus.emAndamento).length;
-    final concluidas = _inspections.where((i) => i.status == InspectionStatus.concluida).length;
-    final canceladas = _inspections.where((i) => i.status == InspectionStatus.cancelada).length;
+    // Filtrar inspeções do inspetor se necessário e excluir Finalizadas e Concluídas
+    final filteredInspections = (_currentUser?.role == UserRole.inspetor
+        ? _inspections.where((i) => i.inspectorId == _currentUser!.id).toList()
+        : _inspections)
+        .where((i) => 
+            i.status != InspectionStatus.finalizada && 
+            i.status != InspectionStatus.concluida
+        ).toList();
+    
+    // Calcular contadores usando os novos status do backend
 
     return Scaffold(
       backgroundColor: const Color(0xFFE3F0E9), // Background específico sempre
@@ -113,22 +747,37 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildGoAuditsHeader(),
           // Conteúdo com scroll
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadData,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 100),
-                child: Column(
-                  children: [
-                    // Seção My Actions
-                    _buildMyActionsSection(agendadas, emAndamento, concluidas, canceladas),
-                    // Seção My Audits
-                    _buildMyAuditsSection(agendadas, emAndamento, concluidas, canceladas),
-                    // Seção Recent Audits
-                    _buildRecentAuditsSection(),
-                  ],
-                ),
-              ),
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Carregando inspeções...',
+                          style: TextStyle(
+                            color: Color(0xFF666666),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 100),
+                      child: Column(
+                        children: [
+                          // Seção Inspeções Recentes
+                          _buildRecentAuditsSection(filteredInspections),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -286,7 +935,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                           ),
-                          if (RoleService.canManageInspectors(_currentUser?.role ?? UserRole.inspetor))
+                          if (_currentUser != null && RoleService.canManageInspectors(_currentUser!))
                             PopupMenuItem(
                               child: ListTile(
                                 leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
@@ -340,35 +989,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              // New Inspection Button
-              if (RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor))
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AuditTemplatesScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF1976D2), // lightPrimary sempre
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                    child: const Text(
-                      'Start Audit',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -376,7 +996,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMyActionsSection(int agendadas, int emAndamento, int concluidas, int canceladas) {
+  Widget _buildRecentAuditsSection(List<Inspection> inspections) {
+    // Aplicar filtros
+    final filteredInspections = _applyFiltersToRecentInspections(inspections);
+    
+    // Ordenar por data mais recente
+    final sortedInspections = List<Inspection>.from(filteredInspections);
+    sortedInspections.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    
     return Container(
       margin: const EdgeInsets.all(20),
       child: Column(
@@ -386,7 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'My Actions',
+                'Inspeções Recentes',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -395,11 +1022,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       : const Color(0xFF2E2E2E),
                 ),
               ),
+              if (_currentUser != null)
               TextButton(
-                onPressed: () => setState(() => _selectedIndex = 1),
-                child: Text(
-                  'View All',
-                  style: const TextStyle(
+                  onPressed: () {
+                    // Navegar para tela de inspeções
+                    final menuItems = _getMenuItemsForUser(_currentUser!);
+                    final inspectionsIndex = menuItems.indexWhere((item) => item['screen'] == 'inspections');
+                    if (inspectionsIndex >= 0) {
+                      setState(() => _selectedIndex = inspectionsIndex);
+                    }
+                  },
+                  child: const Text(
+                    'Ver Todas',
+                    style: TextStyle(
                     color: Color(0xFF1976D2), // lightPrimary sempre
                     fontWeight: FontWeight.w500,
                   ),
@@ -408,246 +1043,67 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionStatusCard(
-                  'Open',
-                  agendadas.toString(),
-                  const Color(0xFFE3F2FD),
-                  const Color(0xFF1976D2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionStatusCard(
-                  'In Progress',
-                  emAndamento.toString(),
-                  const Color(0xFFFFF3E0),
-                  const Color(0xFFFF9800),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionStatusCard(
-                  'Overdue',
-                  '0', // Implementar lógica de overdue
-                  const Color(0xFFFFEBEE),
-                  const Color(0xFFE53935),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionStatusCard(
-                  'Rejected',
-                  canceladas.toString(),
-                  const Color(0xFFFFEBEE),
-                  const Color(0xFFE53935),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionStatusCard(String title, String count, Color backgroundColor, Color textColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            count,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMyAuditsSection(int agendadas, int emAndamento, int concluidas, int canceladas) {
-    // Calcular inspeções submetidas (concluídas mas não rejeitadas)
-    final submitted = _inspections.where((i) => 
-        i.status == InspectionStatus.concluida && 
-        i.observacoes != null && 
-        i.observacoes!.isNotEmpty
-    ).length;
-    
-    // Calcular período dinâmico baseado nas inspeções
-    final now = DateTime.now();
-    final startDate = now.subtract(const Duration(days: 6));
-    final endDate = now;
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'My Audits',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white 
-                      : const Color(0xFF2E2E2E),
-                ),
-              ),
-              Text(
-                '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.grey[300] 
-                      : Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
-            children: [
-              _buildAuditStatusCard(
-                'In Progress',
-                emAndamento.toString(),
-                Icons.access_time,
-                const Color(0xFFFF9800),
-              ),
-              _buildAuditStatusCard(
-                'Rejected',
-                canceladas.toString(),
-                Icons.refresh,
-                const Color(0xFFE53935),
-              ),
-              _buildAuditStatusCard(
-                'Submitted',
-                submitted.toString(),
-                Icons.upload,
-                const Color(0xFF1976D2),
-              ),
-              _buildAuditStatusCard(
-                'Completed',
-                concluidas.toString(),
-                Icons.check_circle,
-                const Color(0xFF4CAF50),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAuditStatusCard(String title, String count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2E2E2E),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            count,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentAuditsSection() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent audits',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white 
-                      : const Color(0xFF2E2E2E),
-                ),
-              ),
-              TextButton(
-                onPressed: () => setState(() => _selectedIndex = 1),
-                child: Text(
-                  'View All',
-                  style: const TextStyle(
-                    color: Color(0xFF1976D2), // lightPrimary sempre
-                    fontWeight: FontWeight.w500,
+          
+          // Campo de busca
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _searchController,
+            builder: (context, value, child) {
+              return TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar inspeções...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: value.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
                   ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
           const SizedBox(height: 16),
-          if (_inspections.isNotEmpty)
-            _buildRecentAuditCard(_inspections.first)
+          
+          // Filtro de status
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildStatusFilter('Todas', _getAllCount(inspections), null),
+                const SizedBox(width: 12),
+                _buildStatusFilter('Rascunho', _getStatusCount(inspections, InspectionStatus.rascunho), InspectionStatus.rascunho),
+                const SizedBox(width: 12),
+                _buildStatusFilter('Em Andamento', _getStatusCount(inspections, InspectionStatus.emAndamento), InspectionStatus.emAndamento),
+                const SizedBox(width: 20),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Lista de inspeções filtradas
+          if (sortedInspections.isNotEmpty)
+            ...sortedInspections.map((inspection) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildRecentAuditCard(inspection),
+            )).toList()
           else
             _buildEmptyRecentAudits(),
         ],
@@ -656,15 +1112,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentAuditCard(Inspection inspection) {
-    final establishment = _establishmentsCache[inspection.establishmentId];
-    final establishmentName = establishment?.nome ?? 'Organização não identificada';
-    
     // Calcular score baseado nos itens da inspeção
     final totalItems = inspection.itens.length;
     final conformItems = inspection.itens.where((item) => item.status == ItemStatus.conforme).length;
     final score = totalItems > 0 ? (conformItems / totalItems * 100).round() : 0;
     
-    return Container(
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => InspectionDetailScreen(inspection: inspection),
+          ),
+        );
+      },
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -699,9 +1161,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           
-          // ID | Organização | Localização
+          // Localização
           Text(
-            '${inspection.id} | $establishmentName | ${inspection.endereco}',
+            inspection.endereco.isNotEmpty ? inspection.endereco : 'Endereço não informado',
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 14,
@@ -741,17 +1203,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(inspection.status).withOpacity(0.2),
+                  color: _getStatusColor(inspection.status),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _getStatusColor(inspection.status),
+                    color: Colors.white,
                     width: 1,
                   ),
                 ),
                 child: Text(
                   inspection.statusText,
-                  style: TextStyle(
-                    color: _getStatusColor(inspection.status),
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -779,128 +1241,140 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          
-          // Score
-          Text(
-            'Score: $score.0%',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
         ],
+      ),
       ),
     );
   }
 
   Widget _buildEmptyRecentAudits() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.assignment_outlined,
-            size: 48,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No recent audits',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+    return Center(
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 400),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 48,
+              color: Colors.grey[400],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create your first inspection to get started',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
+            const SizedBox(height: 16),
+            Text(
+              'Nenhuma inspeção recente',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[600],
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Suas inspeções recentes aparecerão aqui',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  String _formatDateShort(DateTime date) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${date.day} ${months[date.month - 1]} \'${date.year.toString().substring(2)}';
-  }
 
 
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 
 
   List<BottomNavigationBarItem> _buildBottomNavItems() {
-    final userRole = _currentUser?.role ?? UserRole.inspetor;
-    final items = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.assignment_outlined),
-        activeIcon: Icon(Icons.assignment),
-        label: 'Audits',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.calendar_month_outlined),
-        activeIcon: Icon(Icons.calendar_month),
-        label: 'Calendário',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.map_outlined),
-        activeIcon: Icon(Icons.map),
-        label: 'Mapa',
-      ),
-    ];
-
-    if (RoleService.canViewReports(userRole)) {
-      items.add(
+    if (_currentUser == null) {
+      // Retornar pelo menos 2 itens para evitar erro do BottomNavigationBar
+      return [
         const BottomNavigationBarItem(
-          icon: Icon(Icons.analytics_outlined),
-          activeIcon: Icon(Icons.analytics),
-          label: 'Relatórios',
+          icon: Icon(Icons.assignment_outlined),
+          activeIcon: Icon(Icons.assignment),
+          label: 'Inspeções',
         ),
-      );
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today_outlined),
+          activeIcon: Icon(Icons.calendar_today),
+          label: 'Calendário',
+        ),
+      ];
     }
-
-    return items;
+    final menuItems = _getMenuItemsForUser(_currentUser!);
+    
+    // Garantir pelo menos 2 itens
+    if (menuItems.length < 2) {
+      // Adicionar itens padrão se necessário
+      if (!menuItems.any((item) => item['screen'] == 'inspections')) {
+        menuItems.insert(0, {
+          'screen': 'inspections',
+          'icon': Icons.assignment_outlined,
+          'label': 'Inspeções',
+        });
+      }
+      if (!menuItems.any((item) => item['screen'] == 'calendar')) {
+        menuItems.add({
+          'screen': 'calendar',
+          'icon': Icons.calendar_today_outlined,
+          'label': 'Calendário',
+        });
+      }
+    }
+    
+    return menuItems.map((item) {
+      return BottomNavigationBarItem(
+        icon: Icon(item['icon'] as IconData),
+        activeIcon: Icon(item['icon'] as IconData),
+        label: item['label'] as String,
+      );
+    }).toList();
   }
 
   void _showNotificationCenter() {
@@ -917,6 +1391,32 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFE3F0E9), // Background específico sempre
       body: _getSelectedScreen(),
+      floatingActionButton: _currentUser != null && RoleService.canCreateInspection(_currentUser!)
+          ? Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1976D2).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
+                  );
+                  _loadData();
+                },
+                backgroundColor: const Color(0xFF1976D2),
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.add),
+              ),
+            )
+          : null,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [

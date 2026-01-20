@@ -68,10 +68,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Map<String, dynamic> get _statistics {
     final filtered = _filteredInspections;
     final total = filtered.length;
-    final agendadas = filtered.where((i) => i.status == InspectionStatus.agendada).length;
+    final rascunho = filtered.where((i) => i.status == InspectionStatus.rascunho).length;
     final emAndamento = filtered.where((i) => i.status == InspectionStatus.emAndamento).length;
     final concluidas = filtered.where((i) => i.status == InspectionStatus.concluida).length;
-    final canceladas = filtered.where((i) => i.status == InspectionStatus.cancelada).length;
+    final invalidas = filtered.where((i) => i.status == InspectionStatus.invalida).length;
 
     // Estatísticas por tipo
     final tipos = <InspectionType, int>{};
@@ -91,10 +91,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     return {
       'total': total,
-      'agendadas': agendadas,
+      'rascunho': rascunho,
       'emAndamento': emAndamento,
       'concluidas': concluidas,
-      'canceladas': canceladas,
+      'invalidas': invalidas,
       'tipos': tipos,
       'taxaConclusao': taxaConclusao,
       'totalItens': totalItens,
@@ -194,8 +194,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     Icons.play_circle,
                   ),
                   _buildStatCard(
-                    'Canceladas',
-                    stats['canceladas'].toString(),
+                    'Inválidas',
+                    stats['invalidas'].toString(),
                     Colors.red,
                     Icons.cancel,
                   ),
@@ -215,10 +215,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      _buildStatusRow('Agendadas', stats['agendadas'], Colors.blue),
+                      _buildStatusRow('Rascunho', stats['rascunho'], Colors.grey),
                       _buildStatusRow('Em Andamento', stats['emAndamento'], Colors.orange),
-                      _buildStatusRow('Concluídas', stats['concluidas'], Colors.green),
-                      _buildStatusRow('Canceladas', stats['canceladas'], Colors.red),
+                      _buildStatusRow('Concluídas', stats['concluidas'], Colors.blue),
+                      _buildStatusRow('Inválidas', stats['invalidas'], Colors.red),
                     ],
                   ),
                 ),
@@ -451,14 +451,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 

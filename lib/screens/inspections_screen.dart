@@ -50,28 +50,71 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   Future<void> _loadData() async {
-    final user = await _dataService.getCurrentUser();
-    List<Inspection> inspections = [];
-    
-    if (user != null) {
-      inspections = await _dataService.getInspectionsForUser(user);
-    }
-    
-    // Carregar estabelecimentos para cache
-    final establishments = await _dataService.getAllEstablishments();
-    final establishmentsMap = <String, Establishment>{};
-    for (final establishment in establishments) {
-      establishmentsMap[establishment.id] = establishment;
-    }
-    
-    if (mounted) {
-      setState(() {
-        _currentUser = user;
-        _inspections = inspections;
-        _establishmentsCache = establishmentsMap;
-        // Reaplicar filtros após carregar dados
-        _applyFilters();
-      });
+    try {
+      setState(() => _isLoading = true);
+      
+      final user = await _dataService.getCurrentUser();
+      List<Inspection> inspections = [];
+      Map<String, Establishment> establishmentsMap = {};
+      
+      if (user != null) {
+        // Carregar inspeções da API
+        inspections = await _dataService.getInspectionsForUser(user);
+        
+        // Carregar estabelecimentos da API
+        try {
+          final establishments = await _dataService.getAllEstablishments();
+          for (final establishment in establishments) {
+            establishmentsMap[establishment.id] = establishment;
+          }
+        } catch (e) {
+          // Se não houver estabelecimentos, continuar com mapa vazio
+          establishmentsMap = {};
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _inspections = inspections;
+          _establishmentsCache = establishmentsMap;
+          _isLoading = false;
+          // Reaplicar filtros após carregar dados
+          _applyFilters();
+        });
+      }
+    } catch (e) {
+      // Verificar se é erro de autenticação (403/401)
+      final errorString = e.toString();
+      if (errorString.contains('403') || errorString.contains('401') || errorString.contains('ForcedLogoutException')) {
+        // Forçar logout e redirecionar para tela de login
+        if (mounted) {
+          await _dataService.logout();
+          // Navegar para login usando Navigator.pop até chegar na tela de login
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          // Mostrar mensagem ao usuário
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sessão expirada. Faça login novamente.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Tratar outros erros de forma adequada
+      if (mounted) {
+        setState(() {
+          _inspections = [];
+          _filteredInspections = [];
+          _establishmentsCache = {};
+          _isLoading = false;
+        });
+      }
+      // Log do erro para debug
+      print('Erro ao carregar inspeções: $e');
     }
   }
 
@@ -131,14 +174,30 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 
@@ -173,7 +232,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor)
+      floatingActionButton: _currentUser != null && RoleService.canCreateInspection(_currentUser!)
           ? Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
@@ -420,7 +479,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                 const SizedBox(width: 12),
                 _buildStatusFilter('Completed', _getCompletedCount(), InspectionStatus.concluida),
                 const SizedBox(width: 12),
-                _buildStatusFilter('Rejected', _getRejectedCount(), InspectionStatus.cancelada),
+                _buildStatusFilter('Inválidas', _getRejectedCount(), InspectionStatus.invalida),
                 const SizedBox(width: 20),
               ],
             ),
@@ -473,160 +532,142 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   Widget _buildAuditCard(Inspection inspection) {
-    final establishment = _establishmentsCache[inspection.establishmentId];
-    final establishmentName = establishment?.nome ?? 'My Site';
-    
+    // Calcular score baseado nos itens da inspeção
     final totalItems = inspection.itens.length;
     final conformItems = inspection.itens.where((item) => item.status == ItemStatus.conforme).length;
-    final score = totalItems > 0 ? (conformItems / totalItems * 100) : 0.0;
+    final score = totalItems > 0 ? (conformItems / totalItems * 100).round() : 0;
     
-    return Card(
-      elevation: 2,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => InspectionDetailScreen(inspection: inspection),
+    return InkWell(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => InspectionDetailScreen(inspection: inspection),
+          ),
+        );
+        _loadData();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1976D2), // lightPrimary sempre
+              Color(0xFF1565C0), // lightPrimary com opacidade
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1976D2).withOpacity(0.3), // lightPrimary sempre
+              spreadRadius: 2,
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-          );
-          _loadData();
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header do card
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      inspection.titulo,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E2E2E),
-                      ),
-                    ),
-                  ),
-                  PopupMenuButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.grey),
-                    itemBuilder: (context) {
-                      if (inspection.status == InspectionStatus.concluida) {
-                        return [
-                          const PopupMenuItem(
-                            value: 'preview',
-                            child: Text('Preview'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'download',
-                            child: Text('Download'),
-                          ),
-                        ];
-                      } else {
-                        return [
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete'),
-                          ),
-                        ];
-                      }
-                    },
-                  ),
-                ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Título
+            Text(
+              inspection.titulo,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-              
-              // Detalhes da inspeção
-              _buildDetailRow(Icons.location_on, establishmentName),
-              _buildDetailRow(Icons.description, inspection.id),
-              _buildDetailRow(Icons.business, 'Company'),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildDetailRow(Icons.person, _currentUser?.nome ?? 'Person'),
-                  Text(
-                    _formatDate(inspection.dataAgendada),
-                    style: const TextStyle(
-                      color: Color(0xFF666666),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Localização
+            Text(
+              inspection.endereco.isNotEmpty ? inspection.endereco : 'Endereço não informado',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
               ),
-              const SizedBox(height: 16),
-              
-              // Status e Score
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            
+            // Autor e Data
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _currentUser?.nome ?? 'Inspetor',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  _formatDate(inspection.dataAgendada),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+              // Status e Percentage
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Status
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(inspection.status).withOpacity(0.1),
+                      color: _getStatusColor(inspection.status),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _getStatusColor(inspection.status),
+                        color: Colors.white,
                         width: 1,
                       ),
                     ),
                     child: Text(
                       inspection.statusText,
-                      style: TextStyle(
-                        color: _getStatusColor(inspection.status),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  Text(
-                    'Score: ${score.toStringAsFixed(1)}%',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF2E2E2E),
+                  
+                  // Percentage em círculo
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$score%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: Colors.grey[600],
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF666666),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showFilterMenu() {
     showModalBottomSheet(
@@ -965,7 +1006,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   int _getRejectedCount() {
-    return _inspections.where((i) => i.status == InspectionStatus.cancelada).length;
+    return _inspections.where((i) => i.status == InspectionStatus.invalida).length;
   }
 
   String _formatDateShort(DateTime date) {
@@ -1185,7 +1226,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             Text(
               _searchController.text.isNotEmpty || _statusFilter != null
                   ? 'Try adjusting the search filters'
-                  : RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor)
+                  : _currentUser != null && RoleService.canCreateInspection(_currentUser!)
                       ? 'Create your first inspection to start'
                       : 'You do not have any inspections assigned to your team',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1193,7 +1234,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
               ),
               textAlign: TextAlign.center,
             ),
-            if (_searchController.text.isEmpty && _statusFilter == null && RoleService.canCreateInspection(_currentUser?.role ?? UserRole.inspetor)) ...[
+            if (_searchController.text.isEmpty && _statusFilter == null && _currentUser != null && RoleService.canCreateInspection(_currentUser!)) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () async {

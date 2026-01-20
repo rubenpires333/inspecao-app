@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/inspector.dart';
 import 'package:inspecao/models/user.dart';
-import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/evidence.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/models/action_plan.dart';
@@ -13,6 +13,7 @@ import 'package:inspecao/models/organization.dart';
 import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/services/api_service.dart';
 import 'package:inspecao/config/app_config.dart';
+import 'package:inspecao/exceptions/forced_logout_exception.dart';
 
 class DataService {
   static const String _inspectionsKey = 'inspections';
@@ -21,25 +22,175 @@ class DataService {
   static const String _evidencesKey = 'evidences';
   static const String _notificationsKey = 'notifications';
   static const String _actionPlansKey = 'action_plans';
-  static const String _establishmentsKey = 'establishments';
 
   // Singleton
   static final DataService _instance = DataService._internal();
   factory DataService() => _instance;
   DataService._internal();
 
-  // Métodos de Inspeções
+  /// Trata erros HTTP e força logout em caso de 403
+  Future<void> _handleHttpError(DioException e) async {
+    if (e.response?.statusCode == 403 || e.response?.statusCode == 401) {
+      // Forçar logout em caso de acesso negado
+      final apiService = ApiService();
+      final prefs = await SharedPreferences.getInstance();
+      final authService = AuthService(apiService, prefs);
+      await authService.logout();
+      throw ForcedLogoutException('Sessão expirada. Faça login novamente.');
+    }
+  }
+
+  // Métodos de Inspeções - Usa API real
+  // Para tela "Ver Todas Inspeções" - retorna todas as inspeções ativas
   Future<List<Inspection>> getInspections() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? inspectionsJson = prefs.getString(_inspectionsKey);
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Adicionar token de autenticação se disponível
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      // Usar endpoint mobile específico para inspeções ativas
+      final data = await apiService.getInspecoesAtivas();
+      
+      if (data.isEmpty) {
+        return [];
+      }
+      
+      final inspections = data.map((json) {
+        // Converter resposta da API para formato do modelo
+        return Inspection.fromJson(_mapApiResponseToInspection(json));
+      }).toList();
+      
+      // Salvar no cache local apenas para sincronização offline
+      await saveInspections(inspections);
+      
+      return inspections;
+    } on DioException catch (e) {
+      await _handleHttpError(e);
+      throw Exception('Erro ao buscar inspeções: ${e.message}');
+    } catch (e) {
+      // Sem fallback - lançar erro para tratamento adequado
+      throw Exception('Erro ao buscar inspeções: $e');
+    }
+  }
+  
+  // Mapear resposta da API para formato do modelo
+  Map<String, dynamic> _mapApiResponseToInspection(Map<String, dynamic> apiData) {
+    // O backend retorna campos em camelCase (Jackson serializa assim)
+    // Mapear campos do backend para o modelo local
+    final numeroInspecao = apiData['numeroInspecao']?.toString() ?? '';
+    final estabelecimento = apiData['estabelecimento'] as Map<String, dynamic>?;
+    final estabelecimentoNome = estabelecimento?['nome']?.toString() ?? '';
     
-    if (inspectionsJson == null) {
-      await _initializeSampleData();
-      return getInspections();
+    // Criar título baseado no número da inspeção e nome do estabelecimento
+    final titulo = estabelecimentoNome.isNotEmpty 
+        ? 'Inspeção $numeroInspecao - $estabelecimentoNome'
+        : 'Inspeção $numeroInspecao';
+    
+    // Converter dataInspecao (LocalDate) para DateTime
+    DateTime? dataAgendada;
+    if (apiData['dataInspecao'] != null) {
+      if (apiData['dataInspecao'] is String) {
+        dataAgendada = DateTime.tryParse(apiData['dataInspecao']);
+      } else if (apiData['dataInspecao'] is Map) {
+        // Formato LocalDate do Java: {"year": 2024, "month": 1, "day": 15}
+        final dateMap = apiData['dataInspecao'] as Map<String, dynamic>;
+        final year = dateMap['year'] as int? ?? DateTime.now().year;
+        final month = dateMap['month'] as int? ?? DateTime.now().month;
+        final day = dateMap['day'] as int? ?? DateTime.now().day;
+        dataAgendada = DateTime(year, month, day);
+      }
+    }
+    dataAgendada ??= DateTime.now();
+    
+    // Converter timestamps
+    DateTime? createdAt;
+    if (apiData['criadoEm'] != null) {
+      if (apiData['criadoEm'] is String) {
+        createdAt = DateTime.tryParse(apiData['criadoEm']);
+      }
+    }
+    createdAt ??= DateTime.now();
+    
+    DateTime? updatedAt;
+    if (apiData['atualizadoEm'] != null) {
+      if (apiData['atualizadoEm'] is String) {
+        updatedAt = DateTime.tryParse(apiData['atualizadoEm']);
+      }
+    }
+    updatedAt ??= DateTime.now();
+    
+    // Converter horaInicio e horaFim (LocalTime) para DateTime se necessário
+    DateTime? dataInicio;
+    if (apiData['horaInicio'] != null) {
+      if (apiData['horaInicio'] is String) {
+        final timeStr = apiData['horaInicio'] as String;
+        final timeParts = timeStr.split(':');
+        if (timeParts.length >= 2) {
+          final hour = int.tryParse(timeParts[0]) ?? 0;
+          final minute = int.tryParse(timeParts[1]) ?? 0;
+          dataInicio = DateTime(dataAgendada.year, dataAgendada.month, dataAgendada.day, hour, minute);
+        }
+      }
     }
     
-    final List<dynamic> inspectionsList = json.decode(inspectionsJson);
-    return inspectionsList.map((json) => Inspection.fromJson(json)).toList();
+    DateTime? dataConclusao;
+    if (apiData['horaFim'] != null) {
+      if (apiData['horaFim'] is String) {
+        final timeStr = apiData['horaFim'] as String;
+        final timeParts = timeStr.split(':');
+        if (timeParts.length >= 2) {
+          final hour = int.tryParse(timeParts[0]) ?? 0;
+          final minute = int.tryParse(timeParts[1]) ?? 0;
+          dataConclusao = DateTime(dataAgendada.year, dataAgendada.month, dataAgendada.day, hour, minute);
+        }
+      }
+    }
+    
+    // Obter checklist para tipo (se disponível)
+    final checklist = apiData['checklist'] as Map<String, dynamic>?;
+    final tipoNome = checklist?['nome']?.toString().toLowerCase() ?? 'estrutural';
+    InspectionType tipo = InspectionType.estrutural;
+    try {
+      tipo = InspectionType.values.firstWhere(
+        (t) => t.name == tipoNome || tipoNome.contains(t.name),
+        orElse: () => InspectionType.estrutural,
+      );
+    } catch (e) {
+      tipo = InspectionType.estrutural;
+    }
+    
+    return {
+      'id': apiData['id']?.toString() ?? '',
+      'titulo': titulo,
+      'descricao': apiData['observacoesGerais']?.toString() ?? '',
+      'tipo': tipo.name,
+      'status': apiData['status']?.toString() ?? 'RASCUNHO',
+      'dataAgendada': dataAgendada.toIso8601String(),
+      'endereco': apiData['enderecoCompleto']?.toString() ?? '',
+      'latitude': (apiData['latitude'] as num?)?.toDouble() ?? 0.0,
+      'longitude': (apiData['longitude'] as num?)?.toDouble() ?? 0.0,
+      'equipe': [], // Equipe não vem na resposta (lazy loading)
+      'itens': [], // Itens não vem na resposta (lazy loading)
+      'dataInicio': dataInicio?.toIso8601String(),
+      'dataConclusao': dataConclusao?.toIso8601String(),
+      'observacoes': apiData['observacoesGerais']?.toString(),
+      'fotos': [], // Fotos vêm de anexos separados
+      'establishmentId': apiData['estabelecimentoId']?.toString(),
+      'inspectorId': apiData['inspetorKeycloakId']?.toString(),
+      'isTemplate': false,
+      'isSynced': apiData['sincronizado'] as bool? ?? true,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'serverId': apiData['id']?.toString(),
+    };
   }
 
   Future<void> saveInspections(List<Inspection> inspections) async {
@@ -65,18 +216,63 @@ class DataService {
     }
   }
 
-  // Métodos de Inspetores
+  // Métodos de Inspetores - Usa API real
   Future<List<Inspector>> getInspectors() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? inspectorsJson = prefs.getString(_inspectorsKey);
-    
-    if (inspectorsJson == null) {
-      await _initializeSampleData();
-      return getInspectors();
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Buscar inspetores da API (endpoint pode variar)
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+      
+      // Adicionar token de autenticação se disponível
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await dio.get('/api/v1/inspetores');
+      
+      // Tratar diferentes formatos de resposta da API
+      List<dynamic> data;
+      if (response.data is List) {
+        data = response.data as List<dynamic>;
+      } else if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+        if (responseMap.containsKey('content')) {
+          data = responseMap['content'] as List<dynamic>? ?? [];
+        } else if (responseMap.containsKey('data')) {
+          data = responseMap['data'] as List<dynamic>? ?? [];
+        } else {
+          return [];
+        }
+      } else {
+        return [];
+      }
+      
+      if (data.isEmpty) {
+        return [];
+      }
+      
+      return data.map((json) => Inspector.fromJson(json)).toList();
+    } on DioException catch (e) {
+      await _handleHttpError(e);
+      throw Exception('Erro ao buscar inspetores: ${e.message}');
+    } catch (e) {
+      // Sem fallback - lançar erro para tratamento adequado
+      throw Exception('Erro ao buscar inspetores: $e');
     }
-    
-    final List<dynamic> inspectorsList = json.decode(inspectorsJson);
-    return inspectorsList.map((json) => Inspector.fromJson(json)).toList();
   }
 
   Future<void> saveInspectors(List<Inspector> inspectors) async {
@@ -107,151 +303,6 @@ class DataService {
     await prefs.remove(_currentUserKey);
   }
 
-  // Inicializar dados de exemplo
-  Future<void> _initializeSampleData() async {
-    // Inspetores de exemplo
-    final sampleInspectors = [
-      Inspector(
-        id: '1',
-        nome: 'João Silva',
-        email: 'joao.silva@empresa.com',
-        telefone: '(11) 99999-1111',
-        cargo: InspectorRole.lider,
-        especialidades: ['Estrutural', 'Segurança'],
-      ),
-      Inspector(
-        id: '2',
-        nome: 'Maria Santos',
-        email: 'maria.santos@empresa.com',
-        telefone: '(11) 99999-2222',
-        cargo: InspectorRole.tecnico,
-        especialidades: ['Elétrica', 'Hidráulica'],
-      ),
-      Inspector(
-        id: '3',
-        nome: 'Pedro Oliveira',
-        email: 'pedro.oliveira@empresa.com',
-        telefone: '(11) 99999-3333',
-        cargo: InspectorRole.assistente,
-        especialidades: ['Ambiental'],
-      ),
-    ];
-
-    // Itens de inspeção de exemplo
-    final sampleItems = [
-      InspectionItem(
-        id: '1',
-        descricao: 'Verificar integridade estrutural das vigas principais',
-        categoria: 'Estrutura',
-        status: ItemStatus.pendente,
-        obrigatorio: true,
-        ordem: 1,
-      ),
-      InspectionItem(
-        id: '2',
-        descricao: 'Avaliar sistema de combate a incêndio',
-        categoria: 'Segurança',
-        status: ItemStatus.pendente,
-        obrigatorio: true,
-        ordem: 2,
-      ),
-      InspectionItem(
-        id: '3',
-        descricao: 'Testar funcionamento das instalações elétricas',
-        categoria: 'Elétrica',
-        status: ItemStatus.pendente,
-        obrigatorio: false,
-        ordem: 3,
-      ),
-    ];
-
-    // Inspeções de exemplo
-    final sampleInspections = [
-      Inspection(
-        id: '1',
-        titulo: 'Inspeção Estrutural - Edifício Central',
-        descricao: 'Avaliação completa da estrutura do edifício principal',
-        tipo: InspectionType.estrutural,
-        status: InspectionStatus.agendada,
-        dataAgendada: DateTime.now().add(const Duration(days: 2)),
-        endereco: 'Rua das Flores, 123, São Paulo - SP',
-        latitude: -23.550520,
-        longitude: -46.633308,
-        equipe: [sampleInspectors[0], sampleInspectors[1]],
-        itens: sampleItems,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Inspection(
-        id: '2',
-        titulo: 'Vistoria Elétrica - Galpão Industrial',
-        descricao: 'Verificação das instalações elétricas industriais',
-        tipo: InspectionType.eletrica,
-        status: InspectionStatus.emAndamento,
-        dataAgendada: DateTime.now(),
-        endereco: 'Av. Industrial, 456, Guarulhos - SP',
-        latitude: -23.462847,
-        longitude: -46.533150,
-        equipe: [sampleInspectors[1]],
-        itens: sampleItems.take(2).toList(),
-        dataInicio: DateTime.now().subtract(const Duration(hours: 2)),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Inspection(
-        id: '3',
-        titulo: 'Inspeção Ambiental - Área Verde',
-        descricao: 'Avaliação de impacto ambiental na área de preservação',
-        tipo: InspectionType.ambiental,
-        status: InspectionStatus.concluida,
-        dataAgendada: DateTime.now().subtract(const Duration(days: 1)),
-        endereco: 'Parque Ecológico, Km 15, Rod. Anhanguera',
-        latitude: -23.200000,
-        longitude: -46.800000,
-        equipe: [sampleInspectors[2]],
-        itens: sampleItems.map((item) => item.copyWith(status: ItemStatus.conforme)).toList(),
-        dataInicio: DateTime.now().subtract(const Duration(days: 1, hours: 8)),
-        dataConclusao: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
-        observacoes: 'Área em conformidade com regulamentações ambientais.',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Inspection(
-        id: '4',
-        titulo: 'Inspeção de Segurança - Fábrica',
-        descricao: 'Verificação de equipamentos de segurança',
-        tipo: InspectionType.seguranca,
-        status: InspectionStatus.agendada,
-        dataAgendada: DateTime.now().add(const Duration(days: 3)),
-        endereco: 'Rua Industrial, 789, Osasco - SP',
-        latitude: -23.5329,
-        longitude: -46.7919,
-        equipe: [sampleInspectors[0]], // Apenas João Silva
-        itens: sampleItems.take(1).toList(),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Inspection(
-        id: '5',
-        titulo: 'Vistoria Hidráulica - Condomínio',
-        descricao: 'Verificação das instalações hidráulicas',
-        tipo: InspectionType.hidraulica,
-        status: InspectionStatus.emAndamento,
-        dataAgendada: DateTime.now().subtract(const Duration(hours: 1)),
-        endereco: 'Av. Paulista, 1000, São Paulo - SP',
-        latitude: -23.5615,
-        longitude: -46.6565,
-        equipe: [sampleInspectors[1]], // Apenas Maria Santos
-        itens: sampleItems.skip(1).take(1).toList(),
-        dataInicio: DateTime.now().subtract(const Duration(hours: 1)),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    await saveInspectors(sampleInspectors);
-    await saveInspections(sampleInspections);
-  }
 
   // Método de login via API backend
   Future<User?> login(String email, String password) async {
@@ -275,29 +326,71 @@ class DataService {
   }
 
   // Método para obter inspeções filtradas por role do usuário
+  // Para home screen - retorna apenas inspeções do inspetor logado (status ativos)
   Future<List<Inspection>> getInspectionsForUser(User user) async {
-    final allInspections = await getInspections();
-    
-    if (user.role == UserRole.admin || user.role == UserRole.supervisor) {
-      return allInspections; // Admin e supervisor veem todas
-    } else if (user.role == UserRole.inspetor) {
-      // Inspetor vê apenas inspeções onde ele está na equipe
-      return allInspections.where((inspection) {
-        return inspection.equipe.any((inspector) => inspector.email == user.email);
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Adicionar token de autenticação se disponível
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      // Para inspetores, usar endpoint mobile específico que retorna apenas suas inspeções ativas
+      if (user.role == UserRole.inspetor) {
+        final data = await apiService.getMinhasInspecoesAtivas();
+        
+        if (data.isEmpty) {
+          return [];
+        }
+        
+      final inspections = data.map((json) {
+        return Inspection.fromJson(_mapApiResponseToInspection(json));
       }).toList();
+        
+        // Salvar no cache local
+        await saveInspections(inspections);
+        
+        return inspections;
+      }
+      
+      // Para outros roles (supervisor, gestor, diretor), usar endpoint de todas as ativas
+      final data = await apiService.getInspecoesAtivas();
+      
+      if (data.isEmpty) {
+        return [];
+      }
+      
+      final inspections = data.map((json) {
+        return Inspection.fromJson(_mapApiResponseToInspection(json));
+      }).toList();
+      
+      // Salvar no cache local
+      await saveInspections(inspections);
+      
+      return inspections;
+    } on DioException catch (e) {
+      await _handleHttpError(e);
+      throw Exception('Erro ao buscar inspeções do usuário: ${e.message}');
+    } catch (e) {
+      // Sem fallback - lançar erro
+      throw Exception('Erro ao buscar inspeções do usuário: $e');
     }
-    
-    return [];
   }
 
   // Método para verificar se usuário pode criar inspeção
   bool canUserCreateInspection(User user) {
-    return user.role == UserRole.admin || user.role == UserRole.supervisor;
+    return user.role == UserRole.supervisor || user.role == UserRole.gestor || user.role == UserRole.diretor;
   }
 
   // Método para verificar se usuário pode editar inspeção específica
   bool canUserEditInspection(User user, Inspection inspection) {
-    if (user.role == UserRole.admin) return true;
+    if (user.role == UserRole.supervisor || user.role == UserRole.gestor || user.role == UserRole.diretor) return true;
     if (user.role == UserRole.supervisor) return true;
     
     // Inspetor só pode editar se estiver na equipe
@@ -346,24 +439,61 @@ class DataService {
     await prefs.setString(_evidencesKey, evidencesJson);
   }
 
-  // Métodos de Notificações
+  // Métodos de Notificações - Usa API real
   Future<List<AppNotification>> getNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? notificationsJson = prefs.getString(_notificationsKey);
-    
-    if (notificationsJson == null) {
-      await _initializeSampleNotifications();
-      return getNotifications();
-    }
-    
     try {
-      final List<dynamic> notificationsList = json.decode(notificationsJson);
-      return notificationsList.map((json) => AppNotification.fromJson(json)).toList();
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await dio.get('/api/v1/notificacoes');
+      
+      // Tratar diferentes formatos de resposta da API
+      List<dynamic> data;
+      if (response.data is List) {
+        data = response.data as List<dynamic>;
+      } else if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+        if (responseMap.containsKey('content')) {
+          data = responseMap['content'] as List<dynamic>? ?? [];
+        } else if (responseMap.containsKey('data')) {
+          data = responseMap['data'] as List<dynamic>? ?? [];
+        } else {
+          return [];
+        }
+      } else {
+        return [];
+      }
+      
+      if (data.isEmpty) {
+        return [];
+      }
+      
+      return data.map((json) => AppNotification.fromJson(json)).toList();
+    } on DioException catch (e) {
+      await _handleHttpError(e);
+      // Para notificações, retornar lista vazia em caso de erro
+      return [];
     } catch (e) {
-      // Se houver erro ao decodificar (ex: tipo message_received), limpar e reinicializar
-      await prefs.remove(_notificationsKey);
-      await _initializeSampleNotifications();
-      return getNotifications();
+      // Sem fallback - retornar lista vazia se não houver notificações
+      return [];
     }
   }
 
@@ -390,40 +520,6 @@ class DataService {
     await prefs.setString(_notificationsKey, notificationsJson);
   }
 
-  Future<void> _initializeSampleNotifications() async {
-    final user = await getCurrentUser();
-    if (user == null) return;
-
-    final sampleNotifications = [
-      AppNotification(
-        id: '1',
-        title: 'Nova Inspeção Atribuída',
-        message: 'Você foi atribuído à inspeção "Edifício Central"',
-        type: NotificationType.inspection_assigned,
-        priority: NotificationPriority.high,
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        relatedId: '1',
-      ),
-      AppNotification(
-        id: '2',
-        title: 'Inspeção Concluída',
-        message: 'Inspeção estrutural foi finalizada',
-        type: NotificationType.inspection_status_update,
-        priority: NotificationPriority.medium,
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      AppNotification(
-        id: '3',
-        title: 'Sistema Atualizado',
-        message: 'Nova versão do app disponível',
-        type: NotificationType.system_alert,
-        priority: NotificationPriority.low,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ];
-
-    await _saveNotifications(sampleNotifications);
-  }
 
   // Métodos de Plano de Ação
   Future<List<ActionPlan>> getActionPlansByInspection(String inspectionId) async {
@@ -512,21 +608,60 @@ class DataService {
     return actionPlan;
   }
 
-  // Métodos de Estabelecimentos
+  // Métodos de Estabelecimentos - Usa API real
   Future<List<Establishment>> getAllEstablishments() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? establishmentsJson = prefs.getString(_establishmentsKey);
-    
-    if (establishmentsJson == null) {
-      await _initializeSampleEstablishments();
-      return getAllEstablishments();
-    }
-    
     try {
-      final List<dynamic> establishmentsList = json.decode(establishmentsJson);
-      return establishmentsList.map((json) => Establishment.fromJson(json)).toList();
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final response = await dio.get('/api/v1/estabelecimentos');
+      
+      // Tratar diferentes formatos de resposta da API
+      List<dynamic> data;
+      if (response.data is List) {
+        data = response.data as List<dynamic>;
+      } else if (response.data is Map) {
+        final responseMap = response.data as Map<String, dynamic>;
+        if (responseMap.containsKey('content')) {
+          data = responseMap['content'] as List<dynamic>? ?? [];
+        } else if (responseMap.containsKey('data')) {
+          data = responseMap['data'] as List<dynamic>? ?? [];
+        } else {
+          return [];
+        }
+      } else {
+        return [];
+      }
+      
+      if (data.isEmpty) {
+        return [];
+      }
+      
+      return data.map((json) => Establishment.fromJson(json)).toList();
+    } on DioException catch (e) {
+      await _handleHttpError(e);
+      throw Exception('Erro ao buscar estabelecimentos: ${e.message}');
     } catch (e) {
-      return [];
+      // Sem fallback - lançar erro para tratamento adequado
+      throw Exception('Erro ao buscar estabelecimentos: $e');
     }
   }
 
@@ -544,93 +679,7 @@ class DataService {
     return await getEstablishmentById(inspection.establishmentId!);
   }
 
-  Future<void> _initializeSampleEstablishments() async {
-    final now = DateTime.now();
-    final sampleEstablishments = [
-      Establishment(
-        id: 'est_1',
-        nome: 'Hospital Central',
-        descricao: 'Hospital público principal da cidade',
-        tipo: EstablishmentType.entidadeSaude,
-        endereco: 'Rua das Flores, 123 - Centro',
-        latitude: -23.5505,
-        longitude: -46.6333,
-        telefone: '(11) 3333-4444',
-        email: 'contato@hospitalcentral.com',
-        responsavel: 'Dr. João Silva',
-        observacoes: 'Hospital com 200 leitos',
-        createdAt: now.subtract(const Duration(days: 30)),
-        updatedAt: now.subtract(const Duration(days: 30)),
-      ),
-      Establishment(
-        id: 'est_2',
-        nome: 'Escola Municipal São Paulo',
-        descricao: 'Escola pública de ensino fundamental',
-        tipo: EstablishmentType.instituicao,
-        endereco: 'Av. Paulista, 1000 - Bela Vista',
-        latitude: -23.5613,
-        longitude: -46.6565,
-        telefone: '(11) 2222-3333',
-        email: 'escola@municipal.com',
-        responsavel: 'Maria Santos',
-        observacoes: 'Escola com 500 alunos',
-        createdAt: now.subtract(const Duration(days: 25)),
-        updatedAt: now.subtract(const Duration(days: 25)),
-      ),
-      Establishment(
-        id: 'est_3',
-        nome: 'Restaurante Bom Sabor',
-        descricao: 'Restaurante popular do centro',
-        tipo: EstablishmentType.estabelecimento,
-        endereco: 'Rua Augusta, 456 - Consolação',
-        latitude: -23.5475,
-        longitude: -46.6361,
-        telefone: '(11) 4444-5555',
-        email: 'contato@bomsabor.com',
-        responsavel: 'Carlos Oliveira',
-        observacoes: 'Especializado em comida caseira',
-        createdAt: now.subtract(const Duration(days: 20)),
-        updatedAt: now.subtract(const Duration(days: 20)),
-      ),
-      Establishment(
-        id: 'est_4',
-        nome: 'Ambulância SAMU-001',
-        descricao: 'Veículo de emergência médica',
-        tipo: EstablishmentType.veiculo,
-        endereco: 'Base SAMU - Rua das Emergências, 789',
-        latitude: -23.5405,
-        longitude: -46.6403,
-        telefone: '(11) 192',
-        responsavel: 'Enfermeiro Pedro Costa',
-        observacoes: 'Ambulância equipada com UTI móvel',
-        createdAt: now.subtract(const Duration(days: 15)),
-        updatedAt: now.subtract(const Duration(days: 15)),
-      ),
-      Establishment(
-        id: 'est_5',
-        nome: 'Equipamento Raio-X',
-        descricao: 'Aparelho de radiografia portátil',
-        tipo: EstablishmentType.equipamento,
-        endereco: 'Hospital Central - Ala de Diagnóstico',
-        latitude: -23.5505,
-        longitude: -46.6333,
-        responsavel: 'Técnico Ana Lima',
-        observacoes: 'Equipamento móvel para emergências',
-        createdAt: now.subtract(const Duration(days: 10)),
-        updatedAt: now.subtract(const Duration(days: 10)),
-      ),
-    ];
 
-    await _saveEstablishments(sampleEstablishments);
-  }
-
-  Future<void> _saveEstablishments(List<Establishment> establishments) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String establishmentsJson = json.encode(
-      establishments.map((establishment) => establishment.toJson()).toList(),
-    );
-    await prefs.setString(_establishmentsKey, establishmentsJson);
-  }
 
   // Métodos utilitários para EstablishmentType
   static String getEstablishmentTypeText(EstablishmentType type) {

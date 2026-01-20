@@ -424,14 +424,30 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
 
   Color _getStatusColor(InspectionStatus status) {
     switch (status) {
-      case InspectionStatus.agendada:
-        return Colors.blue;
+      case InspectionStatus.rascunho:
+        return Colors.grey;
       case InspectionStatus.emAndamento:
         return Colors.orange;
       case InspectionStatus.concluida:
-        return Colors.green;
-      case InspectionStatus.cancelada:
+        return Colors.blue;
+      case InspectionStatus.sincronizada:
+        return Colors.cyan;
+      case InspectionStatus.porVerificar:
+        return Colors.amber;
+      case InspectionStatus.verificada:
+        return Colors.lightBlue;
+      case InspectionStatus.invalida:
         return Colors.red;
+      case InspectionStatus.relatorioGerado:
+        return Colors.purple;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Colors.indigo;
+      case InspectionStatus.assinaturaCa:
+        return Colors.teal;
+      case InspectionStatus.finalizada:
+        return Colors.green;
+      case InspectionStatus.disponibilizada:
+        return Colors.lightGreen;
     }
   }
 
@@ -644,7 +660,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
             const SizedBox(height: 32),
             
             // Botões de Ação
-            if (_inspection.status == InspectionStatus.agendada || 
+            if (_inspection.status == InspectionStatus.rascunho || 
                 _inspection.status == InspectionStatus.emAndamento)
               Container(
                 padding: const EdgeInsets.all(16),
@@ -662,7 +678,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                   child: Column(
                     children: [
                       // Botão de Status (Iniciar/Finalizar)
-                      if (_inspection.status == InspectionStatus.agendada)
+                      if (_inspection.status == InspectionStatus.rascunho)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(

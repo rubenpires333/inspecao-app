@@ -34,13 +34,29 @@ class AuthService {
       await _saveTokens(accessToken, refreshToken, expiresAt);
 
       // Converter dados do usuário para o modelo local
-      final user = _mapUserFromResponse(userData);
-
-      // Salvar usuário
-      await _saveUser(user);
+      User user = _mapUserFromResponse(userData);
 
       // Configurar token no ApiService para próximas requisições
       _apiService.setAuthToken(accessToken);
+
+      // Buscar permissões do usuário da API
+      try {
+        // Extrair keycloakId do email ou username
+        final keycloakId = userData['email']?.toString() ?? 
+                          userData['username']?.toString() ?? 
+                          user.email;
+        final permissions = await _apiService.getUserPermissions(keycloakId);
+        
+        // Atualizar usuário com permissões
+        user = user.copyWith(permissions: permissions);
+      } catch (e) {
+        // Se não conseguir buscar permissões, continua sem elas
+        // O RoleService usará fallback baseado no role
+        print('Aviso: Não foi possível buscar permissões do usuário: $e');
+      }
+
+      // Salvar usuário (com ou sem permissões)
+      await _saveUser(user);
 
       return user;
     } on DioException catch (e) {
@@ -203,17 +219,23 @@ class AuthService {
   User _mapUserFromResponse(Map<String, dynamic> userData) {
     // Mapear roles do backend para UserRole local
     final roles = (userData['roles'] as List<dynamic>?) ?? [];
-    UserRole role = UserRole.inspetor; // Default
+    UserRole role = UserRole.inspetor; // Default - foco em execução de inspeções
 
-    if (userData['isAdmin'] == true) {
-      role = UserRole.admin;
-    } else if (roles.any((r) => r.toString().toLowerCase().contains('supervisor'))) {
+    // Mapear roles do backend (ROLE_ADMIN, ROLE_DIRETOR, etc.)
+    final rolesString = roles.map((r) => r.toString().toUpperCase()).join(',');
+    
+    if (userData['isAdmin'] == true || rolesString.contains('ROLE_ADMIN')) {
       role = UserRole.supervisor;
-    } else if (roles.any((r) => r.toString().toLowerCase().contains('admin'))) {
-      role = UserRole.admin;
-    } else if (roles.any((r) => r.toString().toLowerCase().contains('inspetor'))) {
+    } else if (rolesString.contains('ROLE_DIRETOR')) {
+      role = UserRole.diretor;
+    } else if (rolesString.contains('ROLE_GESTOR')) {
+      role = UserRole.gestor;
+    } else if (rolesString.contains('ROLE_SUPERVISOR')) {
+      role = UserRole.supervisor;
+    } else if (rolesString.contains('ROLE_INSPETOR') || rolesString.contains('INSPETOR')) {
       role = UserRole.inspetor;
     }
+    // ROLE_TECNICO não é suportado nesta aplicação
 
     return User(
       id: userData['id']?.toString() ?? '',
