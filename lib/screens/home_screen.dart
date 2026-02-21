@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/user.dart';
-import 'package:inspecao/models/establishment.dart';
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/role_service.dart';
@@ -10,13 +9,12 @@ import 'package:inspecao/screens/login_screen.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/calendar_screen.dart';
 import 'package:inspecao/screens/map_screen.dart';
-import 'package:inspecao/screens/reports_screen.dart';
-import 'package:inspecao/screens/inspectors_screen.dart';
 import 'package:inspecao/screens/profile_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
-import 'package:inspecao/screens/audit_templates_screen.dart';
 import 'package:inspecao/screens/create_inspection_screen.dart';
+import 'package:inspecao/screens/database_viewer_screen.dart';
 import 'package:inspecao/models/notification.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) changeThemeMode;
@@ -33,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<Inspection> _inspections = [];
   List<AppNotification> _notifications = [];
-  Map<String, Establishment> _establishmentsCache = {};
   bool _isLoading = false;
   
   // Filtros para Inspeções Recentes
@@ -131,10 +128,26 @@ class _HomeScreenState extends State<HomeScreen> {
       final user = await _dataService.getCurrentUser();
       List<Inspection> inspections = [];
       List<AppNotification> notifications = [];
-      Map<String, Establishment> establishmentsMap = {};
       
       if (user != null) {
-        // Carregar inspeções da API
+        // Se for a primeira carga após login, garantir sincronização inicial
+        // (já deve ter sido feita no login, mas garantir aqui também)
+        final prefs = await SharedPreferences.getInstance();
+        final lastSync = prefs.getInt('last_initial_sync') ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final oneHour = 60 * 60 * 1000; // 1 hora em milissegundos
+        
+        // Se passou mais de 1 hora desde a última sincronização inicial, sincronizar novamente
+        if (now - lastSync > oneHour) {
+          print('🔄 Fazendo sincronização periódica de dados...');
+          _dataService.syncInitialData().then((_) {
+            prefs.setInt('last_initial_sync', now);
+          }).catchError((e) {
+            print('⚠️ Erro na sincronização periódica: $e');
+          });
+        }
+        
+        // Carregar inspeções (já sincroniza automaticamente)
         inspections = await _dataService.getInspectionsForUser(user);
         
         // Carregar notificações da API
@@ -144,17 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
           // Se não houver notificações, continuar com lista vazia
           notifications = [];
         }
-        
-        // Carregar estabelecimentos da API
-        try {
-          final establishments = await _dataService.getAllEstablishments();
-          for (final establishment in establishments) {
-            establishmentsMap[establishment.id] = establishment;
-          }
-        } catch (e) {
-          // Se não houver estabelecimentos, continuar com mapa vazio
-          establishmentsMap = {};
-        }
       }
       
       if (mounted) {
@@ -162,7 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentUser = user;
           _inspections = inspections;
           _notifications = notifications;
-          _establishmentsCache = establishmentsMap;
           _isLoading = false;
         });
       }
@@ -188,7 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _inspections = [];
           _notifications = [];
-          _establishmentsCache = {};
         });
       }
       // Log do erro para debug
@@ -227,12 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const CalendarScreen();
       case 'map':
         return const MapScreen();
-      case 'reports':
-          return const ReportsScreen();
-      case 'inspectors':
-        return const InspectorsScreen();
-      case 'templates':
-        return const AuditTemplatesScreen();
+      case 'database':
+        return const DatabaseViewerScreen(); // Tela temporária de debug
       default:
         return _buildInspectionsList(); // Default para inspetores
     }
@@ -390,20 +386,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                           ),
-                          if (_currentUser != null && RoleService.canManageInspectors(_currentUser!))
-                            PopupMenuItem(
-                              child: ListTile(
-                                leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
-                                title: const Text('Inspetores'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const InspectorsScreen()),
-                                  );
-                                },
-                              ),
-                            ),
                           PopupMenuItem(
                             child: ListTile(
                               leading: Icon(
@@ -664,6 +646,12 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.map_outlined,
         'label': 'Mapa',
       });
+      // Tela temporária de debug - será removida
+      items.add({
+        'screen': 'database',
+        'icon': Icons.storage_outlined,
+        'label': 'DB Local',
+      });
       return items;
     }
     
@@ -697,32 +685,12 @@ class _HomeScreenState extends State<HomeScreen> {
       'label': 'Mapa',
     });
     
-    // Relatórios - Apenas com permissão
-    if (RoleService.canViewReports(user)) {
-      items.add({
-        'screen': 'reports',
-        'icon': Icons.assessment_outlined,
-        'label': 'Relatórios',
-      });
-    }
-    
-    // Inspetores - Apenas gestão
-    if (RoleService.canManageInspectors(user)) {
-      items.add({
-        'screen': 'inspectors',
-        'icon': Icons.people_outline,
-        'label': 'Inspetores',
-      });
-    }
-    
-    // Templates - Apenas gestão
-    if (RoleService.canManageTemplates(user)) {
-      items.add({
-        'screen': 'templates',
-        'icon': Icons.description_outlined,
-        'label': 'Templates',
-      });
-    }
+    // Tela temporária de debug - será removida
+    items.add({
+      'screen': 'database',
+      'icon': Icons.storage_outlined,
+      'label': 'DB Local',
+    });
     
     return items;
   }
@@ -935,20 +903,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                           ),
-                          if (_currentUser != null && RoleService.canManageInspectors(_currentUser!))
-                            PopupMenuItem(
-                              child: ListTile(
-                                leading: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
-                                title: const Text('Inspetores'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const InspectorsScreen()),
-                                  );
-                                },
-                              ),
-                            ),
                           PopupMenuItem(
                             child: ListTile(
                               leading: Icon(

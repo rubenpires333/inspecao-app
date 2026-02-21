@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LightModeColors {
-  // Paleta de Cores ERIS - Requisito R49
+  // Paleta de Cores INSPEV - Requisito R49
   // Cor 1: #00778b (PANTONE 7506 C) - Cor Principal Escura
   static const lightPrimary = Color(0xFF00778B);
   static const lightOnPrimary = Color(0xFFFFFFFF);
@@ -13,7 +13,7 @@ class LightModeColors {
   static const lightTertiary = Color(0xFF6FA3B0);
   static const lightOnTertiary = Color(0xFFFFFFFF);
   
-  // Containers e variações baseadas na paleta ERIS
+  // Containers e variações baseadas na paleta SIGIV
   static const lightPrimaryContainer = Color(0xFFB8DDE5); // Versão clara da cor principal
   static const lightOnPrimaryContainer = Color(0xFF003D47); // Versão escura para contraste
   static const lightSecondaryContainer = Color(0xFFC4E1E8); // Versão clara da cor secundária
@@ -28,23 +28,23 @@ class LightModeColors {
   static const lightShadow = Color(0xFF000000);
   static const lightSurface = Color(0xFFFAFAFA);
   static const lightOnSurface = Color(0xFF1C1C1C);
-  static const lightAppBarBackground = Color(0xFF00778B); // Cor principal ERIS
+  static const lightAppBarBackground = Color(0xFF00778B); // Cor principal INSPEV
 }
 
 class DarkModeColors {
-  // Paleta de Cores ERIS - Requisito R49 (Modo Escuro)
+  // Paleta de Cores SIGIV - Requisito R49 (Modo Escuro)
   // Usar versões mais claras das cores para contraste no modo escuro
-  static const darkPrimary = Color(0xFF6FA3B0); // Cor clara ERIS para modo escuro
+  static const darkPrimary = Color(0xFF6FA3B0); // Cor clara INSPEV para modo escuro
   static const darkOnPrimary = Color(0xFF003D47); // Versão escura para contraste
   static const darkPrimaryContainer = Color(0xFF005A6B); // Versão média da cor principal
   static const darkOnPrimaryContainer = Color(0xFFB8DDE5); // Versão clara para contraste
   
-  static const darkSecondary = Color(0xFF478D9D); // Cor média ERIS
+  static const darkSecondary = Color(0xFF478D9D); // Cor média INSPEV
   static const darkOnSecondary = Color(0xFF1F4A54); // Versão escura para contraste
   static const darkSecondaryContainer = Color(0xFF2F5F6B); // Versão escura da cor secundária
   static const darkOnSecondaryContainer = Color(0xFFC4E1E8); // Versão clara para contraste
   
-  static const darkTertiary = Color(0xFF6FA3B0); // Cor clara ERIS
+  static const darkTertiary = Color(0xFF6FA3B0); // Cor clara INSPEV
   static const darkOnTertiary = Color(0xFF003D47); // Versão escura para contraste
   
   // Cores de erro e sistema
@@ -52,11 +52,11 @@ class DarkModeColors {
   static const darkOnError = Color(0xFF690005);
   static const darkErrorContainer = Color(0xFF93000A);
   static const darkOnErrorContainer = Color(0xFFFFDAD6);
-  static const darkInversePrimary = Color(0xFF00778B); // Cor principal ERIS para inverso
+  static const darkInversePrimary = Color(0xFF00778B); // Cor principal INSPEV para inverso
   static const darkShadow = Color(0xFF000000);
   static const darkSurface = Color(0xFF121212);
   static const darkOnSurface = Color(0xFFE0E0E0);
-  static const darkAppBarBackground = Color(0xFF005A6B); // Versão escura da cor principal ERIS
+  static const darkAppBarBackground = Color(0xFF005A6B); // Versão escura da cor principal INSPEV
 }
 
 class FontSizes {
@@ -80,15 +80,15 @@ class FontSizes {
 ThemeData get lightTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.light(
-    primary: LightModeColors.lightPrimary, // #00778b - Cor Principal ERIS
+    primary: LightModeColors.lightPrimary, // #00778b - Cor Principal INSPEV
     onPrimary: LightModeColors.lightOnPrimary,
     primaryContainer: LightModeColors.lightPrimaryContainer,
     onPrimaryContainer: LightModeColors.lightOnPrimaryContainer,
-    secondary: LightModeColors.lightSecondary, // #478d9d - Cor Média ERIS
+    secondary: LightModeColors.lightSecondary, // #478d9d - Cor Média INSPEV
     onSecondary: LightModeColors.lightOnSecondary,
     secondaryContainer: LightModeColors.lightSecondaryContainer,
     onSecondaryContainer: LightModeColors.lightOnSecondaryContainer,
-    tertiary: LightModeColors.lightTertiary, // #6fa3b0 - Cor Clara ERIS
+    tertiary: LightModeColors.lightTertiary, // #6fa3b0 - Cor Clara INSPEV
     onTertiary: LightModeColors.lightOnTertiary,
     error: LightModeColors.lightError,
     onError: LightModeColors.lightOnError,
@@ -192,15 +192,15 @@ ThemeData get lightTheme => ThemeData(
 ThemeData get darkTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.dark(
-    primary: DarkModeColors.darkPrimary, // #6fa3b0 - Cor Clara ERIS (modo escuro)
+    primary: DarkModeColors.darkPrimary, // #6fa3b0 - Cor Clara INSPEV (modo escuro)
     onPrimary: DarkModeColors.darkOnPrimary,
     primaryContainer: DarkModeColors.darkPrimaryContainer,
     onPrimaryContainer: DarkModeColors.darkOnPrimaryContainer,
-    secondary: DarkModeColors.darkSecondary, // #478d9d - Cor Média ERIS
+    secondary: DarkModeColors.darkSecondary, // #478d9d - Cor Média INSPEV
     onSecondary: DarkModeColors.darkOnSecondary,
     secondaryContainer: DarkModeColors.darkSecondaryContainer,
     onSecondaryContainer: DarkModeColors.darkOnSecondaryContainer,
-    tertiary: DarkModeColors.darkTertiary, // #6fa3b0 - Cor Clara ERIS
+    tertiary: DarkModeColors.darkTertiary, // #6fa3b0 - Cor Clara INSPEV
     onTertiary: DarkModeColors.darkOnTertiary,
     error: DarkModeColors.darkError,
     onError: DarkModeColors.darkOnError,

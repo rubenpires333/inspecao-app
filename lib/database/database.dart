@@ -16,13 +16,14 @@ part 'database.g.dart';
   AnexosInspecao,
   Checklists,
   Estabelecimentos,
+  CategoriasEstabelecimento,
   Sincronizacoes,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -31,11 +32,12 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Implementar migrations futuras aqui
-        // Exemplo:
-        // if (from < 2) {
-        //   await m.addColumn(inspecoes, inspecoes.novoCampo);
-        // }
+        // Migration 1 -> 2: Adicionar tabela categorias_estabelecimento
+        if (from < 2) {
+          print('🔄 Executando migration: adicionando tabela categorias_estabelecimento...');
+          await m.createTable(categoriasEstabelecimento);
+          print('✅ Tabela categorias_estabelecimento criada');
+        }
       },
     );
   }
@@ -156,6 +158,25 @@ class AppDatabase extends _$AppDatabase {
   
   Future<int> deleteEstabelecimento(String id) => 
       (delete(estabelecimentos)..where((t) => t.id.equals(id))).go();
+
+  /// DAO para Categorias de Estabelecimento
+  Future<List<CategoriasEstabelecimentoData>> getAllCategoriasEstabelecimento() => 
+      select(categoriasEstabelecimento).get();
+  
+  Future<CategoriasEstabelecimentoData?> getCategoriaEstabelecimentoById(String id) => 
+      (select(categoriasEstabelecimento)..where((t) => t.id.equals(id))).getSingleOrNull();
+  
+  Future<CategoriasEstabelecimentoData?> getCategoriaEstabelecimentoByCodigo(String codigo) => 
+      (select(categoriasEstabelecimento)..where((t) => t.codigo.equals(codigo))).getSingleOrNull();
+  
+  Future<int> insertCategoriaEstabelecimento(CategoriasEstabelecimentoCompanion categoria) => 
+      into(categoriasEstabelecimento).insert(categoria, mode: InsertMode.replace);
+  
+  Future<bool> updateCategoriaEstabelecimento(CategoriasEstabelecimentoCompanion categoria) => 
+      update(categoriasEstabelecimento).replace(categoria);
+  
+  Future<int> deleteCategoriaEstabelecimento(String id) => 
+      (delete(categoriasEstabelecimento)..where((t) => t.id.equals(id))).go();
 
   /// DAO para Sincronizações
   Future<List<Sincronizacoe>> getSincronizacoesPendentes() => 

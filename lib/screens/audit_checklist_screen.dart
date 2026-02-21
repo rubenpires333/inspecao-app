@@ -201,7 +201,7 @@ class _AuditChecklistScreenState extends State<AuditChecklistScreen> {
       );
 
       // Salvar inspeção
-      await _dataService.createInspection(newInspection);
+      await _dataService.addInspection(newInspection);
       
       // Mostrar sucesso
       ScaffoldMessenger.of(context).showSnackBar(

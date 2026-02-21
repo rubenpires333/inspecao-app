@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/inspector.dart';
 import 'package:inspecao/models/user.dart';
@@ -9,9 +10,10 @@ import 'package:inspecao/models/evidence.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/models/action_plan.dart';
 import 'package:inspecao/models/establishment.dart';
-import 'package:inspecao/models/organization.dart';
 import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/database/database.dart' as db;
 import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/exceptions/forced_logout_exception.dart';
 
@@ -28,6 +30,18 @@ class DataService {
   factory DataService() => _instance;
   DataService._internal();
 
+  // Serviço de banco de dados local
+  final DatabaseService _dbService = DatabaseService();
+  bool _dbInitialized = false;
+
+  /// Inicializa o banco de dados local
+  Future<void> _ensureDbInitialized() async {
+    if (!_dbInitialized) {
+      await _dbService.initialize();
+      _dbInitialized = true;
+    }
+  }
+
   /// Trata erros HTTP e força logout em caso de 403
   Future<void> _handleHttpError(DioException e) async {
     if (e.response?.statusCode == 403 || e.response?.statusCode == 401) {
@@ -40,9 +54,22 @@ class DataService {
     }
   }
 
-  // Métodos de Inspeções - Usa API real
-  // Para tela "Ver Todas Inspeções" - retorna todas as inspeções ativas
+  // Métodos de Inspeções - Estratégia OFFLINE-FIRST
+  // 1. Busca do banco local primeiro (sempre disponível)
+  // 2. Sincroniza com API em background (quando online)
+  // 3. Atualiza banco local com dados do servidor
   Future<List<Inspection>> getInspections() async {
+    await _ensureDbInitialized();
+    
+    // PASSO 1: Buscar do banco local primeiro (offline-first)
+    List<Inspection> localInspections = [];
+    try {
+      localInspections = await _dbService.getInspections();
+    } catch (e) {
+      print('Erro ao buscar inspeções do banco local: $e');
+    }
+    
+    // PASSO 2: Tentar sincronizar com API (se online)
     try {
       final apiService = ApiService();
       if (apiService.baseUrl == null) {
@@ -56,29 +83,44 @@ class DataService {
         apiService.setAuthToken(token);
       }
       
-      // Usar endpoint mobile específico para inspeções ativas
+      // Buscar inspeções da API
       final data = await apiService.getInspecoesAtivas();
       
-      if (data.isEmpty) {
-        return [];
-      }
-      
-      final inspections = data.map((json) {
+      if (data.isNotEmpty) {
         // Converter resposta da API para formato do modelo
-        return Inspection.fromJson(_mapApiResponseToInspection(json));
-      }).toList();
-      
-      // Salvar no cache local apenas para sincronização offline
-      await saveInspections(inspections);
-      
-      return inspections;
+        final apiInspections = data.map((json) {
+          return Inspection.fromJson(_mapApiResponseToInspection(json));
+        }).toList();
+        
+        // PASSO 3: Salvar no banco local (espelho do servidor)
+        // As inspeções já vêm com isSynced=true e serverId da API no mapeamento
+        print('💾 Salvando ${apiInspections.length} inspeções no banco local...');
+        await _dbService.saveInspections(apiInspections);
+        print('✅ ${apiInspections.length} inspeções salvas no banco local');
+        
+        // Retornar dados atualizados do banco local
+        return await _dbService.getInspections();
+      }
     } on DioException catch (e) {
+      // Se erro de rede, retornar dados locais (modo offline)
+      print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
+      if (localInspections.isNotEmpty) {
+        return localInspections;
+      }
+      // Se não houver dados locais e for erro de autenticação, tratar
       await _handleHttpError(e);
       throw Exception('Erro ao buscar inspeções: ${e.message}');
     } catch (e) {
-      // Sem fallback - lançar erro para tratamento adequado
+      // Outros erros: retornar dados locais se disponíveis
+      print('Erro ao sincronizar: $e - usando dados locais');
+      if (localInspections.isNotEmpty) {
+        return localInspections;
+      }
       throw Exception('Erro ao buscar inspeções: $e');
     }
+    
+    // Se não houver dados nem locais nem da API, retornar vazio
+    return localInspections;
   }
   
   // Mapear resposta da API para formato do modelo
@@ -167,10 +209,15 @@ class DataService {
       tipo = InspectionType.estrutural;
     }
     
+    // Garantir que descricao não seja vazia (campo obrigatório no banco)
+    final descricaoRaw = apiData['observacoesGerais']?.toString();
+    final descricao = descricaoRaw != null ? descricaoRaw.trim() : '';
+    final descricaoFinal = descricao.isEmpty ? 'Inspeção sem descrição' : descricao;
+    
     return {
       'id': apiData['id']?.toString() ?? '',
       'titulo': titulo,
-      'descricao': apiData['observacoesGerais']?.toString() ?? '',
+      'descricao': descricaoFinal,
       'tipo': tipo.name,
       'status': apiData['status']?.toString() ?? 'RASCUNHO',
       'dataAgendada': dataAgendada.toIso8601String(),
@@ -185,6 +232,8 @@ class DataService {
       'fotos': [], // Fotos vêm de anexos separados
       'establishmentId': apiData['estabelecimentoId']?.toString(),
       'inspectorId': apiData['inspetorKeycloakId']?.toString(),
+      'checklistId': apiData['checklistId']?.toString(),
+      'equipeId': apiData['equipeId']?.toString(),
       'isTemplate': false,
       'isSynced': apiData['sincronizado'] as bool? ?? true,
       'createdAt': createdAt.toIso8601String(),
@@ -194,6 +243,12 @@ class DataService {
   }
 
   Future<void> saveInspections(List<Inspection> inspections) async {
+    await _ensureDbInitialized();
+    
+    // Salvar no banco local (fonte de verdade)
+    await _dbService.saveInspections(inspections);
+    
+    // Manter compatibilidade com SharedPreferences (legado)
     final prefs = await SharedPreferences.getInstance();
     final String inspectionsJson = json.encode(
       inspections.map((inspection) => inspection.toJson()).toList(),
@@ -202,18 +257,173 @@ class DataService {
   }
 
   Future<void> addInspection(Inspection inspection) async {
-    final inspections = await getInspections();
-    inspections.add(inspection);
-    await saveInspections(inspections);
+    await _ensureDbInitialized();
+    
+    // Salvar no banco local primeiro (offline-first)
+    await _dbService.saveInspection(inspection);
+    
+    // Tentar sincronizar com servidor em background (se online)
+    _syncInspectionToServer(inspection).catchError((e) {
+      print('Erro ao sincronizar inspeção com servidor: $e');
+      // Continuar mesmo se falhar - dados estão salvos localmente
+    });
+  }
+
+  /// Sincroniza inspeção com servidor (background)
+  Future<void> _syncInspectionToServer(Inspection inspection) async {
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      // Se já tem serverId, não precisa criar novamente
+      if (inspection.serverId != null) {
+        print('Inspeção ${inspection.id} já foi sincronizada (serverId: ${inspection.serverId})');
+        await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
+        return;
+      }
+      
+      // Converter Inspection para formato do backend
+      final requestData = _inspectionToCreateRequest(inspection);
+      
+      // Criar inspeção via endpoint mobile
+      final response = await apiService.createInspectionMobile(requestData);
+      
+      // Extrair ID do servidor da resposta
+      final serverId = response['id']?.toString();
+      
+      if (serverId != null) {
+        // Marcar como sincronizada
+        await _dbService.markInspectionAsSynced(inspection.id, serverId);
+        print('Inspeção ${inspection.id} criada no servidor com ID: $serverId');
+      } else {
+        print('Aviso: Resposta do servidor não contém ID da inspeção');
+      }
+    } catch (e) {
+      print('Erro ao sincronizar inspeção: $e');
+      // Não relançar erro - inspeção está salva localmente e pode ser sincronizada depois
+    }
+  }
+
+  /// Converte Inspection (modelo) para CriarInspecaoRequest (formato backend)
+  Map<String, dynamic> _inspectionToCreateRequest(Inspection inspection) {
+    // Validar campos obrigatórios
+    if (inspection.establishmentId == null || inspection.establishmentId!.isEmpty) {
+      throw Exception('establishmentId é obrigatório para criar inspeção');
+    }
+    
+    if (inspection.checklistId == null || inspection.checklistId!.isEmpty) {
+      throw Exception('checklistId é obrigatório para criar inspeção. Selecione um checklist na tela de criação.');
+    }
+    
+    if (inspection.equipeId == null || inspection.equipeId!.isEmpty) {
+      throw Exception('equipeId é obrigatório para criar inspeção. Selecione uma equipe na tela de criação.');
+    }
+    
+    // Extrair data e hora da dataAgendada
+    final dataAgendada = inspection.dataAgendada;
+    final dataInspecao = '${dataAgendada.year}-${dataAgendada.month.toString().padLeft(2, '0')}-${dataAgendada.day.toString().padLeft(2, '0')}';
+    final horaInicio = inspection.dataInicio != null
+        ? '${inspection.dataInicio!.hour.toString().padLeft(2, '0')}:${inspection.dataInicio!.minute.toString().padLeft(2, '0')}'
+        : null;
+    
+    // Usar valores reais do modelo
+    final request = <String, dynamic>{
+      'checklistId': inspection.checklistId!,
+      'estabelecimentoId': inspection.establishmentId!,
+      'equipeId': inspection.equipeId!,
+      'dataInspecao': dataInspecao,
+      if (horaInicio != null) 'horaInicio': horaInicio,
+      if (inspection.latitude != 0) 'latitude': inspection.latitude,
+      if (inspection.longitude != 0) 'longitude': inspection.longitude,
+      if (inspection.inspectorId != null && inspection.inspectorId!.isNotEmpty) 
+        'inspetorId': inspection.inspectorId,
+      if (inspection.endereco.isNotEmpty) 'enderecoCompleto': inspection.endereco,
+    };
+    
+    return request;
   }
 
   Future<void> updateInspection(Inspection inspection) async {
-    final inspections = await getInspections();
-    final index = inspections.indexWhere((i) => i.id == inspection.id);
-    if (index != -1) {
-      inspections[index] = inspection;
-      await saveInspections(inspections);
+    await _ensureDbInitialized();
+    
+    // Atualizar no banco local primeiro (offline-first)
+    await _dbService.updateInspection(inspection);
+    
+    // Tentar sincronizar com servidor em background (se online)
+    _syncInspectionUpdateToServer(inspection).catchError((e) {
+      print('Erro ao sincronizar atualização com servidor: $e');
+      // Continuar mesmo se falhar - dados estão salvos localmente
+    });
+  }
+
+  /// Sincroniza atualização de inspeção com servidor (background)
+  Future<void> _syncInspectionUpdateToServer(Inspection inspection) async {
+    try {
+      // Se não tem serverId, não foi criada no servidor ainda - criar primeiro
+      if (inspection.serverId == null) {
+        await _syncInspectionToServer(inspection);
+        return;
+      }
+      
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      // Converter Inspection para formato de atualização do backend
+      final requestData = _inspectionToUpdateRequest(inspection);
+      
+      // Atualizar inspeção via endpoint mobile
+      await apiService.updateInspectionMobile(inspection.serverId!, requestData);
+      
+      // Marcar como sincronizada
+      await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
+      print('Inspeção ${inspection.id} atualizada no servidor com sucesso');
+    } catch (e) {
+      print('Erro ao sincronizar atualização: $e');
+      // Não relançar erro - dados estão salvos localmente e podem ser sincronizados depois
     }
+  }
+
+  /// Converte Inspection (modelo) para AtualizarInspecaoRequest (formato backend)
+  Map<String, dynamic> _inspectionToUpdateRequest(Inspection inspection) {
+    // Extrair data e hora da dataAgendada
+    final dataAgendada = inspection.dataAgendada;
+    final dataInspecao = '${dataAgendada.year}-${dataAgendada.month.toString().padLeft(2, '0')}-${dataAgendada.day.toString().padLeft(2, '0')}';
+    
+    final horaInicio = inspection.dataInicio != null
+        ? '${inspection.dataInicio!.hour.toString().padLeft(2, '0')}:${inspection.dataInicio!.minute.toString().padLeft(2, '0')}'
+        : null;
+    
+    final horaFim = inspection.dataConclusao != null
+        ? '${inspection.dataConclusao!.hour.toString().padLeft(2, '0')}:${inspection.dataConclusao!.minute.toString().padLeft(2, '0')}'
+        : null;
+    
+    final request = <String, dynamic>{
+      'dataInspecao': dataInspecao,
+      if (horaInicio != null) 'horaInicio': horaInicio,
+      if (horaFim != null) 'horaFim': horaFim,
+      if (inspection.observacoes != null && inspection.observacoes!.isNotEmpty)
+        'observacoesGerais': inspection.observacoes,
+      if (inspection.latitude != 0) 'latitude': inspection.latitude,
+      if (inspection.longitude != 0) 'longitude': inspection.longitude,
+    };
+    
+    return request;
   }
 
   // Métodos de Inspetores - Usa API real
@@ -304,6 +514,102 @@ class DataService {
   }
 
 
+  /// Busca inspeções pendentes de sincronização (modo offline)
+  Future<List<Inspection>> getPendingSyncInspections() async {
+    await _ensureDbInitialized();
+    return await _dbService.getPendingInspections();
+  }
+
+  /// Sincroniza inspeções pendentes com o servidor
+  Future<void> syncPendingInspections() async {
+    await _ensureDbInitialized();
+    
+    final pendingInspections = await _dbService.getPendingInspections();
+    if (pendingInspections.isEmpty) {
+      print('Nenhuma inspeção pendente de sincronização');
+      return; // Nada para sincronizar
+    }
+    
+    print('Iniciando sincronização de ${pendingInspections.length} inspeções pendentes...');
+    
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      int successCount = 0;
+      int errorCount = 0;
+      
+      // Sincronizar cada inspeção pendente
+      for (final inspection in pendingInspections) {
+        try {
+          // Se não tem serverId, criar no servidor
+          if (inspection.serverId == null || inspection.serverId!.isEmpty) {
+            // Validar campos obrigatórios antes de criar
+            if (inspection.establishmentId == null || inspection.establishmentId!.isEmpty) {
+              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: establishmentId ausente');
+              errorCount++;
+              continue;
+            }
+            
+            if (inspection.checklistId == null || inspection.checklistId!.isEmpty) {
+              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: checklistId ausente');
+              errorCount++;
+              continue;
+            }
+            
+            if (inspection.equipeId == null || inspection.equipeId!.isEmpty) {
+              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: equipeId ausente');
+              errorCount++;
+              continue;
+            }
+            
+            // Converter para formato do backend e criar
+            final requestData = _inspectionToCreateRequest(inspection);
+            final response = await apiService.createInspectionMobile(requestData);
+            
+            // Extrair ID do servidor
+            final serverId = response['id']?.toString();
+            if (serverId != null) {
+              await _dbService.markInspectionAsSynced(inspection.id, serverId);
+              successCount++;
+              print('✅ Inspeção ${inspection.id} criada no servidor com ID: $serverId');
+            } else {
+              print('⚠️ Inspeção ${inspection.id}: resposta do servidor não contém ID');
+              errorCount++;
+            }
+          } else {
+            // Se tem serverId, atualizar no servidor
+            final requestData = _inspectionToUpdateRequest(inspection);
+            await apiService.updateInspectionMobile(inspection.serverId!, requestData);
+            
+            // Marcar como sincronizada
+            await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
+            successCount++;
+            print('✅ Inspeção ${inspection.id} atualizada no servidor');
+          }
+        } catch (e) {
+          errorCount++;
+          print('❌ Erro ao sincronizar inspeção ${inspection.id}: $e');
+          // Continuar com próxima inspeção mesmo se uma falhar
+        }
+      }
+      
+      print('📊 Sincronização concluída: $successCount sucesso(s), $errorCount erro(s)');
+      
+    } catch (e) {
+      print('❌ Erro geral ao sincronizar inspeções pendentes: $e');
+      // Não lançar erro - sincronização pode ser tentada depois
+    }
+  }
+
   // Método de login via API backend
   Future<User?> login(String email, String password) async {
     try {
@@ -325,62 +631,88 @@ class DataService {
     }
   }
 
-  // Método para obter inspeções filtradas por role do usuário
+  // Método para obter inspeções filtradas por role do usuário - OFFLINE-FIRST
   // Para home screen - retorna apenas inspeções do inspetor logado (status ativos)
   Future<List<Inspection>> getInspectionsForUser(User user) async {
+    await _ensureDbInitialized();
+    
+    // PASSO 1: Buscar do banco local primeiro (offline-first)
+    List<Inspection> localInspections = [];
+    try {
+      localInspections = await _dbService.getInspections();
+      
+      // Filtrar por inspetor se necessário
+      if (user.role == UserRole.inspetor) {
+        localInspections = localInspections.where((i) => i.inspectorId == user.id).toList();
+      }
+    } catch (e) {
+      print('Erro ao buscar inspeções do banco local: $e');
+    }
+    
+    // PASSO 2: Tentar sincronizar com API (se online)
     try {
       final apiService = ApiService();
       if (apiService.baseUrl == null) {
         apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
       }
       
-      // Adicionar token de autenticação se disponível
       final authService = AuthService(apiService, await SharedPreferences.getInstance());
       final token = await authService.getAccessToken();
       if (token != null) {
         apiService.setAuthToken(token);
       }
       
-      // Para inspetores, usar endpoint mobile específico que retorna apenas suas inspeções ativas
+      List<Map<String, dynamic>> data;
+      
+      // Para inspetores, usar endpoint mobile específico
       if (user.role == UserRole.inspetor) {
-        final data = await apiService.getMinhasInspecoesAtivas();
+        data = await apiService.getMinhasInspecoesAtivas();
+      } else {
+        // Para outros roles, usar endpoint de todas as ativas
+        data = await apiService.getInspecoesAtivas();
+      }
+      
+      if (data.isNotEmpty) {
+        // Converter resposta da API
+        final apiInspections = data.map((json) {
+          return Inspection.fromJson(_mapApiResponseToInspection(json));
+        }).toList();
         
-        if (data.isEmpty) {
-          return [];
+        // PASSO 3: Salvar no banco local (espelho do servidor)
+        await _dbService.saveInspections(apiInspections);
+        
+        // PASSO 4: Marcar como sincronizado
+        for (final inspection in apiInspections) {
+          await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
         }
         
-      final inspections = data.map((json) {
-        return Inspection.fromJson(_mapApiResponseToInspection(json));
-      }).toList();
-        
-        // Salvar no cache local
-        await saveInspections(inspections);
-        
-        return inspections;
+        // Retornar dados atualizados do banco local (filtrados se necessário)
+        final allInspections = await _dbService.getInspections();
+        if (user.role == UserRole.inspetor) {
+          return allInspections.where((i) => i.inspectorId == user.id).toList();
+        }
+        return allInspections;
       }
-      
-      // Para outros roles (supervisor, gestor, diretor), usar endpoint de todas as ativas
-      final data = await apiService.getInspecoesAtivas();
-      
-      if (data.isEmpty) {
-        return [];
-      }
-      
-      final inspections = data.map((json) {
-        return Inspection.fromJson(_mapApiResponseToInspection(json));
-      }).toList();
-      
-      // Salvar no cache local
-      await saveInspections(inspections);
-      
-      return inspections;
     } on DioException catch (e) {
+      // Se erro de rede, retornar dados locais (modo offline)
+      print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
+      if (localInspections.isNotEmpty) {
+        return localInspections;
+      }
+      // Se não houver dados locais e for erro de autenticação, tratar
       await _handleHttpError(e);
-      throw Exception('Erro ao buscar inspeções do usuário: ${e.message}');
+      throw Exception('Erro ao buscar inspeções: ${e.message}');
     } catch (e) {
-      // Sem fallback - lançar erro
-      throw Exception('Erro ao buscar inspeções do usuário: $e');
+      // Outros erros: retornar dados locais se disponíveis
+      print('Erro ao sincronizar: $e - usando dados locais');
+      if (localInspections.isNotEmpty) {
+        return localInspections;
+      }
+      throw Exception('Erro ao buscar inspeções: $e');
     }
+    
+    // Retornar dados locais (modo offline)
+    return localInspections;
   }
 
   // Método para verificar se usuário pode criar inspeção
@@ -608,8 +940,19 @@ class DataService {
     return actionPlan;
   }
 
-  // Métodos de Estabelecimentos - Usa API real
+  // Métodos de Estabelecimentos - OFFLINE-FIRST
   Future<List<Establishment>> getAllEstablishments() async {
+    await _ensureDbInitialized();
+    
+    // PASSO 1: Buscar do banco local primeiro
+    List<Establishment> localEstablishments = [];
+    try {
+      localEstablishments = await _dbService.getEstablishments();
+    } catch (e) {
+      print('Erro ao buscar estabelecimentos do banco local: $e');
+    }
+    
+    // PASSO 2: Tentar sincronizar com API (se online)
     try {
       final apiService = ApiService();
       if (apiService.baseUrl == null) {
@@ -632,37 +975,94 @@ class DataService {
         dio.options.headers['Authorization'] = 'Bearer $token';
       }
       
-      final response = await dio.get('/api/v1/estabelecimentos');
+      // Usar endpoint mobile que retorna lista simples (sem paginação)
+      // Se não estiver disponível, usar endpoint web com fallback
+      Response? response;
+      try {
+        response = await dio.get('/api/v1/mobile/estabelecimentos');
+      } on DioException catch (e) {
+        // Se endpoint mobile não existir (404), usar endpoint web
+        if (e.response?.statusCode == 404) {
+          print('⚠️ Endpoint mobile não disponível (404), usando endpoint web');
+          try {
+            // Endpoint web retorna paginação, buscar primeira página com tamanho grande
+            response = await dio.get('/api/v1/estabelecimentos', queryParameters: {
+              'page': 0,
+              'size': 1000, // Buscar muitos registros de uma vez
+            });
+          } catch (webError) {
+            print('⚠️ Erro ao usar endpoint web: $webError');
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
+      }
       
-      // Tratar diferentes formatos de resposta da API
+      // Processar resposta (pode ser lista direta ou paginada)
       List<dynamic> data;
       if (response.data is List) {
+        // Endpoint mobile retorna lista direta
         data = response.data as List<dynamic>;
       } else if (response.data is Map) {
+        // Endpoint web retorna paginação
         final responseMap = response.data as Map<String, dynamic>;
         if (responseMap.containsKey('content')) {
           data = responseMap['content'] as List<dynamic>? ?? [];
         } else if (responseMap.containsKey('data')) {
           data = responseMap['data'] as List<dynamic>? ?? [];
         } else {
-          return [];
+          print('⚠️ Resposta da API não contém dados: ${response.data.runtimeType}');
+          return localEstablishments;
         }
       } else {
-        return [];
+        print('⚠️ Resposta da API não é uma lista ou mapa: ${response.data.runtimeType}');
+        return localEstablishments;
       }
       
-      if (data.isEmpty) {
-        return [];
+      if (data.isNotEmpty) {
+        // Mapear resposta da API para modelo Establishment
+        final apiEstablishments = data.map((json) {
+          return _mapApiResponseToEstablishment(json);
+        }).toList();
+        
+        print('📥 ${apiEstablishments.length} estabelecimentos recebidos da API');
+        
+        // PASSO 3: Salvar no banco local
+        int salvos = 0;
+        for (final establishment in apiEstablishments) {
+          try {
+            await _dbService.saveEstablishment(establishment);
+            salvos++;
+          } catch (e) {
+            print('⚠️ Erro ao salvar estabelecimento ${establishment.id}: $e');
+          }
+        }
+        
+        print('✅ $salvos/${apiEstablishments.length} estabelecimentos salvos no banco local');
+        
+        // Retornar dados atualizados
+        return await _dbService.getEstablishments();
       }
-      
-      return data.map((json) => Establishment.fromJson(json)).toList();
     } on DioException catch (e) {
+      // Se erro de rede, retornar dados locais (modo offline)
+      print('Erro ao sincronizar estabelecimentos: ${e.message} - usando dados locais');
+      if (localEstablishments.isNotEmpty) {
+        return localEstablishments;
+      }
       await _handleHttpError(e);
       throw Exception('Erro ao buscar estabelecimentos: ${e.message}');
     } catch (e) {
-      // Sem fallback - lançar erro para tratamento adequado
+      // Outros erros: retornar dados locais se disponíveis
+      print('Erro ao sincronizar estabelecimentos: $e - usando dados locais');
+      if (localEstablishments.isNotEmpty) {
+        return localEstablishments;
+      }
       throw Exception('Erro ao buscar estabelecimentos: $e');
     }
+    
+    // Retornar dados locais (modo offline)
+    return localEstablishments;
   }
 
   Future<Establishment?> getEstablishmentById(String id) async {
@@ -679,65 +1079,210 @@ class DataService {
     return await getEstablishmentById(inspection.establishmentId!);
   }
 
+  /// Sincronização inicial após login
+  /// Sincroniza estabelecimentos e inspeções para garantir dados disponíveis offline
+  Future<void> syncInitialData({bool showProgress = false}) async {
+    try {
+      print('🔄 Iniciando sincronização inicial de dados...');
+      await _ensureDbInitialized();
+      
+      // Sincronizar estabelecimentos primeiro (necessários para criar inspeções)
+      print('📥 Sincronizando estabelecimentos...');
+      try {
+        await getAllEstablishments();
+        print('✅ Estabelecimentos sincronizados');
+      } catch (e) {
+        print('⚠️ Erro ao sincronizar estabelecimentos: $e');
+        // Continuar mesmo se falhar
+      }
+      
+      // Sincronizar inspeções
+      print('📥 Sincronizando inspeções...');
+      try {
+        final user = await getCurrentUser();
+        if (user != null) {
+          await getInspectionsForUser(user);
+          print('✅ Inspeções sincronizadas');
+        }
+      } catch (e) {
+        print('⚠️ Erro ao sincronizar inspeções: $e');
+        // Continuar mesmo se falhar
+      }
+      
+      // Sincronizar categorias de estabelecimento (opcional, mas útil)
+      print('📥 Sincronizando categorias de estabelecimento...');
+      try {
+        await _syncCategoriasEstabelecimento();
+        print('✅ Categorias sincronizadas');
+      } catch (e) {
+        print('⚠️ Erro ao sincronizar categorias: $e');
+        // Continuar mesmo se falhar
+      }
+      
+      print('✅ Sincronização inicial concluída');
+    } catch (e) {
+      print('❌ Erro na sincronização inicial: $e');
+      // Não lançar exceção para não bloquear o login
+    }
+  }
+
+  /// Sincroniza categorias de estabelecimento do servidor
+  Future<void> _syncCategoriasEstabelecimento() async {
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ));
+      
+      if (token != null) {
+        dio.options.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      // Buscar categorias ativas (tentar endpoint mobile primeiro, fallback para web)
+      Response? response;
+      try {
+        response = await dio.get('/api/v1/mobile/categorias-estabelecimento/ativas');
+      } on DioException catch (e) {
+        // Se endpoint mobile não existir (404), usar endpoint web
+        if (e.response?.statusCode == 404) {
+          print('⚠️ Endpoint mobile não disponível (404), usando endpoint web');
+          response = await dio.get('/api/v1/categorias-estabelecimento/ativas');
+        } else {
+          // Outros erros, relançar
+          rethrow;
+        }
+      } catch (e) {
+        // Outros tipos de erro, tentar endpoint web
+        print('⚠️ Erro ao acessar endpoint mobile, usando endpoint web: $e');
+        response = await dio.get('/api/v1/categorias-estabelecimento/ativas');
+      }
+      
+      if (response.data is List) {
+        final categorias = response.data as List<dynamic>;
+        print('📥 ${categorias.length} categorias recebidas da API');
+        
+        // Salvar no banco local
+        for (final categoriaJson in categorias) {
+          try {
+            final id = categoriaJson['id']?.toString() ?? '';
+            final codigo = categoriaJson['codigo']?.toString() ?? '';
+            final nome = categoriaJson['nome']?.toString() ?? '';
+            final descricao = categoriaJson['descricao']?.toString();
+            final icone = categoriaJson['icone']?.toString();
+            final cor = categoriaJson['cor']?.toString();
+            final ordem = categoriaJson['ordem'] as int? ?? 1;
+            final ativo = categoriaJson['ativo'] as bool? ?? true;
+            
+            // Datas
+            DateTime criadoEm = DateTime.now();
+            DateTime? atualizadoEm;
+            if (categoriaJson['criadoEm'] != null) {
+              try {
+                criadoEm = DateTime.parse(categoriaJson['criadoEm']);
+              } catch (e) {
+                criadoEm = DateTime.now();
+              }
+            }
+            if (categoriaJson['atualizadoEm'] != null) {
+              try {
+                atualizadoEm = DateTime.parse(categoriaJson['atualizadoEm']);
+              } catch (e) {
+                atualizadoEm = null;
+              }
+            }
+            
+            // Criar companion para salvar
+            final companion = db.CategoriasEstabelecimentoCompanion(
+              id: Value(id),
+              codigo: Value(codigo),
+              nome: Value(nome),
+              descricao: Value(descricao),
+              icone: Value(icone),
+              cor: Value(cor),
+              ordem: Value(ordem),
+              ativo: Value(ativo),
+              criadoEm: Value(criadoEm),
+              atualizadoEm: Value(atualizadoEm),
+              isSynced: const Value(true), // Vem da API, então está sincronizado
+              serverId: Value(id), // ID do servidor é o mesmo ID
+            );
+            
+            await _dbService.saveCategoriaEstabelecimento(companion);
+            print('  ✅ ${nome} (${codigo}) salva no banco local');
+          } catch (e) {
+            print('  ⚠️ Erro ao salvar categoria ${categoriaJson['nome']}: $e');
+          }
+        }
+        
+        print('✅ ${categorias.length} categorias salvas no banco local');
+      }
+    } catch (e) {
+      print('⚠️ Erro ao sincronizar categorias: $e');
+      // Não lançar exceção
+    }
+  }
+
 
 
   // Métodos utilitários para EstablishmentType
+  // Usar establishment.tipoText diretamente (já implementado no modelo)
   static String getEstablishmentTypeText(EstablishmentType type) {
-    switch (type) {
-      case EstablishmentType.instituicao:
-        return 'Instituição';
-      case EstablishmentType.estabelecimento:
-        return 'Estabelecimento';
-      case EstablishmentType.veiculo:
-        return 'Veículo';
-      case EstablishmentType.entidadeSaude:
-        return 'Entidade de Saúde';
-      case EstablishmentType.equipamento:
-        return 'Equipamento';
-      case EstablishmentType.predio:
-        return 'Prédio';
-      case EstablishmentType.area:
-        return 'Área';
-      case EstablishmentType.outros:
-        return 'Outros';
-    }
+    // Criar um Establishment temporário para usar o getter tipoText
+    final temp = Establishment(
+      id: '',
+      nome: '',
+      descricao: '',
+      tipo: type,
+      endereco: '',
+      latitude: 0,
+      longitude: 0,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    return temp.tipoText;
   }
 
+  // Cor padrão para todos os tipos de estabelecimento
   static Color getEstablishmentTypeColor(EstablishmentType type) {
-    switch (type) {
-      case EstablishmentType.instituicao:
-        return Colors.blue;
-      case EstablishmentType.estabelecimento:
-        return Colors.green;
-      case EstablishmentType.veiculo:
-        return Colors.orange;
-      case EstablishmentType.entidadeSaude:
-        return Colors.red;
-      case EstablishmentType.equipamento:
-        return Colors.purple;
-      case EstablishmentType.predio:
-        return Colors.brown;
-      case EstablishmentType.area:
-        return Colors.teal;
-      case EstablishmentType.outros:
-        return Colors.grey;
-    }
+    return Colors.blue; // Cor padrão
   }
 
   // Métodos utilitários para InspectionType
+  // O tipo já vem da API via checklist, usar inspection.tipoText diretamente
   static String getInspectionTypeText(InspectionType type) {
-    switch (type) {
-      case InspectionType.estrutural:
-        return 'Estrutural';
-      case InspectionType.eletrica:
-        return 'Elétrica';
-      case InspectionType.hidraulica:
-        return 'Hidráulica';
-      case InspectionType.seguranca:
-        return 'Segurança';
-      case InspectionType.ambiental:
-        return 'Ambiental';
-    }
+    // Criar um Inspection temporário para usar o getter tipoText
+    final temp = Inspection(
+      id: '',
+      titulo: '',
+      descricao: '',
+      tipo: type,
+      status: InspectionStatus.rascunho,
+      dataAgendada: DateTime.now(),
+      endereco: '',
+      latitude: 0,
+      longitude: 0,
+      equipe: [],
+      itens: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    return temp.tipoText;
   }
 
   // Método para formatar título da inspeção com estabelecimento
@@ -748,563 +1293,247 @@ class DataService {
     return inspection.titulo;
   }
 
-  // Métodos para templates de auditoria
-  Future<List<AuditTemplate>> getAuditTemplates() async {
-    // Simular carregamento de templates do servidor
-    await Future.delayed(const Duration(seconds: 1));
-    
-    return [
-      AuditTemplate(
-        id: '1',
-        title: 'Scaffolding Inspection Checklist',
-        description: 'A comprehensive checklist for scaffolding safety inspections',
-        category: 'Construction',
-        questionCount: 27,
-        questions: _generateScaffoldingQuestions(),
-      ),
-      AuditTemplate(
-        id: '2',
-        title: 'Construction Quality Inspection',
-        description: 'Quality control checklist for construction projects',
-        category: 'Construction',
-        questionCount: 50,
-        questions: _generateConstructionQuestions(),
-      ),
-      AuditTemplate(
-        id: '3',
-        title: 'Construction Safety Audit',
-        description: 'Safety audit checklist for construction sites',
-        category: 'Construction',
-        questionCount: 18,
-        questions: _generateSafetyQuestions(),
-      ),
-      AuditTemplate(
-        id: '4',
-        title: 'Internal OHSMS Audit (AS/NZS4801:2001)',
-        description: 'Occupational Health and Safety Management System audit',
-        category: 'Construction',
-        questionCount: 94,
-        questions: _generateSafetyQuestions(),
-      ),
-      AuditTemplate(
-        id: '5',
-        title: 'Safety Walkthrough Checklist',
-        description: 'General safety walkthrough inspection checklist',
-        category: 'Construction',
-        questionCount: 12,
-        questions: _generateSafetyQuestions(),
-      ),
-      AuditTemplate(
-        id: '6',
-        title: 'Restaurant Visit Report',
-        description: 'Health and safety inspection for restaurants',
-        category: 'Food & Hospitality',
-        questionCount: 35,
-        questions: _generateRestaurantQuestions(),
-      ),
-    ];
-  }
-
-  // Lista de templates do usuário (simulando armazenamento local)
-  static List<AuditTemplate> _userTemplates = [];
-
-  static void _initializeUserTemplates() {
-    if (_userTemplates.isEmpty) {
-      _userTemplates = [
-        // Template padrão já disponível para o usuário
-        AuditTemplate(
-          id: 'user_1',
-          title: 'Construction Safety Audit',
-          description: 'Safety audit checklist for construction sites',
-          category: 'Construction',
-          questionCount: 18,
-          questions: _generateSafetyQuestionsStatic(),
-        ),
-        AuditTemplate(
-          id: 'user_2',
-          title: 'Restaurant Visit Report',
-          description: 'Health and safety inspection for restaurants',
-          category: 'Food & Hospitality',
-          questionCount: 35,
-          questions: _generateRestaurantQuestionsStatic(),
-        ),
-      ];
-    }
-  }
-
-  Future<void> addUserTemplate(AuditTemplate template) async {
-    // Simular salvamento do template para o usuário
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Adicionar template à lista do usuário
-    _userTemplates.add(template);
-    
-    // Aqui você salvaria o template no banco de dados local ou servidor
-    print('Template ${template.title} added to user templates');
-  }
-
-  Future<List<AuditTemplate>> getUserTemplates() async {
-    // Simular carregamento dos templates do usuário
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    // Inicializar templates padrão se necessário
-    _initializeUserTemplates();
-    
-    return List.from(_userTemplates);
-  }
-
   // Métodos para checklists por categoria
+  /// Busca checklists por categoria de estabelecimento
+  /// categoryName pode ser o nome da categoria (ex: "Estabelecimento", "Veículo") ou o código
   Future<List<Checklist>> getChecklistsByCategory(String categoryName) async {
-    // Simular carregamento de checklists do servidor
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    switch (categoryName) {
-      case 'Construction':
-        return [
-          Checklist(
-            id: '1',
-            title: 'Scaffolding Inspection Checklist',
-            description: 'A comprehensive checklist for scaffolding safety inspections',
-            category: 'Construction',
-            questionCount: 27,
-            sections: 4,
-            estimatedTime: '15-20 minutes',
-            difficulty: 'Medium',
-            isActive: true,
-          ),
-          Checklist(
-            id: '2',
-            title: 'Construction Quality Inspection',
-            description: 'Quality control checklist for construction projects',
-            category: 'Construction',
-            questionCount: 50,
-            sections: 6,
-            estimatedTime: '25-30 minutes',
-            difficulty: 'High',
-            isActive: true,
-          ),
-          Checklist(
-            id: '3',
-            title: 'Construction Safety Audit',
-            description: 'Safety audit checklist for construction sites',
-            category: 'Construction',
-            questionCount: 18,
-            sections: 3,
-            estimatedTime: '10-15 minutes',
-            difficulty: 'Low',
-            isActive: true,
-          ),
-        ];
-      case 'Food & Hospitality':
-        return [
-          Checklist(
-            id: '4',
-            title: 'Food Safety & Hygiene Checklist',
-            description: 'Comprehensive food safety and hygiene inspection',
-            category: 'Food & Hospitality',
-            questionCount: 179,
-            sections: 8,
-            estimatedTime: '45-60 minutes',
-            difficulty: 'High',
-            isActive: true,
-          ),
-          Checklist(
-            id: '5',
-            title: 'Restaurant Visit Report',
-            description: 'Health and safety inspection for restaurants',
-            category: 'Food & Hospitality',
-            questionCount: 91,
-            sections: 5,
-            estimatedTime: '30-40 minutes',
-            difficulty: 'Medium',
-            isActive: true,
-          ),
-          Checklist(
-            id: '6',
-            title: 'Food and Beverage Audit Checklist',
-            description: 'Detailed audit for food and beverage operations',
-            category: 'Food & Hospitality',
-            questionCount: 58,
-            sections: 4,
-            estimatedTime: '20-25 minutes',
-            difficulty: 'Medium',
-            isActive: true,
-          ),
-          Checklist(
-            id: '7',
-            title: 'Critical Figure of 8 Checklist',
-            description: 'Critical safety checklist for food operations',
-            category: 'Food & Hospitality',
-            questionCount: 28,
-            sections: 2,
-            estimatedTime: '10-15 minutes',
-            difficulty: 'Low',
-            isActive: true,
-          ),
-          Checklist(
-            id: '8',
-            title: 'Reservations Check',
-            description: 'Reservation system and process verification',
-            category: 'Food & Hospitality',
-            questionCount: 9,
-            sections: 1,
-            estimatedTime: '5-10 minutes',
-            difficulty: 'Low',
-            isActive: true,
-          ),
-        ];
-      default:
-        return [];
-    }
-  }
-
-  static List<AuditQuestion> _generateSafetyQuestionsStatic() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'Are the current emergency evacuation plan & procedure displayed in appropriate positions around site?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Are fire extinguishers marked correctly on evacuation plan?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '3',
-        text: 'Are all workers wearing appropriate safety equipment?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '4',
-        text: 'Are safety barriers properly installed?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-    ];
-  }
-
-  static List<AuditQuestion> _generateRestaurantQuestionsStatic() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'Is the kitchen area clean and sanitized?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Are food storage temperatures appropriate?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-    ];
-  }
-
-  Future<void> createInspection(Inspection inspection) async {
-    // Simular criação de inspeção
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Aqui você salvaria a inspeção no banco de dados local ou servidor
-    print('Inspection ${inspection.titulo} created successfully');
-  }
-
-  List<AuditQuestion> _generateScaffoldingQuestions() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'General Information',
-        type: 'text',
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Project',
-        type: 'text',
-      ),
-      AuditQuestion(
-        id: '3',
-        text: 'Before Using The Scaffold',
-        type: 'text',
-      ),
-      AuditQuestion(
-        id: '4',
-        text: 'Comments',
-        type: 'text',
-      ),
-    ];
-  }
-
-  List<AuditQuestion> _generateConstructionQuestions() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'Is the lumber the correct grade as specified on the plans?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Are the correct trusses installed per the engineered layout?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-    ];
-  }
-
-  List<AuditQuestion> _generateSafetyQuestions() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'Are the current emergency evacuation plan & procedure displayed in appropriate positions around site?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Are fire extinguishers marked correctly on evacuation plan?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '3',
-        text: 'Are all workers wearing appropriate safety equipment?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '4',
-        text: 'Are safety barriers properly installed?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-    ];
-  }
-
-  List<AuditQuestion> _generateRestaurantQuestions() {
-    return [
-      AuditQuestion(
-        id: '1',
-        text: 'Is the kitchen area clean and sanitized?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-      AuditQuestion(
-        id: '2',
-        text: 'Are food storage temperatures appropriate?',
-        type: 'choice',
-        options: ['Yes', 'No', 'N/A'],
-      ),
-    ];
-  }
-
-  // Métodos para organizações/empresas
-  Future<List<Organization>> getOrganizations() async {
-    // Simular carregamento de organizações do servidor
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    return [
-      Organization(
-        id: '1',
-        name: 'MSN',
-        description: 'Microsoft Network',
-        isActive: true,
-      ),
-      Organization(
-        id: '2',
-        name: 'Google',
-        description: 'Google LLC',
-        isActive: true,
-      ),
-      Organization(
-        id: '3',
-        name: 'Apple',
-        description: 'Apple Inc.',
-        isActive: true,
-      ),
-      Organization(
-        id: '4',
-        name: 'Amazon',
-        description: 'Amazon.com Inc.',
-        isActive: true,
-      ),
-    ];
-  }
-
-  Future<Organization?> getCurrentOrganization() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? orgJson = prefs.getString('current_organization');
-    
-    if (orgJson == null) {
-      // Retornar MSN como padrão
-      final organizations = await getOrganizations();
-      final defaultOrg = organizations.firstWhere((org) => org.name == 'MSN');
-      await setCurrentOrganization(defaultOrg);
-      return defaultOrg;
-    }
-    
-    return Organization.fromJson(json.decode(orgJson));
-  }
-
-  Future<void> setCurrentOrganization(Organization organization) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_organization', json.encode(organization.toJson()));
-  }
-
-  // Métodos para categorias dinâmicas
-  Future<List<Category>> getCategories() async {
-    // Simular carregamento de categorias do servidor
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    return [
-      Category(
-        id: '1',
-        name: 'Construction',
-        displayName: 'Construction',
-        color: Colors.orange.value,
-        iconUrl: 'assets/images/categories/construction.png',
-        isActive: true,
-      ),
-      Category(
-        id: '2',
-        name: 'Retail',
-        displayName: 'Retail',
-        color: Colors.blue.value,
-        iconUrl: 'assets/images/categories/retail.png',
-        isActive: true,
-      ),
-      Category(
-        id: '3',
-        name: 'Manufacturing',
-        displayName: 'Manufacturing',
-        color: Colors.purple.value,
-        iconUrl: 'assets/images/categories/manufacturing.png',
-        isActive: true,
-      ),
-      Category(
-        id: '4',
-        name: 'Hotels & Vacation Rentals',
-        displayName: 'Hotels & Vacation Rentals',
-        color: Colors.teal.value,
-        iconUrl: 'assets/images/categories/hotels.png',
-        isActive: true,
-      ),
-      Category(
-        id: '5',
-        name: 'Food & Hospitality',
-        displayName: 'Food & Hospitality',
-        color: Colors.red.value,
-        iconUrl: 'assets/images/categories/food.png',
-        isActive: true,
-      ),
-      Category(
-        id: '6',
-        name: 'Transport & Automotive',
-        displayName: 'Transport & Automotive',
-        color: Colors.green.value,
-        iconUrl: 'assets/images/categories/transport.png',
-        isActive: true,
-      ),
-      Category(
-        id: '7',
-        name: 'Facility & Services',
-        displayName: 'Facility & Services',
-        color: Colors.indigo.value,
-        iconUrl: 'assets/images/categories/facility.png',
-        isActive: true,
-      ),
-    ];
-  }
-
-  Future<Category?> getCategoryByName(String categoryName) async {
-    final categories = await getCategories();
     try {
-      return categories.firstWhere((category) => category.name == categoryName);
+      print('🔍 Buscando checklists para categoria: $categoryName');
+      
+      // Inicializar ApiService
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Adicionar token de autenticação se disponível
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      // Buscar checklists da API por categoria de estabelecimento
+      final apiChecklists = await apiService.getChecklistsPorCategoriaEstabelecimento(categoryName);
+      
+      // Mapear resposta da API para modelo Checklist
+      final checklists = apiChecklists.map((apiData) {
+        return _mapApiResponseToChecklist(apiData);
+      }).toList();
+      
+      print('✅ ${checklists.length} checklists encontrados para categoria $categoryName');
+      return checklists;
     } catch (e) {
-      return null;
+      print('❌ Erro ao buscar checklists por categoria: $e');
+      // Em caso de erro, tentar buscar checklists públicos como fallback
+      try {
+        print('🔄 Tentando buscar checklists públicos como fallback...');
+        final apiService = ApiService();
+        if (apiService.baseUrl == null) {
+          apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+        }
+        
+        final authService = AuthService(apiService, await SharedPreferences.getInstance());
+        final token = await authService.getAccessToken();
+        if (token != null) {
+          apiService.setAuthToken(token);
+        }
+        
+        final apiChecklists = await apiService.getChecklistsPublicos();
+        final checklists = apiChecklists.map((apiData) {
+          return _mapApiResponseToChecklist(apiData);
+        }).toList();
+        print('✅ ${checklists.length} checklists públicos encontrados');
+        return checklists;
+      } catch (fallbackError) {
+        print('❌ Erro ao buscar checklists públicos: $fallbackError');
+        return [];
+      }
     }
   }
-}
 
-// Modelo para templates de auditoria
-class AuditTemplate {
-  final String id;
-  final String title;
-  final String description;
-  final String category;
-  final int questionCount;
-  final List<AuditQuestion> questions;
-
-  AuditTemplate({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.category,
-    required this.questionCount,
-    required this.questions,
-  });
-}
-
-class AuditQuestion {
-  final String id;
-  final String text;
-  final String type; // 'choice', 'text', 'number', etc.
-  final List<String>? options; // Para perguntas de escolha
-
-  AuditQuestion({
-    required this.id,
-    required this.text,
-    required this.type,
-    this.options,
-  });
-}
-
-// Modelo para categorias
-class Category {
-  final String id;
-  final String name;
-  final String displayName;
-  final int color; // Color value
-  final String iconUrl; // URL da imagem do ícone
-  final bool isActive;
-
-  Category({
-    required this.id,
-    required this.name,
-    required this.displayName,
-    required this.color,
-    required this.iconUrl,
-    required this.isActive,
-  });
-
-  Color get colorValue => Color(color);
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'displayName': displayName,
-      'color': color,
-      'iconUrl': iconUrl,
-      'isActive': isActive,
-    };
+  /// Busca todos os checklists públicos e ativos
+  Future<List<Checklist>> getAllChecklists() async {
+    try {
+      print('🔍 Buscando todos os checklists públicos...');
+      
+      // Inicializar ApiService
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      // Adicionar token de autenticação se disponível
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      final apiChecklists = await apiService.getChecklistsPublicos();
+      
+      final checklists = apiChecklists.map((apiData) {
+        return _mapApiResponseToChecklist(apiData);
+      }).toList();
+      
+      print('✅ ${checklists.length} checklists encontrados');
+      return checklists;
+    } catch (e) {
+      print('❌ Erro ao buscar checklists: $e');
+      return [];
+    }
   }
 
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['id'],
-      name: json['name'],
-      displayName: json['displayName'],
-      color: json['color'],
-      iconUrl: json['iconUrl'],
-      isActive: json['isActive'],
+  /// Mapeia resposta da API para modelo Establishment
+  /// O endpoint mobile retorna EstabelecimentoDtos.Response (completo, inclui latitude/longitude)
+  Establishment _mapApiResponseToEstablishment(Map<String, dynamic> apiData) {
+    final id = apiData['id']?.toString() ?? '';
+    final nome = apiData['nome']?.toString() ?? 'Sem nome';
+    final codigo = apiData['codigo']?.toString() ?? '';
+    final endereco = apiData['endereco']?.toString() ?? '';
+    final cidade = apiData['cidade']?.toString() ?? '';
+    final concelho = apiData['concelho']?.toString() ?? '';
+    final codigoPostal = apiData['codigoPostal']?.toString() ?? '';
+    
+    // Montar endereço completo
+    final enderecoCompleto = [
+      endereco,
+      if (codigoPostal.isNotEmpty) codigoPostal,
+      if (cidade.isNotEmpty) cidade,
+      if (concelho.isNotEmpty) concelho,
+    ].where((s) => s.isNotEmpty).join(', ');
+    
+    // Obter tipo da categoria de estabelecimento
+    final categoriaCodigo = apiData['categoriaEstabelecimentoCodigo']?.toString() ?? '';
+    final categoriaNome = apiData['categoriaEstabelecimentoNome']?.toString() ?? '';
+    
+    // Obter tipo da API (já vem mapeado do backend)
+    EstablishmentType tipo = EstablishmentType.outros;
+    try {
+      final tipoStr = apiData['tipo']?.toString() ?? '';
+      if (tipoStr.isNotEmpty) {
+        tipo = EstablishmentType.values.firstWhere(
+          (t) => t.name == tipoStr,
+          orElse: () => EstablishmentType.outros,
+        );
+      } else {
+        // Fallback: tentar mapear pelo código da categoria se tipo não vier
+        final categoriaLower = categoriaCodigo.toLowerCase();
+        if (categoriaLower.contains('instituicao') || categoriaLower.contains('instituição')) {
+          tipo = EstablishmentType.instituicao;
+        } else if (categoriaLower.contains('estabelecimento')) {
+          tipo = EstablishmentType.estabelecimento;
+        } else if (categoriaLower.contains('veiculo') || categoriaLower.contains('veículo')) {
+          tipo = EstablishmentType.veiculo;
+        } else if (categoriaLower.contains('saude') || categoriaLower.contains('saúde')) {
+          tipo = EstablishmentType.entidadeSaude;
+        } else if (categoriaLower.contains('equipamento')) {
+          tipo = EstablishmentType.equipamento;
+        } else if (categoriaLower.contains('predio') || categoriaLower.contains('prédio')) {
+          tipo = EstablishmentType.predio;
+        } else if (categoriaLower.contains('area') || categoriaLower.contains('área')) {
+          tipo = EstablishmentType.area;
+        }
+      }
+    } catch (e) {
+      print('⚠️ Erro ao mapear tipo de estabelecimento: $e');
+      tipo = EstablishmentType.outros;
+    }
+    
+    // Coordenadas (Response completo inclui latitude/longitude)
+    final latitude = (apiData['latitude'] as num?)?.toDouble() ?? 0.0;
+    final longitude = (apiData['longitude'] as num?)?.toDouble() ?? 0.0;
+    
+    // Descrição pode ser o código ou nome da categoria
+    final descricao = categoriaNome.isNotEmpty ? categoriaNome : codigo;
+    
+    // Datas (Response completo pode incluir criadoEm/atualizadoEm)
+    DateTime createdAt = DateTime.now();
+    DateTime updatedAt = DateTime.now();
+    if (apiData['criadoEm'] != null) {
+      try {
+        createdAt = DateTime.parse(apiData['criadoEm']);
+      } catch (e) {
+        createdAt = DateTime.now();
+      }
+    }
+    if (apiData['atualizadoEm'] != null) {
+      try {
+        updatedAt = DateTime.parse(apiData['atualizadoEm']);
+      } catch (e) {
+        updatedAt = DateTime.now();
+      }
+    }
+    
+    // Contatos (podem vir no Response completo)
+    final telefone = apiData['telefone']?.toString();
+    final email = apiData['email']?.toString();
+    final responsavel = apiData['responsavel']?.toString();
+    final observacoes = apiData['numeroAlvara']?.toString() ?? apiData['observacoes']?.toString();
+    
+    return Establishment(
+      id: id,
+      nome: nome,
+      descricao: descricao,
+      tipo: tipo,
+      endereco: enderecoCompleto.isNotEmpty ? enderecoCompleto : endereco,
+      latitude: latitude,
+      longitude: longitude,
+      telefone: telefone,
+      email: email,
+      responsavel: responsavel,
+      observacoes: observacoes,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      isSynced: true, // Vem da API, então está sincronizado
+      serverId: id, // ID do servidor é o mesmo ID
     );
   }
+
+  /// Mapeia resposta da API para modelo Checklist
+  Checklist _mapApiResponseToChecklist(Map<String, dynamic> apiData) {
+    final id = apiData['id']?.toString() ?? '';
+    final nome = apiData['nome']?.toString() ?? 'Sem nome';
+    final descricao = apiData['descricao']?.toString() ?? '';
+    final categoriaNome = apiData['categoriaNome']?.toString() ?? 
+                         apiData['categoriaEstabelecimentoNome']?.toString() ?? 
+                         'Geral';
+    final ativo = apiData['ativo'] as bool? ?? false;
+    final publico = apiData['publico'] as bool? ?? false;
+    
+    // Contar itens/seções (se disponível na resposta)
+    // Por padrão, usar valores estimados se não vierem na resposta
+    final questionCount = apiData['totalItens'] as int? ?? 0;
+    final sections = apiData['totalSecoes'] as int? ?? 1;
+    
+    // Estimar tempo baseado no número de itens (1 minuto por item)
+    final estimatedMinutes = questionCount > 0 ? questionCount : 15;
+    final estimatedTime = '${estimatedMinutes} min';
+    
+    // Determinar dificuldade baseado no número de itens
+    String difficulty = 'Medium';
+    if (questionCount > 50) {
+      difficulty = 'High';
+    } else if (questionCount < 10) {
+      difficulty = 'Low';
+    }
+    
+    return Checklist(
+      id: id,
+      title: nome,
+      description: descricao,
+      category: categoriaNome,
+      questionCount: questionCount,
+      sections: sections,
+      estimatedTime: estimatedTime,
+      difficulty: difficulty,
+      isActive: ativo && publico, // Apenas checklists ativos e públicos
+    );
+  }
+
 }
 
-// Modelo para checklists
+// Modelo para checklists (usado em checklists_screen.dart)
 class Checklist {
   final String id;
   final String title;

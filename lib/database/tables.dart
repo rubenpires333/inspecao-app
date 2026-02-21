@@ -240,6 +240,27 @@ class Estabelecimentos extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Tabela de Categorias de Estabelecimento
+class CategoriasEstabelecimento extends Table {
+  TextColumn get id => text()();
+  TextColumn get codigo => text()();
+  TextColumn get nome => text()();
+  TextColumn get descricao => text().nullable()();
+  TextColumn get icone => text().nullable()();
+  TextColumn get cor => text().nullable()();
+  IntColumn get ordem => integer().withDefault(const Constant(1))();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get criadoEm => dateTime()();
+  DateTimeColumn get atualizadoEm => dateTime().nullable()();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Tabela de Controle de Sincronização
 class Sincronizacoes extends Table {
   IntColumn get id => integer().autoIncrement()();

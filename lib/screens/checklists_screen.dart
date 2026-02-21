@@ -1,6 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:inspecao/services/data_service.dart';
 
+// Classe simples para categoria de checklist
+class Category {
+  final String name;
+  final String displayName;
+  final Color colorValue;
+  final String iconUrl;
+
+  Category({
+    required this.name,
+    required this.displayName,
+    required this.colorValue,
+    required this.iconUrl,
+  });
+}
+
 class ChecklistsScreen extends StatefulWidget {
   final Category category;
 

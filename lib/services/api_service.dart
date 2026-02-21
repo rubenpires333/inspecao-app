@@ -68,18 +68,6 @@ class ApiService {
     }
   }
 
-  // Sincronização de inspeções
-  Future<List<Map<String, dynamic>>> syncInspections(List<Map<String, dynamic>> inspections) async {
-    final response = await _dio.post('/api/inspections/sync', data: {
-      'inspections': inspections,
-    });
-    return List<Map<String, dynamic>>.from(response.data['synced']);
-  }
-
-  Future<List<Map<String, dynamic>>> getInspectionsFromServer() async {
-    final response = await _dio.get('/api/inspections');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
 
   /// Busca minhas inspeções ativas (do inspetor logado) - para home screen
   /// Retorna apenas inspeções com status RASCUNHO, EM_ANDAMENTO ou POR_VERIFICAR
@@ -110,66 +98,75 @@ class ApiService {
     return [];
   }
 
+  /// Cria inspeção via endpoint mobile
+  Future<Map<String, dynamic>> createInspectionMobile(Map<String, dynamic> inspectionData) async {
+    final response = await _dio.post('/api/v1/mobile/inspecoes', data: inspectionData);
+    return response.data;
+  }
+
+  /// Cria inspeção (endpoint web - mantido para compatibilidade)
   Future<Map<String, dynamic>> createInspectionOnServer(Map<String, dynamic> inspection) async {
-    final response = await _dio.post('/api/inspections', data: inspection);
+    final response = await _dio.post('/api/v1/inspecoes', data: inspection);
     return response.data;
   }
 
+  /// Atualiza inspeção via endpoint mobile
+  Future<Map<String, dynamic>> updateInspectionMobile(String id, Map<String, dynamic> inspectionData) async {
+    final response = await _dio.put('/api/v1/mobile/inspecoes/$id', data: inspectionData);
+    return response.data;
+  }
+
+  /// Atualiza inspeção (endpoint web - mantido para compatibilidade)
   Future<Map<String, dynamic>> updateInspectionOnServer(String id, Map<String, dynamic> inspection) async {
-    final response = await _dio.put('/api/inspections/$id', data: inspection);
+    final response = await _dio.put('/api/v1/inspecoes/$id', data: inspection);
     return response.data;
   }
 
-  Future<void> deleteInspectionOnServer(String id) async {
-    await _dio.delete('/api/inspections/$id');
+  /// Busca todos os checklists
+  Future<List<Map<String, dynamic>>> getChecklists() async {
+    final response = await _dio.get('/api/v1/checklists');
+    if (response.data is List) {
+      return List<Map<String, dynamic>>.from(response.data);
+    }
+    return [];
   }
 
-  // Sincronização de evidências
-  Future<List<Map<String, dynamic>>> syncEvidences(List<Map<String, dynamic>> evidences) async {
-    final response = await _dio.post('/api/evidences/sync', data: {
-      'evidences': evidences,
-    });
-    return List<Map<String, dynamic>>.from(response.data['synced']);
+  /// Busca checklists públicos e ativos (endpoint mobile)
+  Future<List<Map<String, dynamic>>> getChecklistsPublicos() async {
+    try {
+      // Tentar endpoint mobile primeiro
+      final response = await _dio.get('/api/v1/mobile/checklists/publicos');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    } catch (e) {
+      // Fallback para endpoint web se mobile não estiver disponível
+      print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
+      final response = await _dio.get('/api/v1/checklists/publicos');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    }
+    return [];
   }
 
-  Future<List<Map<String, dynamic>>> getEvidencesFromServer(String inspectionId) async {
-    final response = await _dio.get('/api/inspections/$inspectionId/evidences');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  Future<Map<String, dynamic>> uploadEvidence(Map<String, dynamic> evidence) async {
-    final response = await _dio.post('/api/evidences', data: evidence);
-    return response.data;
-  }
-
-  // Sincronização de usuários
-  Future<List<Map<String, dynamic>>> getUsersFromServer() async {
-    final response = await _dio.get('/api/users');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  // Sincronização de inspetores
-  Future<List<Map<String, dynamic>>> getInspectorsFromServer() async {
-    final response = await _dio.get('/api/inspectors');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  // Sincronização de notificações
-  Future<List<Map<String, dynamic>>> getNotificationsFromServer() async {
-    final response = await _dio.get('/api/notifications');
-    return List<Map<String, dynamic>>.from(response.data);
-  }
-
-  // Upload de arquivos
-  Future<Map<String, dynamic>> uploadFile(String filePath, String inspectionId, String evidenceId) async {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath),
-      'inspectionId': inspectionId,
-      'evidenceId': evidenceId,
-    });
-
-    final response = await _dio.post('/api/upload', data: formData);
-    return response.data;
+  /// Busca checklists por categoria de estabelecimento (endpoint mobile)
+  Future<List<Map<String, dynamic>>> getChecklistsPorCategoriaEstabelecimento(String categoria) async {
+    try {
+      // Tentar endpoint mobile primeiro
+      final response = await _dio.get('/api/v1/mobile/checklists/por-categoria-estabelecimento/$categoria');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    } catch (e) {
+      // Fallback para endpoint web se mobile não estiver disponível
+      print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
+      final response = await _dio.get('/api/v1/checklists/por-categoria-estabelecimento/$categoria');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    }
+    return [];
   }
 
   // Métodos de configuração

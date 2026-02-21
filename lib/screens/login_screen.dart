@@ -40,6 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
+        // Sincronizar dados iniciais em background após login bem-sucedido
+        _dataService.syncInitialData().catchError((e) {
+          print('⚠️ Erro na sincronização inicial (não bloqueante): $e');
+        });
+        
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => HomeScreen(changeThemeMode: widget.changeThemeMode)),
         );
@@ -47,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError('Credenciais inválidas. Verifique seu email e senha.');
       }
     } catch (e) {
+      // Log do erro completo para debug
+      print('Erro no login: $e');
       _showError(_getErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -59,8 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
     // Tratar diferentes tipos de erro e retornar mensagens amigáveis
     if (errorMessage.contains('credenciais inválidas') || 
         errorMessage.contains('invalid credentials') ||
-        errorMessage.contains('401') ||
-        errorMessage.contains('unauthorized')) {
+        (errorMessage.contains('401') && !errorMessage.contains('500')) ||
+        (errorMessage.contains('unauthorized') && !errorMessage.contains('keycloak'))) {
       return 'Email ou senha incorretos. Verifique suas credenciais.';
     }
     
@@ -78,14 +85,22 @@ class _LoginScreenState extends State<LoginScreen> {
       return 'Dados inválidos. Verifique os campos preenchidos.';
     }
     
+    // Tratamento especial para erro 500 relacionado ao Keycloak
     if (errorMessage.contains('500') || 
         errorMessage.contains('internal server error') ||
         errorMessage.contains('server error')) {
       // Verificar se é erro de autenticação no Keycloak
       if (errorMessage.contains('keycloak') || 
           errorMessage.contains('autenticação') ||
-          errorMessage.contains('authentication')) {
-        return 'Erro na autenticação. Verifique suas credenciais ou entre em contato com o suporte.';
+          errorMessage.contains('authentication') ||
+          (errorMessage.contains('401') && errorMessage.contains('keycloak')) ||
+          errorMessage.contains('autentika.sigapcv.cv')) {
+        return 'Erro na autenticação com o servidor de autenticação.\n\n'
+               'Possíveis causas:\n'
+               '• Credenciais inválidas\n'
+               '• Servidor de autenticação indisponível\n'
+               '• Problema de configuração\n\n'
+               'Verifique suas credenciais ou entre em contato com o suporte.';
       }
       return 'Erro no servidor. Tente novamente em alguns instantes.';
     }

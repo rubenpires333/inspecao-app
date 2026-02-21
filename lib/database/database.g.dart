@@ -5023,6 +5023,717 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
   }
 }
 
+class $CategoriasEstabelecimentoTable extends CategoriasEstabelecimento
+    with
+        TableInfo<
+          $CategoriasEstabelecimentoTable,
+          CategoriasEstabelecimentoData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CategoriasEstabelecimentoTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _codigoMeta = const VerificationMeta('codigo');
+  @override
+  late final GeneratedColumn<String> codigo = GeneratedColumn<String>(
+    'codigo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nomeMeta = const VerificationMeta('nome');
+  @override
+  late final GeneratedColumn<String> nome = GeneratedColumn<String>(
+    'nome',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descricaoMeta = const VerificationMeta(
+    'descricao',
+  );
+  @override
+  late final GeneratedColumn<String> descricao = GeneratedColumn<String>(
+    'descricao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconeMeta = const VerificationMeta('icone');
+  @override
+  late final GeneratedColumn<String> icone = GeneratedColumn<String>(
+    'icone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _corMeta = const VerificationMeta('cor');
+  @override
+  late final GeneratedColumn<String> cor = GeneratedColumn<String>(
+    'cor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ordemMeta = const VerificationMeta('ordem');
+  @override
+  late final GeneratedColumn<int> ordem = GeneratedColumn<int>(
+    'ordem',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _criadoEmMeta = const VerificationMeta(
+    'criadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> criadoEm = GeneratedColumn<DateTime>(
+    'criado_em',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atualizadoEmMeta = const VerificationMeta(
+    'atualizadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> atualizadoEm = GeneratedColumn<DateTime>(
+    'atualizado_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    codigo,
+    nome,
+    descricao,
+    icone,
+    cor,
+    ordem,
+    ativo,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'categorias_estabelecimento';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CategoriasEstabelecimentoData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('codigo')) {
+      context.handle(
+        _codigoMeta,
+        codigo.isAcceptableOrUnknown(data['codigo']!, _codigoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codigoMeta);
+    }
+    if (data.containsKey('nome')) {
+      context.handle(
+        _nomeMeta,
+        nome.isAcceptableOrUnknown(data['nome']!, _nomeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nomeMeta);
+    }
+    if (data.containsKey('descricao')) {
+      context.handle(
+        _descricaoMeta,
+        descricao.isAcceptableOrUnknown(data['descricao']!, _descricaoMeta),
+      );
+    }
+    if (data.containsKey('icone')) {
+      context.handle(
+        _iconeMeta,
+        icone.isAcceptableOrUnknown(data['icone']!, _iconeMeta),
+      );
+    }
+    if (data.containsKey('cor')) {
+      context.handle(
+        _corMeta,
+        cor.isAcceptableOrUnknown(data['cor']!, _corMeta),
+      );
+    }
+    if (data.containsKey('ordem')) {
+      context.handle(
+        _ordemMeta,
+        ordem.isAcceptableOrUnknown(data['ordem']!, _ordemMeta),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('criado_em')) {
+      context.handle(
+        _criadoEmMeta,
+        criadoEm.isAcceptableOrUnknown(data['criado_em']!, _criadoEmMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criadoEmMeta);
+    }
+    if (data.containsKey('atualizado_em')) {
+      context.handle(
+        _atualizadoEmMeta,
+        atualizadoEm.isAcceptableOrUnknown(
+          data['atualizado_em']!,
+          _atualizadoEmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CategoriasEstabelecimentoData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CategoriasEstabelecimentoData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      codigo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}codigo'],
+      )!,
+      nome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nome'],
+      )!,
+      descricao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}descricao'],
+      ),
+      icone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icone'],
+      ),
+      cor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cor'],
+      ),
+      ordem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordem'],
+      )!,
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      criadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}criado_em'],
+      )!,
+      atualizadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}atualizado_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $CategoriasEstabelecimentoTable createAlias(String alias) {
+    return $CategoriasEstabelecimentoTable(attachedDatabase, alias);
+  }
+}
+
+class CategoriasEstabelecimentoData extends DataClass
+    implements Insertable<CategoriasEstabelecimentoData> {
+  final String id;
+  final String codigo;
+  final String nome;
+  final String? descricao;
+  final String? icone;
+  final String? cor;
+  final int ordem;
+  final bool ativo;
+  final DateTime criadoEm;
+  final DateTime? atualizadoEm;
+  final bool isSynced;
+  final String? serverId;
+  const CategoriasEstabelecimentoData({
+    required this.id,
+    required this.codigo,
+    required this.nome,
+    this.descricao,
+    this.icone,
+    this.cor,
+    required this.ordem,
+    required this.ativo,
+    required this.criadoEm,
+    this.atualizadoEm,
+    required this.isSynced,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['codigo'] = Variable<String>(codigo);
+    map['nome'] = Variable<String>(nome);
+    if (!nullToAbsent || descricao != null) {
+      map['descricao'] = Variable<String>(descricao);
+    }
+    if (!nullToAbsent || icone != null) {
+      map['icone'] = Variable<String>(icone);
+    }
+    if (!nullToAbsent || cor != null) {
+      map['cor'] = Variable<String>(cor);
+    }
+    map['ordem'] = Variable<int>(ordem);
+    map['ativo'] = Variable<bool>(ativo);
+    map['criado_em'] = Variable<DateTime>(criadoEm);
+    if (!nullToAbsent || atualizadoEm != null) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  CategoriasEstabelecimentoCompanion toCompanion(bool nullToAbsent) {
+    return CategoriasEstabelecimentoCompanion(
+      id: Value(id),
+      codigo: Value(codigo),
+      nome: Value(nome),
+      descricao: descricao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(descricao),
+      icone: icone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(icone),
+      cor: cor == null && nullToAbsent ? const Value.absent() : Value(cor),
+      ordem: Value(ordem),
+      ativo: Value(ativo),
+      criadoEm: Value(criadoEm),
+      atualizadoEm: atualizadoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(atualizadoEm),
+      isSynced: Value(isSynced),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory CategoriasEstabelecimentoData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CategoriasEstabelecimentoData(
+      id: serializer.fromJson<String>(json['id']),
+      codigo: serializer.fromJson<String>(json['codigo']),
+      nome: serializer.fromJson<String>(json['nome']),
+      descricao: serializer.fromJson<String?>(json['descricao']),
+      icone: serializer.fromJson<String?>(json['icone']),
+      cor: serializer.fromJson<String?>(json['cor']),
+      ordem: serializer.fromJson<int>(json['ordem']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      criadoEm: serializer.fromJson<DateTime>(json['criadoEm']),
+      atualizadoEm: serializer.fromJson<DateTime?>(json['atualizadoEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'codigo': serializer.toJson<String>(codigo),
+      'nome': serializer.toJson<String>(nome),
+      'descricao': serializer.toJson<String?>(descricao),
+      'icone': serializer.toJson<String?>(icone),
+      'cor': serializer.toJson<String?>(cor),
+      'ordem': serializer.toJson<int>(ordem),
+      'ativo': serializer.toJson<bool>(ativo),
+      'criadoEm': serializer.toJson<DateTime>(criadoEm),
+      'atualizadoEm': serializer.toJson<DateTime?>(atualizadoEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  CategoriasEstabelecimentoData copyWith({
+    String? id,
+    String? codigo,
+    String? nome,
+    Value<String?> descricao = const Value.absent(),
+    Value<String?> icone = const Value.absent(),
+    Value<String?> cor = const Value.absent(),
+    int? ordem,
+    bool? ativo,
+    DateTime? criadoEm,
+    Value<DateTime?> atualizadoEm = const Value.absent(),
+    bool? isSynced,
+    Value<String?> serverId = const Value.absent(),
+  }) => CategoriasEstabelecimentoData(
+    id: id ?? this.id,
+    codigo: codigo ?? this.codigo,
+    nome: nome ?? this.nome,
+    descricao: descricao.present ? descricao.value : this.descricao,
+    icone: icone.present ? icone.value : this.icone,
+    cor: cor.present ? cor.value : this.cor,
+    ordem: ordem ?? this.ordem,
+    ativo: ativo ?? this.ativo,
+    criadoEm: criadoEm ?? this.criadoEm,
+    atualizadoEm: atualizadoEm.present ? atualizadoEm.value : this.atualizadoEm,
+    isSynced: isSynced ?? this.isSynced,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  CategoriasEstabelecimentoData copyWithCompanion(
+    CategoriasEstabelecimentoCompanion data,
+  ) {
+    return CategoriasEstabelecimentoData(
+      id: data.id.present ? data.id.value : this.id,
+      codigo: data.codigo.present ? data.codigo.value : this.codigo,
+      nome: data.nome.present ? data.nome.value : this.nome,
+      descricao: data.descricao.present ? data.descricao.value : this.descricao,
+      icone: data.icone.present ? data.icone.value : this.icone,
+      cor: data.cor.present ? data.cor.value : this.cor,
+      ordem: data.ordem.present ? data.ordem.value : this.ordem,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      criadoEm: data.criadoEm.present ? data.criadoEm.value : this.criadoEm,
+      atualizadoEm: data.atualizadoEm.present
+          ? data.atualizadoEm.value
+          : this.atualizadoEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoriasEstabelecimentoData(')
+          ..write('id: $id, ')
+          ..write('codigo: $codigo, ')
+          ..write('nome: $nome, ')
+          ..write('descricao: $descricao, ')
+          ..write('icone: $icone, ')
+          ..write('cor: $cor, ')
+          ..write('ordem: $ordem, ')
+          ..write('ativo: $ativo, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    codigo,
+    nome,
+    descricao,
+    icone,
+    cor,
+    ordem,
+    ativo,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CategoriasEstabelecimentoData &&
+          other.id == this.id &&
+          other.codigo == this.codigo &&
+          other.nome == this.nome &&
+          other.descricao == this.descricao &&
+          other.icone == this.icone &&
+          other.cor == this.cor &&
+          other.ordem == this.ordem &&
+          other.ativo == this.ativo &&
+          other.criadoEm == this.criadoEm &&
+          other.atualizadoEm == this.atualizadoEm &&
+          other.isSynced == this.isSynced &&
+          other.serverId == this.serverId);
+}
+
+class CategoriasEstabelecimentoCompanion
+    extends UpdateCompanion<CategoriasEstabelecimentoData> {
+  final Value<String> id;
+  final Value<String> codigo;
+  final Value<String> nome;
+  final Value<String?> descricao;
+  final Value<String?> icone;
+  final Value<String?> cor;
+  final Value<int> ordem;
+  final Value<bool> ativo;
+  final Value<DateTime> criadoEm;
+  final Value<DateTime?> atualizadoEm;
+  final Value<bool> isSynced;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const CategoriasEstabelecimentoCompanion({
+    this.id = const Value.absent(),
+    this.codigo = const Value.absent(),
+    this.nome = const Value.absent(),
+    this.descricao = const Value.absent(),
+    this.icone = const Value.absent(),
+    this.cor = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.criadoEm = const Value.absent(),
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CategoriasEstabelecimentoCompanion.insert({
+    required String id,
+    required String codigo,
+    required String nome,
+    this.descricao = const Value.absent(),
+    this.icone = const Value.absent(),
+    this.cor = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.ativo = const Value.absent(),
+    required DateTime criadoEm,
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       codigo = Value(codigo),
+       nome = Value(nome),
+       criadoEm = Value(criadoEm);
+  static Insertable<CategoriasEstabelecimentoData> custom({
+    Expression<String>? id,
+    Expression<String>? codigo,
+    Expression<String>? nome,
+    Expression<String>? descricao,
+    Expression<String>? icone,
+    Expression<String>? cor,
+    Expression<int>? ordem,
+    Expression<bool>? ativo,
+    Expression<DateTime>? criadoEm,
+    Expression<DateTime>? atualizadoEm,
+    Expression<bool>? isSynced,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (codigo != null) 'codigo': codigo,
+      if (nome != null) 'nome': nome,
+      if (descricao != null) 'descricao': descricao,
+      if (icone != null) 'icone': icone,
+      if (cor != null) 'cor': cor,
+      if (ordem != null) 'ordem': ordem,
+      if (ativo != null) 'ativo': ativo,
+      if (criadoEm != null) 'criado_em': criadoEm,
+      if (atualizadoEm != null) 'atualizado_em': atualizadoEm,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CategoriasEstabelecimentoCompanion copyWith({
+    Value<String>? id,
+    Value<String>? codigo,
+    Value<String>? nome,
+    Value<String?>? descricao,
+    Value<String?>? icone,
+    Value<String?>? cor,
+    Value<int>? ordem,
+    Value<bool>? ativo,
+    Value<DateTime>? criadoEm,
+    Value<DateTime?>? atualizadoEm,
+    Value<bool>? isSynced,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return CategoriasEstabelecimentoCompanion(
+      id: id ?? this.id,
+      codigo: codigo ?? this.codigo,
+      nome: nome ?? this.nome,
+      descricao: descricao ?? this.descricao,
+      icone: icone ?? this.icone,
+      cor: cor ?? this.cor,
+      ordem: ordem ?? this.ordem,
+      ativo: ativo ?? this.ativo,
+      criadoEm: criadoEm ?? this.criadoEm,
+      atualizadoEm: atualizadoEm ?? this.atualizadoEm,
+      isSynced: isSynced ?? this.isSynced,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (codigo.present) {
+      map['codigo'] = Variable<String>(codigo.value);
+    }
+    if (nome.present) {
+      map['nome'] = Variable<String>(nome.value);
+    }
+    if (descricao.present) {
+      map['descricao'] = Variable<String>(descricao.value);
+    }
+    if (icone.present) {
+      map['icone'] = Variable<String>(icone.value);
+    }
+    if (cor.present) {
+      map['cor'] = Variable<String>(cor.value);
+    }
+    if (ordem.present) {
+      map['ordem'] = Variable<int>(ordem.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (criadoEm.present) {
+      map['criado_em'] = Variable<DateTime>(criadoEm.value);
+    }
+    if (atualizadoEm.present) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CategoriasEstabelecimentoCompanion(')
+          ..write('id: $id, ')
+          ..write('codigo: $codigo, ')
+          ..write('nome: $nome, ')
+          ..write('descricao: $descricao, ')
+          ..write('icone: $icone, ')
+          ..write('cor: $cor, ')
+          ..write('ordem: $ordem, ')
+          ..write('ativo: $ativo, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SincronizacoesTable extends Sincronizacoes
     with TableInfo<$SincronizacoesTable, Sincronizacoe> {
   @override
@@ -5773,6 +6484,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EstabelecimentosTable estabelecimentos = $EstabelecimentosTable(
     this,
   );
+  late final $CategoriasEstabelecimentoTable categoriasEstabelecimento =
+      $CategoriasEstabelecimentoTable(this);
   late final $SincronizacoesTable sincronizacoes = $SincronizacoesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -5784,6 +6497,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     anexosInspecao,
     checklists,
     estabelecimentos,
+    categoriasEstabelecimento,
     sincronizacoes,
   ];
 }
@@ -8050,6 +8764,360 @@ typedef $$EstabelecimentosTableProcessedTableManager =
       Estabelecimento,
       PrefetchHooks Function()
     >;
+typedef $$CategoriasEstabelecimentoTableCreateCompanionBuilder =
+    CategoriasEstabelecimentoCompanion Function({
+      required String id,
+      required String codigo,
+      required String nome,
+      Value<String?> descricao,
+      Value<String?> icone,
+      Value<String?> cor,
+      Value<int> ordem,
+      Value<bool> ativo,
+      required DateTime criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$CategoriasEstabelecimentoTableUpdateCompanionBuilder =
+    CategoriasEstabelecimentoCompanion Function({
+      Value<String> id,
+      Value<String> codigo,
+      Value<String> nome,
+      Value<String?> descricao,
+      Value<String?> icone,
+      Value<String?> cor,
+      Value<int> ordem,
+      Value<bool> ativo,
+      Value<DateTime> criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$CategoriasEstabelecimentoTableFilterComposer
+    extends Composer<_$AppDatabase, $CategoriasEstabelecimentoTable> {
+  $$CategoriasEstabelecimentoTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get codigo => $composableBuilder(
+    column: $table.codigo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nome => $composableBuilder(
+    column: $table.nome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icone => $composableBuilder(
+    column: $table.icone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cor => $composableBuilder(
+    column: $table.cor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CategoriasEstabelecimentoTableOrderingComposer
+    extends Composer<_$AppDatabase, $CategoriasEstabelecimentoTable> {
+  $$CategoriasEstabelecimentoTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get codigo => $composableBuilder(
+    column: $table.codigo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nome => $composableBuilder(
+    column: $table.nome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get icone => $composableBuilder(
+    column: $table.icone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cor => $composableBuilder(
+    column: $table.cor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CategoriasEstabelecimentoTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CategoriasEstabelecimentoTable> {
+  $$CategoriasEstabelecimentoTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get codigo =>
+      $composableBuilder(column: $table.codigo, builder: (column) => column);
+
+  GeneratedColumn<String> get nome =>
+      $composableBuilder(column: $table.nome, builder: (column) => column);
+
+  GeneratedColumn<String> get descricao =>
+      $composableBuilder(column: $table.descricao, builder: (column) => column);
+
+  GeneratedColumn<String> get icone =>
+      $composableBuilder(column: $table.icone, builder: (column) => column);
+
+  GeneratedColumn<String> get cor =>
+      $composableBuilder(column: $table.cor, builder: (column) => column);
+
+  GeneratedColumn<int> get ordem =>
+      $composableBuilder(column: $table.ordem, builder: (column) => column);
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get criadoEm =>
+      $composableBuilder(column: $table.criadoEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$CategoriasEstabelecimentoTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CategoriasEstabelecimentoTable,
+          CategoriasEstabelecimentoData,
+          $$CategoriasEstabelecimentoTableFilterComposer,
+          $$CategoriasEstabelecimentoTableOrderingComposer,
+          $$CategoriasEstabelecimentoTableAnnotationComposer,
+          $$CategoriasEstabelecimentoTableCreateCompanionBuilder,
+          $$CategoriasEstabelecimentoTableUpdateCompanionBuilder,
+          (
+            CategoriasEstabelecimentoData,
+            BaseReferences<
+              _$AppDatabase,
+              $CategoriasEstabelecimentoTable,
+              CategoriasEstabelecimentoData
+            >,
+          ),
+          CategoriasEstabelecimentoData,
+          PrefetchHooks Function()
+        > {
+  $$CategoriasEstabelecimentoTableTableManager(
+    _$AppDatabase db,
+    $CategoriasEstabelecimentoTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CategoriasEstabelecimentoTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CategoriasEstabelecimentoTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CategoriasEstabelecimentoTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> codigo = const Value.absent(),
+                Value<String> nome = const Value.absent(),
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> icone = const Value.absent(),
+                Value<String?> cor = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<DateTime> criadoEm = const Value.absent(),
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoriasEstabelecimentoCompanion(
+                id: id,
+                codigo: codigo,
+                nome: nome,
+                descricao: descricao,
+                icone: icone,
+                cor: cor,
+                ordem: ordem,
+                ativo: ativo,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String codigo,
+                required String nome,
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> icone = const Value.absent(),
+                Value<String?> cor = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                required DateTime criadoEm,
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CategoriasEstabelecimentoCompanion.insert(
+                id: id,
+                codigo: codigo,
+                nome: nome,
+                descricao: descricao,
+                icone: icone,
+                cor: cor,
+                ordem: ordem,
+                ativo: ativo,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CategoriasEstabelecimentoTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CategoriasEstabelecimentoTable,
+      CategoriasEstabelecimentoData,
+      $$CategoriasEstabelecimentoTableFilterComposer,
+      $$CategoriasEstabelecimentoTableOrderingComposer,
+      $$CategoriasEstabelecimentoTableAnnotationComposer,
+      $$CategoriasEstabelecimentoTableCreateCompanionBuilder,
+      $$CategoriasEstabelecimentoTableUpdateCompanionBuilder,
+      (
+        CategoriasEstabelecimentoData,
+        BaseReferences<
+          _$AppDatabase,
+          $CategoriasEstabelecimentoTable,
+          CategoriasEstabelecimentoData
+        >,
+      ),
+      CategoriasEstabelecimentoData,
+      PrefetchHooks Function()
+    >;
 typedef $$SincronizacoesTableCreateCompanionBuilder =
     SincronizacoesCompanion Function({
       Value<int> id,
@@ -8409,6 +9477,11 @@ class $AppDatabaseManager {
       $$ChecklistsTableTableManager(_db, _db.checklists);
   $$EstabelecimentosTableTableManager get estabelecimentos =>
       $$EstabelecimentosTableTableManager(_db, _db.estabelecimentos);
+  $$CategoriasEstabelecimentoTableTableManager get categoriasEstabelecimento =>
+      $$CategoriasEstabelecimentoTableTableManager(
+        _db,
+        _db.categoriasEstabelecimento,
+      );
   $$SincronizacoesTableTableManager get sincronizacoes =>
       $$SincronizacoesTableTableManager(_db, _db.sincronizacoes);
 }

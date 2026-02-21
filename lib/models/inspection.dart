@@ -42,6 +42,8 @@ class Inspection {
   final List<String> fotos;
   final String? establishmentId; // Nova referência ao estabelecimento
   final String? inspectorId; // ID do inspetor responsável
+  final String? checklistId; // ID do checklist associado
+  final String? equipeId; // ID da equipe designada
   final bool isTemplate; // Se é um template de auditoria
   
   // Campos de controle para sincronização
@@ -68,6 +70,8 @@ class Inspection {
     this.fotos = const [],
     this.establishmentId,
     this.inspectorId,
+    this.checklistId,
+    this.equipeId,
     this.isTemplate = false,
     this.isSynced = false,
     required this.createdAt,
@@ -93,6 +97,8 @@ class Inspection {
     List<String>? fotos,
     String? establishmentId,
     String? inspectorId,
+    String? checklistId,
+    String? equipeId,
     bool? isTemplate,
     bool? isSynced,
     DateTime? createdAt,
@@ -117,6 +123,8 @@ class Inspection {
       fotos: fotos ?? this.fotos,
       establishmentId: establishmentId ?? this.establishmentId,
       inspectorId: inspectorId ?? this.inspectorId,
+      checklistId: checklistId ?? this.checklistId,
+      equipeId: equipeId ?? this.equipeId,
       isTemplate: isTemplate ?? this.isTemplate,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
@@ -143,6 +151,8 @@ class Inspection {
     'fotos': fotos,
     'establishmentId': establishmentId,
     'inspectorId': inspectorId,
+    'checklistId': checklistId,
+    'equipeId': equipeId,
     'isTemplate': isTemplate,
     'isSynced': isSynced,
     'createdAt': createdAt.toIso8601String(),
@@ -170,6 +180,8 @@ class Inspection {
       fotos: List<String>.from(json['fotos'] ?? []),
       establishmentId: json['establishmentId'],
       inspectorId: json['inspectorId'],
+      checklistId: json['checklistId'],
+      equipeId: json['equipeId'],
       isTemplate: json['isTemplate'] ?? false,
       isSynced: json['isSynced'] ?? false,
     createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
