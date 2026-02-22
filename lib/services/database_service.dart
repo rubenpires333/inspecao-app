@@ -471,6 +471,66 @@ class DatabaseService {
     }
   }
 
+  /// Salva equipe no banco local
+  Future<void> saveEquipe(db.EquipesCompanion equipe) async {
+    try {
+      await _database.insertEquipe(equipe);
+    } catch (e) {
+      print('Erro ao salvar equipe no banco local: $e');
+      rethrow;
+    }
+  }
+
+  /// Salva membro de equipe no banco local
+  Future<void> saveEquipeMembro(db.EquipeMembrosCompanion membro) async {
+    try {
+      await _database.insertEquipeMembro(membro);
+    } catch (e) {
+      print('Erro ao salvar membro de equipe no banco local: $e');
+      rethrow;
+    }
+  }
+
+  /// Salva checklist no banco local
+  Future<void> saveChecklist(db.ChecklistsCompanion checklist) async {
+    try {
+      await _database.insertChecklist(checklist);
+    } catch (e) {
+      print('Erro ao salvar checklist no banco local: $e');
+      rethrow;
+    }
+  }
+
+  /// Salva seção de checklist no banco local
+  Future<void> saveSecaoChecklist(db.SecoesChecklistCompanion secao) async {
+    try {
+      await _database.insertSecaoChecklist(secao);
+    } catch (e) {
+      print('Erro ao salvar seção de checklist no banco local: $e');
+      rethrow;
+    }
+  }
+
+  /// Salva item de checklist no banco local
+  Future<void> saveItemChecklist(db.ItensChecklistCompanion item) async {
+    try {
+      await _database.insertItemChecklist(item);
+    } catch (e) {
+      print('Erro ao salvar item de checklist no banco local: $e');
+      rethrow;
+    }
+  }
+
+  /// Salva opção de item de checklist no banco local
+  Future<void> saveOpcaoItemChecklist(db.OpcoesItemChecklistCompanion opcao) async {
+    try {
+      await _database.insertOpcaoItemChecklist(opcao);
+    } catch (e) {
+      print('Erro ao salvar opção de item de checklist no banco local: $e');
+      rethrow;
+    }
+  }
+
   /// Busca estabelecimento por ID
   Future<Establishment?> getEstablishmentById(String id) async {
     try {
@@ -543,6 +603,66 @@ class DatabaseService {
       // Por enquanto, manter todos os dados
     } catch (e) {
       print('Erro ao limpar dados antigos: $e');
+    }
+  }
+
+  /// Busca todas as equipes
+  Future<List<db.Equipe>> getAllEquipes() async {
+    try {
+      return await _database.getAllEquipes();
+    } catch (e) {
+      print('Erro ao buscar equipes: $e');
+      return [];
+    }
+  }
+
+  /// Busca todos os membros de equipe
+  Future<List<db.EquipeMembro>> getAllEquipeMembros() async {
+    try {
+      return await _database.getAllEquipeMembros();
+    } catch (e) {
+      print('Erro ao buscar membros de equipe: $e');
+      return [];
+    }
+  }
+
+  /// Busca todos os checklists
+  Future<List<db.Checklist>> getAllChecklists() async {
+    try {
+      return await _database.getAllChecklists();
+    } catch (e) {
+      print('Erro ao buscar checklists: $e');
+      return [];
+    }
+  }
+
+  /// Busca todas as seções de checklist
+  Future<List<db.SecoesChecklistData>> getAllSecoesChecklist() async {
+    try {
+      return await _database.getAllSecoesChecklist();
+    } catch (e) {
+      print('Erro ao buscar seções de checklist: $e');
+      return [];
+    }
+  }
+
+  /// Busca todos os itens de checklist
+  Future<List<db.ItensChecklistData>> getAllItensChecklist() async {
+    try {
+      return await _database.getAllItensChecklist();
+    } catch (e) {
+      print('Erro ao buscar itens de checklist: $e');
+      return [];
+    }
+  }
+
+  /// Busca todas as opções de item de checklist
+  Future<List<db.OpcoesItemChecklistData>> getAllOpcoesItemChecklist() async {
+    try {
+      return await _database.getAllOpcoesItemChecklist();
+    } catch (e) {
+      print('Erro ao buscar opções de item de checklist: $e');
+      return [];
     }
   }
 }

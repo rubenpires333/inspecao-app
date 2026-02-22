@@ -191,24 +191,63 @@ class AnexosInspecao extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Tabela de Checklists (armazenamento local)
+/// Tabela de Checklists (armazenamento local completo)
 class Checklists extends Table {
   TextColumn get id => text()();
   TextColumn get nome => text()();
-  TextColumn get versao => text()();
-  TextColumn get categoria => text().nullable()();
+  TextColumn get descricao => text().nullable()();
+  TextColumn get categoriaId => text().nullable()();
+  TextColumn get categoriaNome => text().nullable()();
+  TextColumn get criadoPorId => text().nullable()();
+  TextColumn get criadoPorNome => text().nullable()();
+  BoolColumn get publico => boolean().withDefault(const Constant(false))();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
   
-  // JSON completo do checklist
-  TextColumn get jsonData => text()();
+  // Configurações (JSON)
+  TextColumn get configuracoesJson => text().nullable()();
   
   // Metadados
-  DateTimeColumn get dataDownload => dateTime()();
-  DateTimeColumn get ultimaAtualizacao => dateTime()();
-  BoolColumn get isAtivo => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get criadoEm => dateTime()();
+  DateTimeColumn get atualizadoEm => dateTime().nullable()();
   
-  // Controle
-  DateTimeColumn get createdAt => dateTime()();
-  DateTimeColumn get updatedAt => dateTime()();
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get dataDownload => dateTime()();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tabela de Seções de Checklist
+class SecoesChecklist extends Table {
+  TextColumn get id => text()();
+  TextColumn get checklistId => text()();
+  TextColumn get secaoPaiId => text().nullable()(); // Para subseções
+  TextColumn get titulo => text()();
+  TextColumn get descricao => text().nullable()();
+  IntColumn get ordem => integer().withDefault(const Constant(1))();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  TextColumn get ajudaSecao => text().nullable()();
+  TextColumn get corTextoAjuda => text().nullable()();
+  
+  // Pontuação e ponderação
+  IntColumn get pontuacaoMaxima => integer().nullable()();
+  RealColumn get ponderacao => real().nullable()();
+  BoolColumn get calculaScore => boolean().withDefault(const Constant(true))();
+  TextColumn get tipoSecao => text().nullable()(); // 'IDENTIFICACAO', 'CONFORMIDADE', 'OUTROS'
+  
+  // Ações e condições (JSON)
+  TextColumn get acoesJson => text().nullable()();
+  TextColumn get condicoesVisibilidadeJson => text().nullable()();
+  
+  // Metadados
+  DateTimeColumn get criadoEm => dateTime()();
+  DateTimeColumn get atualizadoEm => dateTime().nullable()();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get serverId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -250,6 +289,102 @@ class CategoriasEstabelecimento extends Table {
   TextColumn get cor => text().nullable()();
   IntColumn get ordem => integer().withDefault(const Constant(1))();
   BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get criadoEm => dateTime()();
+  DateTimeColumn get atualizadoEm => dateTime().nullable()();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tabela de Equipes de Inspeção
+class Equipes extends Table {
+  TextColumn get id => text()();
+  TextColumn get codigo => text()();
+  TextColumn get nome => text()();
+  TextColumn get descricao => text().nullable()();
+  TextColumn get supervisorId => text().nullable()();
+  TextColumn get supervisorNome => text().nullable()();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tabela de Membros de Equipe
+class EquipeMembros extends Table {
+  TextColumn get id => text()();
+  TextColumn get equipeId => text()();
+  TextColumn get usuarioId => text()();
+  TextColumn get usuarioNome => text().nullable()();
+  TextColumn get usuarioEmail => text().nullable()();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get entradaEm => dateTime().nullable()();
+  DateTimeColumn get saidaEm => dateTime().nullable()();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tabela de Itens de Checklist (completo para uso offline)
+class ItensChecklist extends Table {
+  TextColumn get id => text()();
+  TextColumn get secaoId => text()();
+  TextColumn get rotulo => text()(); // Texto do item/pergunta
+  TextColumn get descricao => text().nullable()();
+  TextColumn get ajuda => text().nullable()(); // Texto de ajuda do item
+  TextColumn get tipo => text()(); // 'TEXTO', 'NUMERO', 'DATA', 'BOOLEANO', 'RATING', 'OPCAO', etc.
+  IntColumn get ordem => integer().withDefault(const Constant(1))();
+  BoolColumn get obrigatorio => boolean().withDefault(const Constant(false))();
+  BoolColumn get ativo => boolean().withDefault(const Constant(true))();
+  
+  // Configurações avançadas (JSON)
+  TextColumn get configuracoesJson => text().nullable()();
+  TextColumn get acoesJson => text().nullable()();
+  TextColumn get condicoesVisibilidadeJson => text().nullable()();
+  
+  // Metadados
+  DateTimeColumn get criadoEm => dateTime()();
+  DateTimeColumn get atualizadoEm => dateTime().nullable()();
+  
+  // Controle de sincronização
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get serverId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Tabela de Opções de Item de Checklist
+class OpcoesItemChecklist extends Table {
+  TextColumn get id => text()();
+  TextColumn get itemId => text()();
+  TextColumn get texto => text()();
+  TextColumn get valor => text().nullable()();
+  IntColumn get ordem => integer().withDefault(const Constant(1))();
+  TextColumn get cor => text().nullable()(); // Cor hexadecimal
+  IntColumn get pontuacao => integer().nullable()();
+  TextColumn get comentarioPadrao => text().nullable()();
+  
+  // Ações (JSON)
+  TextColumn get acoesJson => text().nullable()();
+  
+  // Metadados
   DateTimeColumn get criadoEm => dateTime()();
   DateTimeColumn get atualizadoEm => dateTime().nullable()();
   

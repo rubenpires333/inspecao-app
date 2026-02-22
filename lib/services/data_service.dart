@@ -89,9 +89,9 @@ class DataService {
       if (data.isNotEmpty) {
         // Converter resposta da API para formato do modelo
         final apiInspections = data.map((json) {
-          return Inspection.fromJson(_mapApiResponseToInspection(json));
-        }).toList();
-        
+        return Inspection.fromJson(_mapApiResponseToInspection(json));
+      }).toList();
+      
         // PASSO 3: Salvar no banco local (espelho do servidor)
         // As inspeções já vêm com isSynced=true e serverId da API no mapeamento
         print('💾 Salvando ${apiInspections.length} inspeções no banco local...');
@@ -675,8 +675,8 @@ class DataService {
       if (data.isNotEmpty) {
         // Converter resposta da API
         final apiInspections = data.map((json) {
-          return Inspection.fromJson(_mapApiResponseToInspection(json));
-        }).toList();
+        return Inspection.fromJson(_mapApiResponseToInspection(json));
+      }).toList();
         
         // PASSO 3: Salvar no banco local (espelho do servidor)
         await _dbService.saveInspections(apiInspections);
@@ -1119,6 +1119,26 @@ class DataService {
         // Continuar mesmo se falhar
       }
       
+      // Sincronizar equipes de inspeção
+      print('📥 Sincronizando equipes...');
+      try {
+        await _syncEquipes();
+        print('✅ Equipes sincronizadas');
+      } catch (e) {
+        print('⚠️ Erro ao sincronizar equipes: $e');
+        // Continuar mesmo se falhar
+      }
+      
+      // Sincronizar checklists completos (com itens)
+      print('📥 Sincronizando checklists completos...');
+      try {
+        await _syncChecklistsCompletos();
+        print('✅ Checklists completos sincronizados');
+      } catch (e) {
+        print('⚠️ Erro ao sincronizar checklists completos: $e');
+        // Continuar mesmo se falhar
+      }
+      
       print('✅ Sincronização inicial concluída');
     } catch (e) {
       print('❌ Erro na sincronização inicial: $e');
@@ -1234,6 +1254,429 @@ class DataService {
       }
     } catch (e) {
       print('⚠️ Erro ao sincronizar categorias: $e');
+      // Não lançar exceção
+    }
+  }
+
+  /// Sincroniza equipes de inspeção do servidor
+  Future<void> _syncEquipes() async {
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      print('📥 Sincronizando equipes...');
+      
+      final equipes = await apiService.getEquipesAtivas();
+      print('📥 ${equipes.length} equipes recebidas da API');
+      
+      for (final equipeJson in equipes) {
+        try {
+          final id = equipeJson['id']?.toString() ?? '';
+          final codigo = equipeJson['codigo']?.toString() ?? '';
+          final nome = equipeJson['nome']?.toString() ?? '';
+          final descricao = equipeJson['descricao']?.toString();
+          final supervisorId = equipeJson['supervisorId']?.toString();
+          final supervisorNome = equipeJson['supervisorNome']?.toString();
+          final ativo = equipeJson['ativo'] as bool? ?? true;
+          
+          // Buscar membros da equipe
+          final equipeCompleta = await apiService.getEquipeCompleta(id);
+          final membros = equipeCompleta['membros'] as List<dynamic>? ?? [];
+          
+          // Salvar equipe
+          final equipeCompanion = db.EquipesCompanion(
+            id: Value(id),
+            codigo: Value(codigo),
+            nome: Value(nome),
+            descricao: Value(descricao),
+            supervisorId: Value(supervisorId),
+            supervisorNome: Value(supervisorNome),
+            ativo: Value(ativo),
+            isSynced: const Value(true),
+            createdAt: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now()),
+            serverId: Value(id),
+          );
+          
+          await _dbService.saveEquipe(equipeCompanion);
+          
+          // Salvar membros
+          for (final membroJson in membros) {
+            final membroId = membroJson['id']?.toString() ?? '';
+            final usuarioId = membroJson['usuarioId']?.toString() ?? '';
+            final usuarioNome = membroJson['usuarioNome']?.toString();
+            final usuarioEmail = membroJson['usuarioEmail']?.toString();
+            final membroAtivo = membroJson['ativo'] as bool? ?? true;
+            
+            DateTime? entradaEm;
+            if (membroJson['entradaEm'] != null) {
+              try {
+                entradaEm = DateTime.parse(membroJson['entradaEm']);
+              } catch (e) {
+                entradaEm = null;
+              }
+            }
+            
+            DateTime? saidaEm;
+            if (membroJson['saidaEm'] != null) {
+              try {
+                saidaEm = DateTime.parse(membroJson['saidaEm']);
+              } catch (e) {
+                saidaEm = null;
+              }
+            }
+            
+            final membroCompanion = db.EquipeMembrosCompanion(
+              id: Value(membroId),
+              equipeId: Value(id),
+              usuarioId: Value(usuarioId),
+              usuarioNome: Value(usuarioNome),
+              usuarioEmail: Value(usuarioEmail),
+              ativo: Value(membroAtivo),
+              entradaEm: Value(entradaEm),
+              saidaEm: Value(saidaEm),
+              isSynced: const Value(true),
+              createdAt: Value(DateTime.now()),
+              updatedAt: Value(DateTime.now()),
+              serverId: Value(membroId),
+            );
+            
+            await _dbService.saveEquipeMembro(membroCompanion);
+          }
+          
+          print('  ✅ Equipe $nome ($codigo) salva com ${membros.length} membros');
+        } catch (e) {
+          print('  ⚠️ Erro ao salvar equipe ${equipeJson['nome']}: $e');
+        }
+      }
+      
+      print('✅ ${equipes.length} equipes sincronizadas');
+    } catch (e) {
+      print('⚠️ Erro ao sincronizar equipes: $e');
+      // Não lançar exceção
+    }
+  }
+
+  /// Sincroniza checklists completos (com seções, itens e opções) do servidor
+  Future<void> _syncChecklistsCompletos() async {
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      
+      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) {
+        apiService.setAuthToken(token);
+      }
+      
+      print('📥 Sincronizando checklists completos...');
+      
+      // Buscar todos os checklists públicos
+      final checklists = await apiService.getChecklistsPublicos();
+      print('📥 ${checklists.length} checklists encontrados');
+      
+      for (final checklistJson in checklists) {
+        try {
+          final checklistId = checklistJson['id']?.toString() ?? '';
+          
+          // Buscar checklist completo com seções e itens
+          final checklistCompleto = await apiService.getChecklistCompleto(checklistId);
+          
+          final nome = checklistCompleto['nome']?.toString() ?? '';
+          final descricao = checklistCompleto['descricao']?.toString();
+          final categoriaId = checklistCompleto['categoriaId']?.toString();
+          final categoriaNome = checklistCompleto['categoriaNome']?.toString();
+          final criadoPorId = checklistCompleto['criadoPorId']?.toString();
+          final criadoPorNome = checklistCompleto['criadoPorNome']?.toString();
+          final ativo = checklistCompleto['ativo'] as bool? ?? true;
+          final publico = checklistCompleto['publico'] as bool? ?? false;
+          
+          DateTime? criadoEm;
+          if (checklistCompleto['criadoEm'] != null) {
+            try {
+              criadoEm = DateTime.parse(checklistCompleto['criadoEm']);
+            } catch (e) {
+              criadoEm = DateTime.now();
+            }
+          } else {
+            criadoEm = DateTime.now();
+          }
+          
+          DateTime? atualizadoEm;
+          if (checklistCompleto['atualizadoEm'] != null) {
+            try {
+              atualizadoEm = DateTime.parse(checklistCompleto['atualizadoEm']);
+            } catch (e) {
+              atualizadoEm = null;
+            }
+          }
+          
+          // Configurações (JSON)
+          String? configuracoesJson;
+          if (checklistCompleto['configuracoes'] != null) {
+            configuracoesJson = jsonEncode(checklistCompleto['configuracoes']);
+          }
+          
+          // Salvar checklist
+          final checklistCompanion = db.ChecklistsCompanion(
+            id: Value(checklistId),
+            nome: Value(nome),
+            descricao: Value(descricao),
+            categoriaId: Value(categoriaId),
+            categoriaNome: Value(categoriaNome),
+            criadoPorId: Value(criadoPorId),
+            criadoPorNome: Value(criadoPorNome),
+            publico: Value(publico),
+            ativo: Value(ativo),
+            configuracoesJson: Value(configuracoesJson),
+            criadoEm: Value(criadoEm),
+            atualizadoEm: Value(atualizadoEm),
+            isSynced: const Value(true),
+            dataDownload: Value(DateTime.now()),
+            serverId: Value(checklistId),
+          );
+          
+          await _dbService.saveChecklist(checklistCompanion);
+          
+          // Salvar seções, itens e opções
+          final secoes = checklistCompleto['secoes'] as List<dynamic>? ?? [];
+          print('  📋 Processando ${secoes.length} seções do checklist $nome');
+          int totalSecoes = 0;
+          int totalItens = 0;
+          int totalOpcoes = 0;
+          
+          for (final secaoJson in secoes) {
+            final secaoTitulo = secaoJson['titulo']?.toString() ?? 'Sem título';
+            final secaoId = secaoJson['id']?.toString() ?? '';
+            final secaoPaiId = secaoJson['secaoPaiId']?.toString();
+            final titulo = secaoJson['titulo']?.toString() ?? '';
+            final secaoDescricao = secaoJson['descricao']?.toString();
+            final ordem = secaoJson['ordem'] as int? ?? 1;
+            final secaoAtivo = secaoJson['ativo'] as bool? ?? true;
+            final ajudaSecao = secaoJson['ajudaSecao']?.toString();
+            final corTextoAjuda = secaoJson['corTextoAjuda']?.toString();
+            final pontuacaoMaxima = secaoJson['pontuacaoMaxima'] as int?;
+            final ponderacao = secaoJson['ponderacao'] != null ? (secaoJson['ponderacao'] as num).toDouble() : null;
+            final calculaScore = secaoJson['calculaScore'] as bool? ?? true;
+            final tipoSecao = secaoJson['tipoSecao']?.toString();
+            
+            DateTime? secaoCriadoEm;
+            if (secaoJson['criadoEm'] != null) {
+              try {
+                secaoCriadoEm = DateTime.parse(secaoJson['criadoEm']);
+              } catch (e) {
+                secaoCriadoEm = DateTime.now();
+              }
+            } else {
+              secaoCriadoEm = DateTime.now();
+            }
+            
+            DateTime? secaoAtualizadoEm;
+            if (secaoJson['atualizadoEm'] != null) {
+              try {
+                secaoAtualizadoEm = DateTime.parse(secaoJson['atualizadoEm']);
+              } catch (e) {
+                secaoAtualizadoEm = null;
+              }
+            }
+            
+            // Ações e condições (JSON)
+            String? acoesJson;
+            if (secaoJson['acoes'] != null) {
+              acoesJson = jsonEncode(secaoJson['acoes']);
+            }
+            
+            String? condicoesVisibilidadeJson;
+            if (secaoJson['condicoesVisibilidade'] != null) {
+              condicoesVisibilidadeJson = jsonEncode(secaoJson['condicoesVisibilidade']);
+            }
+            
+            // Salvar seção
+            final secaoCompanion = db.SecoesChecklistCompanion(
+              id: Value(secaoId),
+              checklistId: Value(checklistId),
+              secaoPaiId: Value(secaoPaiId),
+              titulo: Value(titulo),
+              descricao: Value(secaoDescricao),
+              ordem: Value(ordem),
+              ativo: Value(secaoAtivo),
+              ajudaSecao: Value(ajudaSecao),
+              corTextoAjuda: Value(corTextoAjuda),
+              pontuacaoMaxima: Value(pontuacaoMaxima),
+              ponderacao: Value(ponderacao),
+              calculaScore: Value(calculaScore),
+              tipoSecao: Value(tipoSecao),
+              acoesJson: Value(acoesJson),
+              condicoesVisibilidadeJson: Value(condicoesVisibilidadeJson),
+              criadoEm: Value(secaoCriadoEm),
+              atualizadoEm: Value(secaoAtualizadoEm),
+              isSynced: const Value(true),
+              serverId: Value(secaoId),
+            );
+            
+            await _dbService.saveSecaoChecklist(secaoCompanion);
+            totalSecoes++;
+            
+            // Salvar itens da seção
+            final itens = secaoJson['itens'] as List<dynamic>? ?? [];
+            print('    📝 Seção "$secaoTitulo" tem ${itens.length} itens');
+            
+            if (itens.isEmpty) {
+              print('    ⚠️ Seção "$secaoTitulo" não tem itens. Verificando estrutura: ${secaoJson.keys}');
+            }
+            
+            for (final itemJson in itens) {
+              final itemId = itemJson['id']?.toString() ?? '';
+              final rotulo = itemJson['rotulo']?.toString() ?? '';
+              final itemDescricao = itemJson['descricao']?.toString();
+              final ajuda = itemJson['ajuda']?.toString();
+              final itemTipo = itemJson['tipo']?.toString() ?? 'TEXTO';
+              final itemOrdem = itemJson['ordem'] as int? ?? 1;
+              final itemObrigatorio = itemJson['obrigatorio'] as bool? ?? false;
+              final itemAtivo = itemJson['ativo'] as bool? ?? true;
+              
+              DateTime? itemCriadoEm;
+              if (itemJson['criadoEm'] != null) {
+                try {
+                  itemCriadoEm = DateTime.parse(itemJson['criadoEm']);
+                } catch (e) {
+                  itemCriadoEm = DateTime.now();
+                }
+              } else {
+                itemCriadoEm = DateTime.now();
+              }
+              
+              DateTime? itemAtualizadoEm;
+              if (itemJson['atualizadoEm'] != null) {
+                try {
+                  itemAtualizadoEm = DateTime.parse(itemJson['atualizadoEm']);
+                } catch (e) {
+                  itemAtualizadoEm = null;
+                }
+              }
+              
+              // Configurações, ações e condições (JSON)
+              String? itemConfiguracoesJson;
+              if (itemJson['configuracoes'] != null) {
+                itemConfiguracoesJson = jsonEncode(itemJson['configuracoes']);
+              }
+              
+              String? itemAcoesJson;
+              if (itemJson['acoes'] != null) {
+                itemAcoesJson = jsonEncode(itemJson['acoes']);
+              }
+              
+              String? itemCondicoesVisibilidadeJson;
+              if (itemJson['condicoesVisibilidade'] != null) {
+                itemCondicoesVisibilidadeJson = jsonEncode(itemJson['condicoesVisibilidade']);
+              }
+              
+              // Salvar item
+              final itemCompanion = db.ItensChecklistCompanion(
+                id: Value(itemId),
+                secaoId: Value(secaoId),
+                rotulo: Value(rotulo),
+                descricao: Value(itemDescricao),
+                ajuda: Value(ajuda),
+                tipo: Value(itemTipo),
+                ordem: Value(itemOrdem),
+                obrigatorio: Value(itemObrigatorio),
+                ativo: Value(itemAtivo),
+                configuracoesJson: Value(itemConfiguracoesJson),
+                acoesJson: Value(itemAcoesJson),
+                condicoesVisibilidadeJson: Value(itemCondicoesVisibilidadeJson),
+                criadoEm: Value(itemCriadoEm),
+                atualizadoEm: Value(itemAtualizadoEm),
+                isSynced: const Value(true),
+                serverId: Value(itemId),
+              );
+              
+              await _dbService.saveItemChecklist(itemCompanion);
+              totalItens++;
+              
+              // Salvar opções do item
+              final opcoes = itemJson['opcoes'] as List<dynamic>? ?? [];
+              if (opcoes.isNotEmpty) {
+                print('      ✅ Item "$rotulo" tem ${opcoes.length} opções');
+              }
+              
+              for (final opcaoJson in opcoes) {
+                final opcaoId = opcaoJson['id']?.toString() ?? '';
+                final opcaoTexto = opcaoJson['texto']?.toString() ?? '';
+                final opcaoValor = opcaoJson['valor']?.toString();
+                final opcaoOrdem = opcaoJson['ordem'] as int? ?? 1;
+                final opcaoCor = opcaoJson['cor']?.toString();
+                final opcaoPontuacao = opcaoJson['pontuacao'] as int?;
+                final comentarioPadrao = opcaoJson['comentarioPadrao']?.toString();
+                
+                DateTime? opcaoCriadoEm;
+                if (opcaoJson['criadoEm'] != null) {
+                  try {
+                    opcaoCriadoEm = DateTime.parse(opcaoJson['criadoEm']);
+    } catch (e) {
+                    opcaoCriadoEm = DateTime.now();
+                  }
+                } else {
+                  opcaoCriadoEm = DateTime.now();
+                }
+                
+                DateTime? opcaoAtualizadoEm;
+                if (opcaoJson['atualizadoEm'] != null) {
+                  try {
+                    opcaoAtualizadoEm = DateTime.parse(opcaoJson['atualizadoEm']);
+                  } catch (e) {
+                    opcaoAtualizadoEm = null;
+                  }
+                }
+                
+                // Ações (JSON)
+                String? opcaoAcoesJson;
+                if (opcaoJson['acoes'] != null) {
+                  opcaoAcoesJson = jsonEncode(opcaoJson['acoes']);
+                }
+                
+                // Salvar opção
+                final opcaoCompanion = db.OpcoesItemChecklistCompanion(
+                  id: Value(opcaoId),
+                  itemId: Value(itemId),
+                  texto: Value(opcaoTexto),
+                  valor: Value(opcaoValor),
+                  ordem: Value(opcaoOrdem),
+                  cor: Value(opcaoCor),
+                  pontuacao: Value(opcaoPontuacao),
+                  comentarioPadrao: Value(comentarioPadrao),
+                  acoesJson: Value(opcaoAcoesJson),
+                  criadoEm: Value(opcaoCriadoEm),
+                  atualizadoEm: Value(opcaoAtualizadoEm),
+                  isSynced: const Value(true),
+                  serverId: Value(opcaoId),
+                );
+                
+                await _dbService.saveOpcaoItemChecklist(opcaoCompanion);
+                totalOpcoes++;
+              }
+            }
+          }
+          
+          print('  ✅ Checklist $nome salvo: $totalSecoes seções, $totalItens itens, $totalOpcoes opções');
+        } catch (e) {
+          print('  ⚠️ Erro ao salvar checklist ${checklistJson['nome']}: $e');
+        }
+      }
+      
+      print('✅ Checklists completos sincronizados');
+    } catch (e) {
+      print('⚠️ Erro ao sincronizar checklists completos: $e');
       // Não lançar exceção
     }
   }

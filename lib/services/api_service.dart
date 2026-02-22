@@ -169,6 +169,57 @@ class ApiService {
     return [];
   }
 
+  /// Busca checklist completo com itens (endpoint mobile)
+  Future<Map<String, dynamic>> getChecklistCompleto(String id) async {
+    try {
+      final response = await _dio.get('/api/v1/mobile/checklists/$id/completo');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      // Fallback para endpoint web
+      print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
+      final response = await _dio.get('/api/v1/checklists/$id');
+      return response.data as Map<String, dynamic>;
+    }
+  }
+
+  /// Busca todas as equipes ativas (endpoint mobile)
+  Future<List<Map<String, dynamic>>> getEquipesAtivas() async {
+    try {
+      // Tentar endpoint mobile primeiro
+      final response = await _dio.get('/api/v1/mobile/equipes/ativas');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    } catch (e) {
+      // Fallback para endpoint web
+      print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
+      final response = await _dio.get('/api/v1/equipes');
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    }
+    return [];
+  }
+
+  /// Busca equipe completa com membros (endpoint mobile)
+  Future<Map<String, dynamic>> getEquipeCompleta(String id) async {
+    try {
+      final response = await _dio.get('/api/v1/mobile/equipes/$id/completa');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      // Fallback para endpoint web
+      print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
+      final equipeResponse = await _dio.get('/api/v1/equipes/$id');
+      final membrosResponse = await _dio.get('/api/v1/equipes/$id/membros');
+      
+      final equipe = equipeResponse.data as Map<String, dynamic>;
+      final membros = membrosResponse.data as List<dynamic>;
+      equipe['membros'] = membros;
+      
+      return equipe;
+    }
+  }
+
   // Métodos de configuração
   void setAuthToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';

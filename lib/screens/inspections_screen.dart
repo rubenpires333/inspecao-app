@@ -8,6 +8,7 @@ import 'package:inspecao/services/role_service.dart';
 import 'package:inspecao/screens/create_inspection_screen.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
+import 'package:inspecao/services/database_service.dart';
 
 class InspectionsScreen extends StatefulWidget {
   const InspectionsScreen({super.key});
@@ -18,6 +19,7 @@ class InspectionsScreen extends StatefulWidget {
 
 class _InspectionsScreenState extends State<InspectionsScreen> {
   final _dataService = DataService();
+  final _dbService = DatabaseService();
   List<Inspection> _inspections = [];
   List<Inspection> _filteredInspections = [];
   InspectionStatus? _statusFilter;
@@ -28,18 +30,21 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   bool _isLoading = false;
   
   // Filtros adicionais
-  double _minScore = -100.0;
+  double _minScore = 0.0;
   double _maxScore = 100.0;
   DateTime? _startDate;
   DateTime? _endDate;
   String? _selectedCompany;
   String? _selectedLocation;
-  String? _selectedChecklist;
+  String? _selectedQuickDate; // Para rastrear qual botão de data rápida está selecionado
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Garantir que os valores de score estejam no range correto
+    _minScore = _minScore.clamp(0.0, 100.0);
+    _maxScore = _maxScore.clamp(0.0, 100.0);
+    _loadData(sync: false); // Carregar apenas do banco local, sem sincronizar
     _searchController.addListener(_filterInspections);
   }
 
@@ -49,7 +54,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool sync = false}) async {
     try {
       setState(() => _isLoading = true);
       
@@ -58,18 +63,40 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
       Map<String, Establishment> establishmentsMap = {};
       
       if (user != null) {
-        // Carregar inspeções da API
-        inspections = await _dataService.getInspectionsForUser(user);
-        
-        // Carregar estabelecimentos da API
-        try {
-          final establishments = await _dataService.getAllEstablishments();
-          for (final establishment in establishments) {
-            establishmentsMap[establishment.id] = establishment;
+        if (sync) {
+          // Sincronizar com API apenas quando solicitado explicitamente
+          inspections = await _dataService.getInspectionsForUser(user);
+          
+          // Carregar estabelecimentos da API
+          try {
+            final establishments = await _dataService.getAllEstablishments();
+            for (final establishment in establishments) {
+              establishmentsMap[establishment.id] = establishment;
+            }
+          } catch (e) {
+            // Se não houver estabelecimentos, continuar com mapa vazio
+            establishmentsMap = {};
           }
-        } catch (e) {
-          // Se não houver estabelecimentos, continuar com mapa vazio
-          establishmentsMap = {};
+        } else {
+          // Carregar apenas do banco local (sem sincronizar)
+          await _dbService.initialize();
+          inspections = await _dbService.getInspections();
+          
+          // Filtrar por inspetor se necessário
+          if (user.role == UserRole.inspetor) {
+            inspections = inspections.where((i) => i.inspectorId == user.id).toList();
+          }
+          
+          // Carregar estabelecimentos do banco local
+          try {
+            final establishments = await _dbService.getEstablishments();
+            for (final establishment in establishments) {
+              establishmentsMap[establishment.id] = establishment;
+            }
+          } catch (e) {
+            // Se não houver estabelecimentos, continuar com mapa vazio
+            establishmentsMap = {};
+          }
         }
       }
       
@@ -125,6 +152,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   void _applyFilters() {
+    // Garantir que os valores de score estejam no range correto
+    _minScore = _minScore.clamp(0.0, 100.0);
+    _maxScore = _maxScore.clamp(0.0, 100.0);
+    
     final searchTerm = _searchController.text.toLowerCase();
     _filteredInspections = _inspections.where((inspection) {
       // Filtro de busca
@@ -155,12 +186,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
       final matchesLocation = _selectedLocation == null ||
           inspection.endereco.toLowerCase().contains(_selectedLocation!.toLowerCase());
       
-      // Filtro de checklist (baseado no tipo de inspeção)
-      final matchesChecklist = _selectedChecklist == null ||
-          inspection.tipoText.toLowerCase().contains(_selectedChecklist!.toLowerCase());
-      
       return matchesSearch && matchesStatus && matchesScore && matchesDate && 
-             matchesCompany && matchesLocation && matchesChecklist;
+             matchesCompany && matchesLocation;
     }).toList();
   }
 
@@ -201,6 +228,35 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     }
   }
 
+  IconData _getStatusIcon(InspectionStatus status) {
+    switch (status) {
+      case InspectionStatus.rascunho:
+        return Icons.edit;
+      case InspectionStatus.emAndamento:
+        return Icons.access_time;
+      case InspectionStatus.concluida:
+        return Icons.check_circle;
+      case InspectionStatus.sincronizada:
+        return Icons.sync;
+      case InspectionStatus.porVerificar:
+        return Icons.visibility;
+      case InspectionStatus.verificada:
+        return Icons.verified;
+      case InspectionStatus.invalida:
+        return Icons.cancel;
+      case InspectionStatus.relatorioGerado:
+        return Icons.description;
+      case InspectionStatus.parecerDdrsDdrf:
+        return Icons.gavel;
+      case InspectionStatus.assinaturaCa:
+        return Icons.verified_user;
+      case InspectionStatus.finalizada:
+        return Icons.check_circle_outline;
+      case InspectionStatus.disponibilizada:
+        return Icons.public;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -215,8 +271,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           _buildGoAuditsHeader(),
           // Conteúdo com scroll
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadData,
+              child: RefreshIndicator(
+                onRefresh: () => _loadData(sync: true), // Sincronizar ao fazer pull-to-refresh
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 100),
                 child: Column(
@@ -250,7 +306,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                     context,
                     MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
                   );
-                  _loadData();
+                  _loadData(sync: false);
                 },
                 backgroundColor: const Color(0xFF1976D2),
                 foregroundColor: Colors.white,
@@ -311,7 +367,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                       ),
                       const SizedBox(width: 12),
                       const Text(
-                        'Audits',
+                        'Inspeções',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -338,29 +394,33 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                           child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () async {
-                          // Mostrar indicador de loading
+                      IconButton(
+                        icon: _isLoading 
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: _isLoading ? null : () async {
                           setState(() {
                             _isLoading = true;
                           });
                           
                           try {
-                            // Aguardar um pouco para mostrar o loading
-                            await Future.delayed(const Duration(milliseconds: 500));
-                            
-                            // Recarregar a tela completamente
+                            // Sincronizar dados ao clicar no botão refresh
+                            await _loadData(sync: true);
                             if (mounted) {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const InspectionsScreen(),
-                                ),
-                              );
+                              setState(() {
+                                _isLoading = false;
+                              });
                             }
                           } catch (e) {
-                            // Em caso de erro, apenas recarregar dados
-                            await _loadData();
+                            // Em caso de erro, apenas recarregar dados locais
+                            await _loadData(sync: false);
                             if (mounted) {
                               setState(() {
                                 _isLoading = false;
@@ -368,19 +428,6 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                             }
                           }
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: _isLoading 
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Icon(Icons.refresh, color: Colors.white, size: 24),
-                        ),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -400,13 +447,6 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                           child: const Icon(Icons.tune, color: Colors.white, size: 24),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () {},
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: const Icon(Icons.description_outlined, color: Colors.white, size: 24),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -422,7 +462,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   child: TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(
-                      hintText: 'Search audits...',
+                      hintText: 'Buscar inspeções...',
                       prefixIcon: Icon(Icons.search, color: Colors.grey),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -448,7 +488,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Recent Audits',
+                'Inspeções Recentes',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -471,15 +511,11 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _buildStatusFilter('All', _getAllCount(), null),
+                _buildStatusFilter('Todas', _getAllCount(), null),
                 const SizedBox(width: 12),
-                _buildStatusFilter('In Progress', _getInProgressCount(), InspectionStatus.emAndamento),
+                _buildStatusFilter('Rascunho', _getStatusCount(InspectionStatus.rascunho), InspectionStatus.rascunho),
                 const SizedBox(width: 12),
-                _buildStatusFilter('Submitted', _getSubmittedCount(), InspectionStatus.concluida),
-                const SizedBox(width: 12),
-                _buildStatusFilter('Completed', _getCompletedCount(), InspectionStatus.concluida),
-                const SizedBox(width: 12),
-                _buildStatusFilter('Inválidas', _getRejectedCount(), InspectionStatus.invalida),
+                _buildStatusFilter('Em Andamento', _getStatusCount(InspectionStatus.emAndamento), InspectionStatus.emAndamento),
                 const SizedBox(width: 20),
               ],
             ),
@@ -532,11 +568,6 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   Widget _buildAuditCard(Inspection inspection) {
-    // Calcular score baseado nos itens da inspeção
-    final totalItems = inspection.itens.length;
-    final conformItems = inspection.itens.where((item) => item.status == ItemStatus.conforme).length;
-    final score = totalItems > 0 ? (conformItems / totalItems * 100).round() : 0;
-    
     return InkWell(
       onTap: () async {
         await Navigator.push(
@@ -545,124 +576,80 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             builder: (context) => InspectionDetailScreen(inspection: inspection),
           ),
         );
-        _loadData();
+        _loadData(sync: false); // Recarregar dados locais após editar inspeção
       },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1976D2), // lightPrimary sempre
-              Color(0xFF1565C0), // lightPrimary com opacidade
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1976D2).withOpacity(0.3), // lightPrimary sempre
-              spreadRadius: 2,
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Título
-            Text(
-              inspection.titulo,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Localização
-            Text(
-              inspection.endereco.isNotEmpty ? inspection.endereco : 'Endereço não informado',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            
-            // Autor e Data
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _currentUser?.nome ?? 'Inspetor',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Título
+              Text(
+                inspection.titulo,
+                style: const TextStyle(
+                  color: Color(0xFF2E2E2E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
-                  _formatDate(inspection.dataAgendada),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-              // Status e Percentage
+              ),
+              const SizedBox(height: 12),
+              
+              // Data e Status
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Status
+                  // Data com ícone
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDate(inspection.dataAgendada),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Status badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _getStatusColor(inspection.status),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 1,
-                      ),
                     ),
-                    child: Text(
-                      inspection.statusText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  
-                  // Percentage em círculo
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$score%',
-                        style: const TextStyle(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getStatusIcon(inspection.status),
+                          size: 14,
                           color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        Text(
+                          inspection.statusText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -674,67 +661,83 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Text(
-                    'Filter by',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E2E2E),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Filtrar por',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E2E2E),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Score Range
-                  _buildFilterSection(
-                    'Score Range',
-                    _buildScoreRangeSlider(),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Date Range
-                  _buildFilterSection(
-                    'Date Range',
-                    Column(
-                      children: [
-                        // Quick date buttons
-                        Row(
-                          children: [
-                            _buildQuickDateButton('Today', () => _setQuickDate('today')),
-                            const SizedBox(width: 8),
-                            _buildQuickDateButton('Yesterday', () => _setQuickDate('yesterday')),
-                            const SizedBox(width: 8),
-                            _buildQuickDateButton('This Week', () => _setQuickDate('week')),
-                            const SizedBox(width: 8),
-                            _buildQuickDateButton('This month', () => _setQuickDate('month')),
-                          ],
-                        ),
+                    const SizedBox(height: 20),
+                    
+                    // Faixa de Pontuação
+                    _buildFilterSection(
+                      'Faixa de Pontuação',
+                      _buildScoreRangeSlider(setModalState),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Período
+                    _buildFilterSection(
+                      'Período',
+                      Column(
+                        children: [
+                          // Botões de data rápida
+                          Row(
+                            children: [
+                              _buildQuickDateButton('Hoje', 'today', () {
+                                _setQuickDate('today');
+                                setModalState(() {}); // Atualizar o modal
+                              }),
+                              const SizedBox(width: 8),
+                              _buildQuickDateButton('Ontem', 'yesterday', () {
+                                _setQuickDate('yesterday');
+                                setModalState(() {}); // Atualizar o modal
+                              }),
+                              const SizedBox(width: 8),
+                              _buildQuickDateButton('Esta Semana', 'week', () {
+                                _setQuickDate('week');
+                                setModalState(() {}); // Atualizar o modal
+                              }),
+                              const SizedBox(width: 8),
+                              _buildQuickDateButton('Este Mês', 'month', () {
+                                _setQuickDate('month');
+                                setModalState(() {}); // Atualizar o modal
+                              }),
+                            ],
+                          ),
                         const SizedBox(height: 12),
                         // Date input
                         GestureDetector(
-                          onTap: () => _selectDateRange(),
+                          onTap: () async {
+                            await _selectDateRange();
+                            setModalState(() {}); // Atualizar o modal após selecionar data
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
@@ -746,7 +749,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                                 Text(
                                   _startDate != null && _endDate != null
                                       ? '${_formatDateShort(_startDate!)} - ${_formatDateShort(_endDate!)}'
-                                      : 'Select date range',
+                                      : 'Selecionar período',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: _startDate != null && _endDate != null 
@@ -765,11 +768,11 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Company
+                  // Estabelecimento
                   _buildFilterSection(
-                    'Company',
+                    'Estabelecimento',
                     GestureDetector(
-                      onTap: () => _showCompanyPicker(),
+                      onTap: () => _showCompanyPicker(setModalState),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
@@ -779,7 +782,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         child: Row(
                           children: [
                             Text(
-                              _selectedCompany ?? 'Select Company',
+                              _selectedCompany ?? 'Selecionar Estabelecimento',
                               style: TextStyle(
                                 fontSize: 14, 
                                 color: _selectedCompany != null ? const Color(0xFF2E2E2E) : Colors.grey,
@@ -794,11 +797,11 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Location
+                  // Localização
                   _buildFilterSection(
-                    'Location',
+                    'Localização',
                     GestureDetector(
-                      onTap: () => _showLocationPicker(),
+                      onTap: () => _showLocationPicker(setModalState),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
@@ -808,39 +811,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         child: Row(
                           children: [
                             Text(
-                              _selectedLocation ?? 'Select Location',
+                              _selectedLocation ?? 'Selecionar Localização',
                               style: TextStyle(
                                 fontSize: 14, 
                                 color: _selectedLocation != null ? const Color(0xFF2E2E2E) : Colors.grey,
-                              ),
-                            ),
-                            const Spacer(),
-                            Icon(Icons.keyboard_arrow_down, color: Colors.grey[600], size: 20),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Checklist
-                  _buildFilterSection(
-                    'Checklist',
-                    GestureDetector(
-                      onTap: () => _showChecklistPicker(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              _selectedChecklist ?? 'Select Checklist',
-                              style: TextStyle(
-                                fontSize: 14, 
-                                color: _selectedChecklist != null ? const Color(0xFF2E2E2E) : Colors.grey,
                               ),
                             ),
                             const Spacer(),
@@ -875,7 +849,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         ),
                       ),
                       child: const Text(
-                        'Reset filter',
+                        'Limpar Filtros',
                         style: TextStyle(
                           color: Color(0xFF1976D2),
                           fontWeight: FontWeight.w600,
@@ -898,7 +872,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         ),
                       ),
                       child: const Text(
-                        'Apply',
+                        'Aplicar',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -910,6 +884,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -933,52 +908,69 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     );
   }
 
-  Widget _buildScoreRangeSlider() {
+  Widget _buildScoreRangeSlider([StateSetter? modalStateSetter]) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('${_minScore.round()}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            Text('${_maxScore.round()}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              '${_minScore.clamp(0.0, 100.0).round()}',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1976D2)),
+            ),
+            Text(
+              '${_maxScore.clamp(0.0, 100.0).round()}',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1976D2)),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         RangeSlider(
-          values: RangeValues(_minScore, _maxScore),
-          min: -100.0,
+          values: RangeValues(
+            _minScore.clamp(0.0, 100.0),
+            _maxScore.clamp(0.0, 100.0),
+          ),
+          min: 0.0,
           max: 100.0,
           divisions: 20,
           activeColor: const Color(0xFF1976D2),
           inactiveColor: Colors.grey[200],
           onChanged: (RangeValues values) {
             setState(() {
-              _minScore = values.start;
-              _maxScore = values.end;
+              _minScore = values.start.clamp(0.0, 100.0);
+              _maxScore = values.end.clamp(0.0, 100.0);
               // Aplicar filtro dentro do setState
               _applyFilters();
             });
+            // Atualizar o modal se estiver aberto
+            if (modalStateSetter != null) {
+              modalStateSetter(() {});
+            }
           },
         ),
       ],
     );
   }
 
-  Widget _buildQuickDateButton(String text, VoidCallback onTap) {
+  Widget _buildQuickDateButton(String text, String type, VoidCallback onTap) {
+    final isSelected = _selectedQuickDate == type;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
+          color: isSelected ? const Color(0xFF1976D2) : Colors.white,
+          border: Border.all(
+            color: isSelected ? const Color(0xFF1976D2) : Colors.grey[300]!,
+          ),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: Color(0xFF2E2E2E),
+            color: isSelected ? Colors.white : const Color(0xFF2E2E2E),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
       ),
@@ -989,24 +981,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     return _inspections.length;
   }
 
-  int _getInProgressCount() {
-    return _inspections.where((i) => i.status == InspectionStatus.emAndamento).length;
-  }
-
-  int _getSubmittedCount() {
-    return _inspections.where((i) => 
-        i.status == InspectionStatus.concluida && 
-        i.observacoes != null && 
-        i.observacoes!.isNotEmpty
-    ).length;
-  }
-
-  int _getCompletedCount() {
-    return _inspections.where((i) => i.status == InspectionStatus.concluida).length;
-  }
-
-  int _getRejectedCount() {
-    return _inspections.where((i) => i.status == InspectionStatus.invalida).length;
+  int _getStatusCount(InspectionStatus status) {
+    return _inspections.where((i) => i.status == status).length;
   }
 
   String _formatDateShort(DateTime date) {
@@ -1028,6 +1004,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   void _setQuickDate(String type) {
     final now = DateTime.now();
     setState(() {
+      _selectedQuickDate = type; // Marcar o botão selecionado
       switch (type) {
         case 'today':
           _startDate = DateTime(now.year, now.month, now.day);
@@ -1062,6 +1039,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     );
     if (picked != null) {
       setState(() {
+        _selectedQuickDate = null; // Limpar seleção de botão rápido quando usar seletor de data
         _startDate = picked.start;
         _endDate = picked.end;
         _applyFilters();
@@ -1069,110 +1047,190 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
     }
   }
 
-  void _showCompanyPicker() {
-    final companies = _establishmentsCache.values.map((e) => e.nome).toSet().toList();
+  void _showCompanyPicker([StateSetter? parentModalState]) {
+    final companies = _establishmentsCache.values.map((e) => e.nome).toSet().toList()..sort();
+    final searchController = TextEditingController();
+    final filteredCompanies = ValueNotifier<List<String>>(companies);
+    
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Select Company', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            ...companies.map((company) => ListTile(
-              title: Text(company),
-              onTap: () {
-                setState(() {
-                  _selectedCompany = company;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
-            )),
-            ListTile(
-              title: const Text('Clear Selection'),
-              onTap: () {
-                setState(() {
-                  _selectedCompany = null;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Text(
+                  'Selecionar Estabelecimento',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                // Campo de busca
+                TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar estabelecimento...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (value) {
+                    setModalState(() {
+                      if (value.isEmpty) {
+                        filteredCompanies.value = companies;
+                      } else {
+                        filteredCompanies.value = companies
+                            .where((c) => c.toLowerCase().contains(value.toLowerCase()))
+                            .toList();
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Lista scrollável
+                Expanded(
+                  child: ValueListenableBuilder<List<String>>(
+                    valueListenable: filteredCompanies,
+                    builder: (context, filteredList, _) {
+                      if (filteredList.isEmpty) {
+                        return const Center(
+                          child: Text('Nenhum estabelecimento encontrado'),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: filteredList.length,
+                        itemBuilder: (context, index) {
+                          final company = filteredList[index];
+                          final isSelected = _selectedCompany == company;
+                          return ListTile(
+                            title: Text(company),
+                            selected: isSelected,
+                            selectedTileColor: const Color(0xFF1976D2).withOpacity(0.1),
+                            trailing: isSelected
+                                ? const Icon(Icons.check, color: Color(0xFF1976D2))
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                _selectedCompany = company;
+                                _applyFilters();
+                              });
+                              // Atualizar o modal pai se existir
+                              if (parentModalState != null) {
+                                parentModalState(() {});
+                              }
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Botão limpar seleção
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedCompany = null;
+                        _applyFilters();
+                      });
+                      // Atualizar o modal pai se existir
+                      if (parentModalState != null) {
+                        parentModalState(() {});
+                      }
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.clear),
+                    label: const Text('Limpar Seleção'),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF1976D2)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  void _showLocationPicker() {
-    final locations = _inspections.map((i) => i.endereco).toSet().toList();
+  void _showLocationPicker([StateSetter? parentModalState]) {
+    final locations = _inspections.map((i) => i.endereco).toSet().toList()..sort();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Select Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            ...locations.map((location) => ListTile(
-              title: Text(location),
-              onTap: () {
-                setState(() {
-                  _selectedLocation = location;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
-            )),
-            ListTile(
-              title: const Text('Clear Selection'),
-              onTap: () {
-                setState(() {
-                  _selectedLocation = null;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
+            const Text(
+              'Selecionar Localização',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showChecklistPicker() {
-    final checklists = _inspections.map((i) => i.tipoText).toSet().toList();
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Select Checklist', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ...checklists.map((checklist) => ListTile(
-              title: Text(checklist),
-              onTap: () {
-                setState(() {
-                  _selectedChecklist = checklist;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
-            )),
-            ListTile(
-              title: const Text('Clear Selection'),
-              onTap: () {
-                setState(() {
-                  _selectedChecklist = null;
-                  _applyFilters();
-                });
-                Navigator.pop(context);
-              },
+            // Lista scrollável
+            Expanded(
+              child: locations.isEmpty
+                  ? const Center(child: Text('Nenhuma localização disponível'))
+                  : ListView.builder(
+                      itemCount: locations.length,
+                      itemBuilder: (context, index) {
+                        final location = locations[index];
+                        final isSelected = _selectedLocation == location;
+                        return ListTile(
+                          title: Text(location),
+                          selected: isSelected,
+                          selectedTileColor: const Color(0xFF1976D2).withOpacity(0.1),
+                          trailing: isSelected
+                              ? const Icon(Icons.check, color: Color(0xFF1976D2))
+                              : null,
+                          onTap: () {
+                            setState(() {
+                              _selectedLocation = location;
+                              _applyFilters();
+                            });
+                            // Atualizar o modal pai se existir
+                            if (parentModalState != null) {
+                              parentModalState(() {});
+                            }
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            // Botão limpar seleção
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedLocation = null;
+                    _applyFilters();
+                  });
+                  // Atualizar o modal pai se existir
+                  if (parentModalState != null) {
+                    parentModalState(() {});
+                  }
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.clear),
+                label: const Text('Limpar Seleção'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF1976D2)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ],
         ),
@@ -1183,13 +1241,13 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   void _resetAllFilters() {
     setState(() {
       _statusFilter = null;
-      _minScore = -100.0;
+      _minScore = 0.0;
       _maxScore = 100.0;
       _startDate = null;
       _endDate = null;
       _selectedCompany = null;
       _selectedLocation = null;
-      _selectedChecklist = null;
+      _selectedQuickDate = null; // Limpar seleção de botão rápido
       _applyFilters();
     });
   }
@@ -1216,7 +1274,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No audits found',
+              'Nenhuma inspeção encontrada',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1225,10 +1283,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
             const SizedBox(height: 12),
             Text(
               _searchController.text.isNotEmpty || _statusFilter != null
-                  ? 'Try adjusting the search filters'
+                  ? 'Tente ajustar os filtros de busca'
                   : _currentUser != null && RoleService.canCreateInspection(_currentUser!)
-                      ? 'Create your first inspection to start'
-                      : 'You do not have any inspections assigned to your team',
+                      ? 'Crie sua primeira inspeção para começar'
+                      : 'Você não tem inspeções atribuídas à sua equipe',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
@@ -1242,7 +1300,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                     context,
                     MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
                   );
-                  _loadData();
+                  _loadData(sync: false);
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Create Inspection'),

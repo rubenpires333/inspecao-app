@@ -3461,36 +3461,137 @@ class $ChecklistsTable extends Checklists
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _versaoMeta = const VerificationMeta('versao');
-  @override
-  late final GeneratedColumn<String> versao = GeneratedColumn<String>(
-    'versao',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _categoriaMeta = const VerificationMeta(
-    'categoria',
+  static const VerificationMeta _descricaoMeta = const VerificationMeta(
+    'descricao',
   );
   @override
-  late final GeneratedColumn<String> categoria = GeneratedColumn<String>(
-    'categoria',
+  late final GeneratedColumn<String> descricao = GeneratedColumn<String>(
+    'descricao',
     aliasedName,
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _jsonDataMeta = const VerificationMeta(
-    'jsonData',
+  static const VerificationMeta _categoriaIdMeta = const VerificationMeta(
+    'categoriaId',
   );
   @override
-  late final GeneratedColumn<String> jsonData = GeneratedColumn<String>(
-    'json_data',
+  late final GeneratedColumn<String> categoriaId = GeneratedColumn<String>(
+    'categoria_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoriaNomeMeta = const VerificationMeta(
+    'categoriaNome',
+  );
+  @override
+  late final GeneratedColumn<String> categoriaNome = GeneratedColumn<String>(
+    'categoria_nome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _criadoPorIdMeta = const VerificationMeta(
+    'criadoPorId',
+  );
+  @override
+  late final GeneratedColumn<String> criadoPorId = GeneratedColumn<String>(
+    'criado_por_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _criadoPorNomeMeta = const VerificationMeta(
+    'criadoPorNome',
+  );
+  @override
+  late final GeneratedColumn<String> criadoPorNome = GeneratedColumn<String>(
+    'criado_por_nome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _publicoMeta = const VerificationMeta(
+    'publico',
+  );
+  @override
+  late final GeneratedColumn<bool> publico = GeneratedColumn<bool>(
+    'publico',
     aliasedName,
     false,
-    type: DriftSqlType.string,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("publico" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _configuracoesJsonMeta = const VerificationMeta(
+    'configuracoesJson',
+  );
+  @override
+  late final GeneratedColumn<String> configuracoesJson =
+      GeneratedColumn<String>(
+        'configuracoes_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _criadoEmMeta = const VerificationMeta(
+    'criadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> criadoEm = GeneratedColumn<DateTime>(
+    'criado_em',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atualizadoEmMeta = const VerificationMeta(
+    'atualizadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> atualizadoEm = GeneratedColumn<DateTime>(
+    'atualizado_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _dataDownloadMeta = const VerificationMeta(
     'dataDownload',
@@ -3503,67 +3604,34 @@ class $ChecklistsTable extends Checklists
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _ultimaAtualizacaoMeta = const VerificationMeta(
-    'ultimaAtualizacao',
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
   );
   @override
-  late final GeneratedColumn<DateTime> ultimaAtualizacao =
-      GeneratedColumn<DateTime>(
-        'ultima_atualizacao',
-        aliasedName,
-        false,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: true,
-      );
-  static const VerificationMeta _isAtivoMeta = const VerificationMeta(
-    'isAtivo',
-  );
-  @override
-  late final GeneratedColumn<bool> isAtivo = GeneratedColumn<bool>(
-    'is_ativo',
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
     aliasedName,
-    false,
-    type: DriftSqlType.bool,
+    true,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_ativo" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
   );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     nome,
-    versao,
-    categoria,
-    jsonData,
+    descricao,
+    categoriaId,
+    categoriaNome,
+    criadoPorId,
+    criadoPorNome,
+    publico,
+    ativo,
+    configuracoesJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
     dataDownload,
-    ultimaAtualizacao,
-    isAtivo,
-    createdAt,
-    updatedAt,
+    serverId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3590,27 +3658,91 @@ class $ChecklistsTable extends Checklists
     } else if (isInserting) {
       context.missing(_nomeMeta);
     }
-    if (data.containsKey('versao')) {
+    if (data.containsKey('descricao')) {
       context.handle(
-        _versaoMeta,
-        versao.isAcceptableOrUnknown(data['versao']!, _versaoMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_versaoMeta);
-    }
-    if (data.containsKey('categoria')) {
-      context.handle(
-        _categoriaMeta,
-        categoria.isAcceptableOrUnknown(data['categoria']!, _categoriaMeta),
+        _descricaoMeta,
+        descricao.isAcceptableOrUnknown(data['descricao']!, _descricaoMeta),
       );
     }
-    if (data.containsKey('json_data')) {
+    if (data.containsKey('categoria_id')) {
       context.handle(
-        _jsonDataMeta,
-        jsonData.isAcceptableOrUnknown(data['json_data']!, _jsonDataMeta),
+        _categoriaIdMeta,
+        categoriaId.isAcceptableOrUnknown(
+          data['categoria_id']!,
+          _categoriaIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('categoria_nome')) {
+      context.handle(
+        _categoriaNomeMeta,
+        categoriaNome.isAcceptableOrUnknown(
+          data['categoria_nome']!,
+          _categoriaNomeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('criado_por_id')) {
+      context.handle(
+        _criadoPorIdMeta,
+        criadoPorId.isAcceptableOrUnknown(
+          data['criado_por_id']!,
+          _criadoPorIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('criado_por_nome')) {
+      context.handle(
+        _criadoPorNomeMeta,
+        criadoPorNome.isAcceptableOrUnknown(
+          data['criado_por_nome']!,
+          _criadoPorNomeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('publico')) {
+      context.handle(
+        _publicoMeta,
+        publico.isAcceptableOrUnknown(data['publico']!, _publicoMeta),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('configuracoes_json')) {
+      context.handle(
+        _configuracoesJsonMeta,
+        configuracoesJson.isAcceptableOrUnknown(
+          data['configuracoes_json']!,
+          _configuracoesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('criado_em')) {
+      context.handle(
+        _criadoEmMeta,
+        criadoEm.isAcceptableOrUnknown(data['criado_em']!, _criadoEmMeta),
       );
     } else if (isInserting) {
-      context.missing(_jsonDataMeta);
+      context.missing(_criadoEmMeta);
+    }
+    if (data.containsKey('atualizado_em')) {
+      context.handle(
+        _atualizadoEmMeta,
+        atualizadoEm.isAcceptableOrUnknown(
+          data['atualizado_em']!,
+          _atualizadoEmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
     }
     if (data.containsKey('data_download')) {
       context.handle(
@@ -3623,38 +3755,11 @@ class $ChecklistsTable extends Checklists
     } else if (isInserting) {
       context.missing(_dataDownloadMeta);
     }
-    if (data.containsKey('ultima_atualizacao')) {
+    if (data.containsKey('server_id')) {
       context.handle(
-        _ultimaAtualizacaoMeta,
-        ultimaAtualizacao.isAcceptableOrUnknown(
-          data['ultima_atualizacao']!,
-          _ultimaAtualizacaoMeta,
-        ),
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
       );
-    } else if (isInserting) {
-      context.missing(_ultimaAtualizacaoMeta);
-    }
-    if (data.containsKey('is_ativo')) {
-      context.handle(
-        _isAtivoMeta,
-        isAtivo.isAcceptableOrUnknown(data['is_ativo']!, _isAtivoMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
     }
     return context;
   }
@@ -3673,38 +3778,58 @@ class $ChecklistsTable extends Checklists
         DriftSqlType.string,
         data['${effectivePrefix}nome'],
       )!,
-      versao: attachedDatabase.typeMapping.read(
+      descricao: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}versao'],
-      )!,
-      categoria: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}categoria'],
+        data['${effectivePrefix}descricao'],
       ),
-      jsonData: attachedDatabase.typeMapping.read(
+      categoriaId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}json_data'],
+        data['${effectivePrefix}categoria_id'],
+      ),
+      categoriaNome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}categoria_nome'],
+      ),
+      criadoPorId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}criado_por_id'],
+      ),
+      criadoPorNome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}criado_por_nome'],
+      ),
+      publico: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}publico'],
+      )!,
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      configuracoesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}configuracoes_json'],
+      ),
+      criadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}criado_em'],
+      )!,
+      atualizadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}atualizado_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
       )!,
       dataDownload: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}data_download'],
       )!,
-      ultimaAtualizacao: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}ultima_atualizacao'],
-      )!,
-      isAtivo: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_ativo'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
     );
   }
 
@@ -3717,41 +3842,70 @@ class $ChecklistsTable extends Checklists
 class Checklist extends DataClass implements Insertable<Checklist> {
   final String id;
   final String nome;
-  final String versao;
-  final String? categoria;
-  final String jsonData;
+  final String? descricao;
+  final String? categoriaId;
+  final String? categoriaNome;
+  final String? criadoPorId;
+  final String? criadoPorNome;
+  final bool publico;
+  final bool ativo;
+  final String? configuracoesJson;
+  final DateTime criadoEm;
+  final DateTime? atualizadoEm;
+  final bool isSynced;
   final DateTime dataDownload;
-  final DateTime ultimaAtualizacao;
-  final bool isAtivo;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String? serverId;
   const Checklist({
     required this.id,
     required this.nome,
-    required this.versao,
-    this.categoria,
-    required this.jsonData,
+    this.descricao,
+    this.categoriaId,
+    this.categoriaNome,
+    this.criadoPorId,
+    this.criadoPorNome,
+    required this.publico,
+    required this.ativo,
+    this.configuracoesJson,
+    required this.criadoEm,
+    this.atualizadoEm,
+    required this.isSynced,
     required this.dataDownload,
-    required this.ultimaAtualizacao,
-    required this.isAtivo,
-    required this.createdAt,
-    required this.updatedAt,
+    this.serverId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['nome'] = Variable<String>(nome);
-    map['versao'] = Variable<String>(versao);
-    if (!nullToAbsent || categoria != null) {
-      map['categoria'] = Variable<String>(categoria);
+    if (!nullToAbsent || descricao != null) {
+      map['descricao'] = Variable<String>(descricao);
     }
-    map['json_data'] = Variable<String>(jsonData);
+    if (!nullToAbsent || categoriaId != null) {
+      map['categoria_id'] = Variable<String>(categoriaId);
+    }
+    if (!nullToAbsent || categoriaNome != null) {
+      map['categoria_nome'] = Variable<String>(categoriaNome);
+    }
+    if (!nullToAbsent || criadoPorId != null) {
+      map['criado_por_id'] = Variable<String>(criadoPorId);
+    }
+    if (!nullToAbsent || criadoPorNome != null) {
+      map['criado_por_nome'] = Variable<String>(criadoPorNome);
+    }
+    map['publico'] = Variable<bool>(publico);
+    map['ativo'] = Variable<bool>(ativo);
+    if (!nullToAbsent || configuracoesJson != null) {
+      map['configuracoes_json'] = Variable<String>(configuracoesJson);
+    }
+    map['criado_em'] = Variable<DateTime>(criadoEm);
+    if (!nullToAbsent || atualizadoEm != null) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
     map['data_download'] = Variable<DateTime>(dataDownload);
-    map['ultima_atualizacao'] = Variable<DateTime>(ultimaAtualizacao);
-    map['is_ativo'] = Variable<bool>(isAtivo);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
     return map;
   }
 
@@ -3759,16 +3913,35 @@ class Checklist extends DataClass implements Insertable<Checklist> {
     return ChecklistsCompanion(
       id: Value(id),
       nome: Value(nome),
-      versao: Value(versao),
-      categoria: categoria == null && nullToAbsent
+      descricao: descricao == null && nullToAbsent
           ? const Value.absent()
-          : Value(categoria),
-      jsonData: Value(jsonData),
+          : Value(descricao),
+      categoriaId: categoriaId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoriaId),
+      categoriaNome: categoriaNome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoriaNome),
+      criadoPorId: criadoPorId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(criadoPorId),
+      criadoPorNome: criadoPorNome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(criadoPorNome),
+      publico: Value(publico),
+      ativo: Value(ativo),
+      configuracoesJson: configuracoesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configuracoesJson),
+      criadoEm: Value(criadoEm),
+      atualizadoEm: atualizadoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(atualizadoEm),
+      isSynced: Value(isSynced),
       dataDownload: Value(dataDownload),
-      ultimaAtualizacao: Value(ultimaAtualizacao),
-      isAtivo: Value(isAtivo),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
     );
   }
 
@@ -3780,16 +3953,21 @@ class Checklist extends DataClass implements Insertable<Checklist> {
     return Checklist(
       id: serializer.fromJson<String>(json['id']),
       nome: serializer.fromJson<String>(json['nome']),
-      versao: serializer.fromJson<String>(json['versao']),
-      categoria: serializer.fromJson<String?>(json['categoria']),
-      jsonData: serializer.fromJson<String>(json['jsonData']),
-      dataDownload: serializer.fromJson<DateTime>(json['dataDownload']),
-      ultimaAtualizacao: serializer.fromJson<DateTime>(
-        json['ultimaAtualizacao'],
+      descricao: serializer.fromJson<String?>(json['descricao']),
+      categoriaId: serializer.fromJson<String?>(json['categoriaId']),
+      categoriaNome: serializer.fromJson<String?>(json['categoriaNome']),
+      criadoPorId: serializer.fromJson<String?>(json['criadoPorId']),
+      criadoPorNome: serializer.fromJson<String?>(json['criadoPorNome']),
+      publico: serializer.fromJson<bool>(json['publico']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      configuracoesJson: serializer.fromJson<String?>(
+        json['configuracoesJson'],
       ),
-      isAtivo: serializer.fromJson<bool>(json['isAtivo']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      criadoEm: serializer.fromJson<DateTime>(json['criadoEm']),
+      atualizadoEm: serializer.fromJson<DateTime?>(json['atualizadoEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      dataDownload: serializer.fromJson<DateTime>(json['dataDownload']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
     );
   }
   @override
@@ -3798,56 +3976,92 @@ class Checklist extends DataClass implements Insertable<Checklist> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'nome': serializer.toJson<String>(nome),
-      'versao': serializer.toJson<String>(versao),
-      'categoria': serializer.toJson<String?>(categoria),
-      'jsonData': serializer.toJson<String>(jsonData),
+      'descricao': serializer.toJson<String?>(descricao),
+      'categoriaId': serializer.toJson<String?>(categoriaId),
+      'categoriaNome': serializer.toJson<String?>(categoriaNome),
+      'criadoPorId': serializer.toJson<String?>(criadoPorId),
+      'criadoPorNome': serializer.toJson<String?>(criadoPorNome),
+      'publico': serializer.toJson<bool>(publico),
+      'ativo': serializer.toJson<bool>(ativo),
+      'configuracoesJson': serializer.toJson<String?>(configuracoesJson),
+      'criadoEm': serializer.toJson<DateTime>(criadoEm),
+      'atualizadoEm': serializer.toJson<DateTime?>(atualizadoEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
       'dataDownload': serializer.toJson<DateTime>(dataDownload),
-      'ultimaAtualizacao': serializer.toJson<DateTime>(ultimaAtualizacao),
-      'isAtivo': serializer.toJson<bool>(isAtivo),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'serverId': serializer.toJson<String?>(serverId),
     };
   }
 
   Checklist copyWith({
     String? id,
     String? nome,
-    String? versao,
-    Value<String?> categoria = const Value.absent(),
-    String? jsonData,
+    Value<String?> descricao = const Value.absent(),
+    Value<String?> categoriaId = const Value.absent(),
+    Value<String?> categoriaNome = const Value.absent(),
+    Value<String?> criadoPorId = const Value.absent(),
+    Value<String?> criadoPorNome = const Value.absent(),
+    bool? publico,
+    bool? ativo,
+    Value<String?> configuracoesJson = const Value.absent(),
+    DateTime? criadoEm,
+    Value<DateTime?> atualizadoEm = const Value.absent(),
+    bool? isSynced,
     DateTime? dataDownload,
-    DateTime? ultimaAtualizacao,
-    bool? isAtivo,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    Value<String?> serverId = const Value.absent(),
   }) => Checklist(
     id: id ?? this.id,
     nome: nome ?? this.nome,
-    versao: versao ?? this.versao,
-    categoria: categoria.present ? categoria.value : this.categoria,
-    jsonData: jsonData ?? this.jsonData,
+    descricao: descricao.present ? descricao.value : this.descricao,
+    categoriaId: categoriaId.present ? categoriaId.value : this.categoriaId,
+    categoriaNome: categoriaNome.present
+        ? categoriaNome.value
+        : this.categoriaNome,
+    criadoPorId: criadoPorId.present ? criadoPorId.value : this.criadoPorId,
+    criadoPorNome: criadoPorNome.present
+        ? criadoPorNome.value
+        : this.criadoPorNome,
+    publico: publico ?? this.publico,
+    ativo: ativo ?? this.ativo,
+    configuracoesJson: configuracoesJson.present
+        ? configuracoesJson.value
+        : this.configuracoesJson,
+    criadoEm: criadoEm ?? this.criadoEm,
+    atualizadoEm: atualizadoEm.present ? atualizadoEm.value : this.atualizadoEm,
+    isSynced: isSynced ?? this.isSynced,
     dataDownload: dataDownload ?? this.dataDownload,
-    ultimaAtualizacao: ultimaAtualizacao ?? this.ultimaAtualizacao,
-    isAtivo: isAtivo ?? this.isAtivo,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
+    serverId: serverId.present ? serverId.value : this.serverId,
   );
   Checklist copyWithCompanion(ChecklistsCompanion data) {
     return Checklist(
       id: data.id.present ? data.id.value : this.id,
       nome: data.nome.present ? data.nome.value : this.nome,
-      versao: data.versao.present ? data.versao.value : this.versao,
-      categoria: data.categoria.present ? data.categoria.value : this.categoria,
-      jsonData: data.jsonData.present ? data.jsonData.value : this.jsonData,
+      descricao: data.descricao.present ? data.descricao.value : this.descricao,
+      categoriaId: data.categoriaId.present
+          ? data.categoriaId.value
+          : this.categoriaId,
+      categoriaNome: data.categoriaNome.present
+          ? data.categoriaNome.value
+          : this.categoriaNome,
+      criadoPorId: data.criadoPorId.present
+          ? data.criadoPorId.value
+          : this.criadoPorId,
+      criadoPorNome: data.criadoPorNome.present
+          ? data.criadoPorNome.value
+          : this.criadoPorNome,
+      publico: data.publico.present ? data.publico.value : this.publico,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      configuracoesJson: data.configuracoesJson.present
+          ? data.configuracoesJson.value
+          : this.configuracoesJson,
+      criadoEm: data.criadoEm.present ? data.criadoEm.value : this.criadoEm,
+      atualizadoEm: data.atualizadoEm.present
+          ? data.atualizadoEm.value
+          : this.atualizadoEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       dataDownload: data.dataDownload.present
           ? data.dataDownload.value
           : this.dataDownload,
-      ultimaAtualizacao: data.ultimaAtualizacao.present
-          ? data.ultimaAtualizacao.value
-          : this.ultimaAtualizacao,
-      isAtivo: data.isAtivo.present ? data.isAtivo.value : this.isAtivo,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
     );
   }
 
@@ -3856,14 +4070,19 @@ class Checklist extends DataClass implements Insertable<Checklist> {
     return (StringBuffer('Checklist(')
           ..write('id: $id, ')
           ..write('nome: $nome, ')
-          ..write('versao: $versao, ')
-          ..write('categoria: $categoria, ')
-          ..write('jsonData: $jsonData, ')
+          ..write('descricao: $descricao, ')
+          ..write('categoriaId: $categoriaId, ')
+          ..write('categoriaNome: $categoriaNome, ')
+          ..write('criadoPorId: $criadoPorId, ')
+          ..write('criadoPorNome: $criadoPorNome, ')
+          ..write('publico: $publico, ')
+          ..write('ativo: $ativo, ')
+          ..write('configuracoesJson: $configuracoesJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
           ..write('dataDownload: $dataDownload, ')
-          ..write('ultimaAtualizacao: $ultimaAtualizacao, ')
-          ..write('isAtivo: $isAtivo, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('serverId: $serverId')
           ..write(')'))
         .toString();
   }
@@ -3872,14 +4091,19 @@ class Checklist extends DataClass implements Insertable<Checklist> {
   int get hashCode => Object.hash(
     id,
     nome,
-    versao,
-    categoria,
-    jsonData,
+    descricao,
+    categoriaId,
+    categoriaNome,
+    criadoPorId,
+    criadoPorNome,
+    publico,
+    ativo,
+    configuracoesJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
     dataDownload,
-    ultimaAtualizacao,
-    isAtivo,
-    createdAt,
-    updatedAt,
+    serverId,
   );
   @override
   bool operator ==(Object other) =>
@@ -3887,85 +4111,111 @@ class Checklist extends DataClass implements Insertable<Checklist> {
       (other is Checklist &&
           other.id == this.id &&
           other.nome == this.nome &&
-          other.versao == this.versao &&
-          other.categoria == this.categoria &&
-          other.jsonData == this.jsonData &&
+          other.descricao == this.descricao &&
+          other.categoriaId == this.categoriaId &&
+          other.categoriaNome == this.categoriaNome &&
+          other.criadoPorId == this.criadoPorId &&
+          other.criadoPorNome == this.criadoPorNome &&
+          other.publico == this.publico &&
+          other.ativo == this.ativo &&
+          other.configuracoesJson == this.configuracoesJson &&
+          other.criadoEm == this.criadoEm &&
+          other.atualizadoEm == this.atualizadoEm &&
+          other.isSynced == this.isSynced &&
           other.dataDownload == this.dataDownload &&
-          other.ultimaAtualizacao == this.ultimaAtualizacao &&
-          other.isAtivo == this.isAtivo &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.serverId == this.serverId);
 }
 
 class ChecklistsCompanion extends UpdateCompanion<Checklist> {
   final Value<String> id;
   final Value<String> nome;
-  final Value<String> versao;
-  final Value<String?> categoria;
-  final Value<String> jsonData;
+  final Value<String?> descricao;
+  final Value<String?> categoriaId;
+  final Value<String?> categoriaNome;
+  final Value<String?> criadoPorId;
+  final Value<String?> criadoPorNome;
+  final Value<bool> publico;
+  final Value<bool> ativo;
+  final Value<String?> configuracoesJson;
+  final Value<DateTime> criadoEm;
+  final Value<DateTime?> atualizadoEm;
+  final Value<bool> isSynced;
   final Value<DateTime> dataDownload;
-  final Value<DateTime> ultimaAtualizacao;
-  final Value<bool> isAtivo;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
+  final Value<String?> serverId;
   final Value<int> rowid;
   const ChecklistsCompanion({
     this.id = const Value.absent(),
     this.nome = const Value.absent(),
-    this.versao = const Value.absent(),
-    this.categoria = const Value.absent(),
-    this.jsonData = const Value.absent(),
+    this.descricao = const Value.absent(),
+    this.categoriaId = const Value.absent(),
+    this.categoriaNome = const Value.absent(),
+    this.criadoPorId = const Value.absent(),
+    this.criadoPorNome = const Value.absent(),
+    this.publico = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.configuracoesJson = const Value.absent(),
+    this.criadoEm = const Value.absent(),
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
     this.dataDownload = const Value.absent(),
-    this.ultimaAtualizacao = const Value.absent(),
-    this.isAtivo = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
+    this.serverId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChecklistsCompanion.insert({
     required String id,
     required String nome,
-    required String versao,
-    this.categoria = const Value.absent(),
-    required String jsonData,
+    this.descricao = const Value.absent(),
+    this.categoriaId = const Value.absent(),
+    this.categoriaNome = const Value.absent(),
+    this.criadoPorId = const Value.absent(),
+    this.criadoPorNome = const Value.absent(),
+    this.publico = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.configuracoesJson = const Value.absent(),
+    required DateTime criadoEm,
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
     required DateTime dataDownload,
-    required DateTime ultimaAtualizacao,
-    this.isAtivo = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
+    this.serverId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        nome = Value(nome),
-       versao = Value(versao),
-       jsonData = Value(jsonData),
-       dataDownload = Value(dataDownload),
-       ultimaAtualizacao = Value(ultimaAtualizacao),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt);
+       criadoEm = Value(criadoEm),
+       dataDownload = Value(dataDownload);
   static Insertable<Checklist> custom({
     Expression<String>? id,
     Expression<String>? nome,
-    Expression<String>? versao,
-    Expression<String>? categoria,
-    Expression<String>? jsonData,
+    Expression<String>? descricao,
+    Expression<String>? categoriaId,
+    Expression<String>? categoriaNome,
+    Expression<String>? criadoPorId,
+    Expression<String>? criadoPorNome,
+    Expression<bool>? publico,
+    Expression<bool>? ativo,
+    Expression<String>? configuracoesJson,
+    Expression<DateTime>? criadoEm,
+    Expression<DateTime>? atualizadoEm,
+    Expression<bool>? isSynced,
     Expression<DateTime>? dataDownload,
-    Expression<DateTime>? ultimaAtualizacao,
-    Expression<bool>? isAtivo,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
+    Expression<String>? serverId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (nome != null) 'nome': nome,
-      if (versao != null) 'versao': versao,
-      if (categoria != null) 'categoria': categoria,
-      if (jsonData != null) 'json_data': jsonData,
+      if (descricao != null) 'descricao': descricao,
+      if (categoriaId != null) 'categoria_id': categoriaId,
+      if (categoriaNome != null) 'categoria_nome': categoriaNome,
+      if (criadoPorId != null) 'criado_por_id': criadoPorId,
+      if (criadoPorNome != null) 'criado_por_nome': criadoPorNome,
+      if (publico != null) 'publico': publico,
+      if (ativo != null) 'ativo': ativo,
+      if (configuracoesJson != null) 'configuracoes_json': configuracoesJson,
+      if (criadoEm != null) 'criado_em': criadoEm,
+      if (atualizadoEm != null) 'atualizado_em': atualizadoEm,
+      if (isSynced != null) 'is_synced': isSynced,
       if (dataDownload != null) 'data_download': dataDownload,
-      if (ultimaAtualizacao != null) 'ultima_atualizacao': ultimaAtualizacao,
-      if (isAtivo != null) 'is_ativo': isAtivo,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverId != null) 'server_id': serverId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3973,27 +4223,37 @@ class ChecklistsCompanion extends UpdateCompanion<Checklist> {
   ChecklistsCompanion copyWith({
     Value<String>? id,
     Value<String>? nome,
-    Value<String>? versao,
-    Value<String?>? categoria,
-    Value<String>? jsonData,
+    Value<String?>? descricao,
+    Value<String?>? categoriaId,
+    Value<String?>? categoriaNome,
+    Value<String?>? criadoPorId,
+    Value<String?>? criadoPorNome,
+    Value<bool>? publico,
+    Value<bool>? ativo,
+    Value<String?>? configuracoesJson,
+    Value<DateTime>? criadoEm,
+    Value<DateTime?>? atualizadoEm,
+    Value<bool>? isSynced,
     Value<DateTime>? dataDownload,
-    Value<DateTime>? ultimaAtualizacao,
-    Value<bool>? isAtivo,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
+    Value<String?>? serverId,
     Value<int>? rowid,
   }) {
     return ChecklistsCompanion(
       id: id ?? this.id,
       nome: nome ?? this.nome,
-      versao: versao ?? this.versao,
-      categoria: categoria ?? this.categoria,
-      jsonData: jsonData ?? this.jsonData,
+      descricao: descricao ?? this.descricao,
+      categoriaId: categoriaId ?? this.categoriaId,
+      categoriaNome: categoriaNome ?? this.categoriaNome,
+      criadoPorId: criadoPorId ?? this.criadoPorId,
+      criadoPorNome: criadoPorNome ?? this.criadoPorNome,
+      publico: publico ?? this.publico,
+      ativo: ativo ?? this.ativo,
+      configuracoesJson: configuracoesJson ?? this.configuracoesJson,
+      criadoEm: criadoEm ?? this.criadoEm,
+      atualizadoEm: atualizadoEm ?? this.atualizadoEm,
+      isSynced: isSynced ?? this.isSynced,
       dataDownload: dataDownload ?? this.dataDownload,
-      ultimaAtualizacao: ultimaAtualizacao ?? this.ultimaAtualizacao,
-      isAtivo: isAtivo ?? this.isAtivo,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      serverId: serverId ?? this.serverId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4007,29 +4267,44 @@ class ChecklistsCompanion extends UpdateCompanion<Checklist> {
     if (nome.present) {
       map['nome'] = Variable<String>(nome.value);
     }
-    if (versao.present) {
-      map['versao'] = Variable<String>(versao.value);
+    if (descricao.present) {
+      map['descricao'] = Variable<String>(descricao.value);
     }
-    if (categoria.present) {
-      map['categoria'] = Variable<String>(categoria.value);
+    if (categoriaId.present) {
+      map['categoria_id'] = Variable<String>(categoriaId.value);
     }
-    if (jsonData.present) {
-      map['json_data'] = Variable<String>(jsonData.value);
+    if (categoriaNome.present) {
+      map['categoria_nome'] = Variable<String>(categoriaNome.value);
+    }
+    if (criadoPorId.present) {
+      map['criado_por_id'] = Variable<String>(criadoPorId.value);
+    }
+    if (criadoPorNome.present) {
+      map['criado_por_nome'] = Variable<String>(criadoPorNome.value);
+    }
+    if (publico.present) {
+      map['publico'] = Variable<bool>(publico.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (configuracoesJson.present) {
+      map['configuracoes_json'] = Variable<String>(configuracoesJson.value);
+    }
+    if (criadoEm.present) {
+      map['criado_em'] = Variable<DateTime>(criadoEm.value);
+    }
+    if (atualizadoEm.present) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
     }
     if (dataDownload.present) {
       map['data_download'] = Variable<DateTime>(dataDownload.value);
     }
-    if (ultimaAtualizacao.present) {
-      map['ultima_atualizacao'] = Variable<DateTime>(ultimaAtualizacao.value);
-    }
-    if (isAtivo.present) {
-      map['is_ativo'] = Variable<bool>(isAtivo.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -4042,14 +4317,2818 @@ class ChecklistsCompanion extends UpdateCompanion<Checklist> {
     return (StringBuffer('ChecklistsCompanion(')
           ..write('id: $id, ')
           ..write('nome: $nome, ')
-          ..write('versao: $versao, ')
-          ..write('categoria: $categoria, ')
-          ..write('jsonData: $jsonData, ')
+          ..write('descricao: $descricao, ')
+          ..write('categoriaId: $categoriaId, ')
+          ..write('categoriaNome: $categoriaNome, ')
+          ..write('criadoPorId: $criadoPorId, ')
+          ..write('criadoPorNome: $criadoPorNome, ')
+          ..write('publico: $publico, ')
+          ..write('ativo: $ativo, ')
+          ..write('configuracoesJson: $configuracoesJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
           ..write('dataDownload: $dataDownload, ')
-          ..write('ultimaAtualizacao: $ultimaAtualizacao, ')
-          ..write('isAtivo: $isAtivo, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SecoesChecklistTable extends SecoesChecklist
+    with TableInfo<$SecoesChecklistTable, SecoesChecklistData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SecoesChecklistTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _checklistIdMeta = const VerificationMeta(
+    'checklistId',
+  );
+  @override
+  late final GeneratedColumn<String> checklistId = GeneratedColumn<String>(
+    'checklist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _secaoPaiIdMeta = const VerificationMeta(
+    'secaoPaiId',
+  );
+  @override
+  late final GeneratedColumn<String> secaoPaiId = GeneratedColumn<String>(
+    'secao_pai_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tituloMeta = const VerificationMeta('titulo');
+  @override
+  late final GeneratedColumn<String> titulo = GeneratedColumn<String>(
+    'titulo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descricaoMeta = const VerificationMeta(
+    'descricao',
+  );
+  @override
+  late final GeneratedColumn<String> descricao = GeneratedColumn<String>(
+    'descricao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ordemMeta = const VerificationMeta('ordem');
+  @override
+  late final GeneratedColumn<int> ordem = GeneratedColumn<int>(
+    'ordem',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _ajudaSecaoMeta = const VerificationMeta(
+    'ajudaSecao',
+  );
+  @override
+  late final GeneratedColumn<String> ajudaSecao = GeneratedColumn<String>(
+    'ajuda_secao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _corTextoAjudaMeta = const VerificationMeta(
+    'corTextoAjuda',
+  );
+  @override
+  late final GeneratedColumn<String> corTextoAjuda = GeneratedColumn<String>(
+    'cor_texto_ajuda',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pontuacaoMaximaMeta = const VerificationMeta(
+    'pontuacaoMaxima',
+  );
+  @override
+  late final GeneratedColumn<int> pontuacaoMaxima = GeneratedColumn<int>(
+    'pontuacao_maxima',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ponderacaoMeta = const VerificationMeta(
+    'ponderacao',
+  );
+  @override
+  late final GeneratedColumn<double> ponderacao = GeneratedColumn<double>(
+    'ponderacao',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _calculaScoreMeta = const VerificationMeta(
+    'calculaScore',
+  );
+  @override
+  late final GeneratedColumn<bool> calculaScore = GeneratedColumn<bool>(
+    'calcula_score',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("calcula_score" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _tipoSecaoMeta = const VerificationMeta(
+    'tipoSecao',
+  );
+  @override
+  late final GeneratedColumn<String> tipoSecao = GeneratedColumn<String>(
+    'tipo_secao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _acoesJsonMeta = const VerificationMeta(
+    'acoesJson',
+  );
+  @override
+  late final GeneratedColumn<String> acoesJson = GeneratedColumn<String>(
+    'acoes_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _condicoesVisibilidadeJsonMeta =
+      const VerificationMeta('condicoesVisibilidadeJson');
+  @override
+  late final GeneratedColumn<String> condicoesVisibilidadeJson =
+      GeneratedColumn<String>(
+        'condicoes_visibilidade_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _criadoEmMeta = const VerificationMeta(
+    'criadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> criadoEm = GeneratedColumn<DateTime>(
+    'criado_em',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atualizadoEmMeta = const VerificationMeta(
+    'atualizadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> atualizadoEm = GeneratedColumn<DateTime>(
+    'atualizado_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    checklistId,
+    secaoPaiId,
+    titulo,
+    descricao,
+    ordem,
+    ativo,
+    ajudaSecao,
+    corTextoAjuda,
+    pontuacaoMaxima,
+    ponderacao,
+    calculaScore,
+    tipoSecao,
+    acoesJson,
+    condicoesVisibilidadeJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'secoes_checklist';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SecoesChecklistData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('checklist_id')) {
+      context.handle(
+        _checklistIdMeta,
+        checklistId.isAcceptableOrUnknown(
+          data['checklist_id']!,
+          _checklistIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_checklistIdMeta);
+    }
+    if (data.containsKey('secao_pai_id')) {
+      context.handle(
+        _secaoPaiIdMeta,
+        secaoPaiId.isAcceptableOrUnknown(
+          data['secao_pai_id']!,
+          _secaoPaiIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('titulo')) {
+      context.handle(
+        _tituloMeta,
+        titulo.isAcceptableOrUnknown(data['titulo']!, _tituloMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tituloMeta);
+    }
+    if (data.containsKey('descricao')) {
+      context.handle(
+        _descricaoMeta,
+        descricao.isAcceptableOrUnknown(data['descricao']!, _descricaoMeta),
+      );
+    }
+    if (data.containsKey('ordem')) {
+      context.handle(
+        _ordemMeta,
+        ordem.isAcceptableOrUnknown(data['ordem']!, _ordemMeta),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('ajuda_secao')) {
+      context.handle(
+        _ajudaSecaoMeta,
+        ajudaSecao.isAcceptableOrUnknown(data['ajuda_secao']!, _ajudaSecaoMeta),
+      );
+    }
+    if (data.containsKey('cor_texto_ajuda')) {
+      context.handle(
+        _corTextoAjudaMeta,
+        corTextoAjuda.isAcceptableOrUnknown(
+          data['cor_texto_ajuda']!,
+          _corTextoAjudaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pontuacao_maxima')) {
+      context.handle(
+        _pontuacaoMaximaMeta,
+        pontuacaoMaxima.isAcceptableOrUnknown(
+          data['pontuacao_maxima']!,
+          _pontuacaoMaximaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ponderacao')) {
+      context.handle(
+        _ponderacaoMeta,
+        ponderacao.isAcceptableOrUnknown(data['ponderacao']!, _ponderacaoMeta),
+      );
+    }
+    if (data.containsKey('calcula_score')) {
+      context.handle(
+        _calculaScoreMeta,
+        calculaScore.isAcceptableOrUnknown(
+          data['calcula_score']!,
+          _calculaScoreMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tipo_secao')) {
+      context.handle(
+        _tipoSecaoMeta,
+        tipoSecao.isAcceptableOrUnknown(data['tipo_secao']!, _tipoSecaoMeta),
+      );
+    }
+    if (data.containsKey('acoes_json')) {
+      context.handle(
+        _acoesJsonMeta,
+        acoesJson.isAcceptableOrUnknown(data['acoes_json']!, _acoesJsonMeta),
+      );
+    }
+    if (data.containsKey('condicoes_visibilidade_json')) {
+      context.handle(
+        _condicoesVisibilidadeJsonMeta,
+        condicoesVisibilidadeJson.isAcceptableOrUnknown(
+          data['condicoes_visibilidade_json']!,
+          _condicoesVisibilidadeJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('criado_em')) {
+      context.handle(
+        _criadoEmMeta,
+        criadoEm.isAcceptableOrUnknown(data['criado_em']!, _criadoEmMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criadoEmMeta);
+    }
+    if (data.containsKey('atualizado_em')) {
+      context.handle(
+        _atualizadoEmMeta,
+        atualizadoEm.isAcceptableOrUnknown(
+          data['atualizado_em']!,
+          _atualizadoEmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SecoesChecklistData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SecoesChecklistData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      checklistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checklist_id'],
+      )!,
+      secaoPaiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secao_pai_id'],
+      ),
+      titulo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}titulo'],
+      )!,
+      descricao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}descricao'],
+      ),
+      ordem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordem'],
+      )!,
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      ajudaSecao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ajuda_secao'],
+      ),
+      corTextoAjuda: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cor_texto_ajuda'],
+      ),
+      pontuacaoMaxima: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pontuacao_maxima'],
+      ),
+      ponderacao: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}ponderacao'],
+      ),
+      calculaScore: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}calcula_score'],
+      )!,
+      tipoSecao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tipo_secao'],
+      ),
+      acoesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}acoes_json'],
+      ),
+      condicoesVisibilidadeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}condicoes_visibilidade_json'],
+      ),
+      criadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}criado_em'],
+      )!,
+      atualizadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}atualizado_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $SecoesChecklistTable createAlias(String alias) {
+    return $SecoesChecklistTable(attachedDatabase, alias);
+  }
+}
+
+class SecoesChecklistData extends DataClass
+    implements Insertable<SecoesChecklistData> {
+  final String id;
+  final String checklistId;
+  final String? secaoPaiId;
+  final String titulo;
+  final String? descricao;
+  final int ordem;
+  final bool ativo;
+  final String? ajudaSecao;
+  final String? corTextoAjuda;
+  final int? pontuacaoMaxima;
+  final double? ponderacao;
+  final bool calculaScore;
+  final String? tipoSecao;
+  final String? acoesJson;
+  final String? condicoesVisibilidadeJson;
+  final DateTime criadoEm;
+  final DateTime? atualizadoEm;
+  final bool isSynced;
+  final String? serverId;
+  const SecoesChecklistData({
+    required this.id,
+    required this.checklistId,
+    this.secaoPaiId,
+    required this.titulo,
+    this.descricao,
+    required this.ordem,
+    required this.ativo,
+    this.ajudaSecao,
+    this.corTextoAjuda,
+    this.pontuacaoMaxima,
+    this.ponderacao,
+    required this.calculaScore,
+    this.tipoSecao,
+    this.acoesJson,
+    this.condicoesVisibilidadeJson,
+    required this.criadoEm,
+    this.atualizadoEm,
+    required this.isSynced,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['checklist_id'] = Variable<String>(checklistId);
+    if (!nullToAbsent || secaoPaiId != null) {
+      map['secao_pai_id'] = Variable<String>(secaoPaiId);
+    }
+    map['titulo'] = Variable<String>(titulo);
+    if (!nullToAbsent || descricao != null) {
+      map['descricao'] = Variable<String>(descricao);
+    }
+    map['ordem'] = Variable<int>(ordem);
+    map['ativo'] = Variable<bool>(ativo);
+    if (!nullToAbsent || ajudaSecao != null) {
+      map['ajuda_secao'] = Variable<String>(ajudaSecao);
+    }
+    if (!nullToAbsent || corTextoAjuda != null) {
+      map['cor_texto_ajuda'] = Variable<String>(corTextoAjuda);
+    }
+    if (!nullToAbsent || pontuacaoMaxima != null) {
+      map['pontuacao_maxima'] = Variable<int>(pontuacaoMaxima);
+    }
+    if (!nullToAbsent || ponderacao != null) {
+      map['ponderacao'] = Variable<double>(ponderacao);
+    }
+    map['calcula_score'] = Variable<bool>(calculaScore);
+    if (!nullToAbsent || tipoSecao != null) {
+      map['tipo_secao'] = Variable<String>(tipoSecao);
+    }
+    if (!nullToAbsent || acoesJson != null) {
+      map['acoes_json'] = Variable<String>(acoesJson);
+    }
+    if (!nullToAbsent || condicoesVisibilidadeJson != null) {
+      map['condicoes_visibilidade_json'] = Variable<String>(
+        condicoesVisibilidadeJson,
+      );
+    }
+    map['criado_em'] = Variable<DateTime>(criadoEm);
+    if (!nullToAbsent || atualizadoEm != null) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  SecoesChecklistCompanion toCompanion(bool nullToAbsent) {
+    return SecoesChecklistCompanion(
+      id: Value(id),
+      checklistId: Value(checklistId),
+      secaoPaiId: secaoPaiId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(secaoPaiId),
+      titulo: Value(titulo),
+      descricao: descricao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(descricao),
+      ordem: Value(ordem),
+      ativo: Value(ativo),
+      ajudaSecao: ajudaSecao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ajudaSecao),
+      corTextoAjuda: corTextoAjuda == null && nullToAbsent
+          ? const Value.absent()
+          : Value(corTextoAjuda),
+      pontuacaoMaxima: pontuacaoMaxima == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pontuacaoMaxima),
+      ponderacao: ponderacao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ponderacao),
+      calculaScore: Value(calculaScore),
+      tipoSecao: tipoSecao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tipoSecao),
+      acoesJson: acoesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(acoesJson),
+      condicoesVisibilidadeJson:
+          condicoesVisibilidadeJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(condicoesVisibilidadeJson),
+      criadoEm: Value(criadoEm),
+      atualizadoEm: atualizadoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(atualizadoEm),
+      isSynced: Value(isSynced),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory SecoesChecklistData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SecoesChecklistData(
+      id: serializer.fromJson<String>(json['id']),
+      checklistId: serializer.fromJson<String>(json['checklistId']),
+      secaoPaiId: serializer.fromJson<String?>(json['secaoPaiId']),
+      titulo: serializer.fromJson<String>(json['titulo']),
+      descricao: serializer.fromJson<String?>(json['descricao']),
+      ordem: serializer.fromJson<int>(json['ordem']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      ajudaSecao: serializer.fromJson<String?>(json['ajudaSecao']),
+      corTextoAjuda: serializer.fromJson<String?>(json['corTextoAjuda']),
+      pontuacaoMaxima: serializer.fromJson<int?>(json['pontuacaoMaxima']),
+      ponderacao: serializer.fromJson<double?>(json['ponderacao']),
+      calculaScore: serializer.fromJson<bool>(json['calculaScore']),
+      tipoSecao: serializer.fromJson<String?>(json['tipoSecao']),
+      acoesJson: serializer.fromJson<String?>(json['acoesJson']),
+      condicoesVisibilidadeJson: serializer.fromJson<String?>(
+        json['condicoesVisibilidadeJson'],
+      ),
+      criadoEm: serializer.fromJson<DateTime>(json['criadoEm']),
+      atualizadoEm: serializer.fromJson<DateTime?>(json['atualizadoEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'checklistId': serializer.toJson<String>(checklistId),
+      'secaoPaiId': serializer.toJson<String?>(secaoPaiId),
+      'titulo': serializer.toJson<String>(titulo),
+      'descricao': serializer.toJson<String?>(descricao),
+      'ordem': serializer.toJson<int>(ordem),
+      'ativo': serializer.toJson<bool>(ativo),
+      'ajudaSecao': serializer.toJson<String?>(ajudaSecao),
+      'corTextoAjuda': serializer.toJson<String?>(corTextoAjuda),
+      'pontuacaoMaxima': serializer.toJson<int?>(pontuacaoMaxima),
+      'ponderacao': serializer.toJson<double?>(ponderacao),
+      'calculaScore': serializer.toJson<bool>(calculaScore),
+      'tipoSecao': serializer.toJson<String?>(tipoSecao),
+      'acoesJson': serializer.toJson<String?>(acoesJson),
+      'condicoesVisibilidadeJson': serializer.toJson<String?>(
+        condicoesVisibilidadeJson,
+      ),
+      'criadoEm': serializer.toJson<DateTime>(criadoEm),
+      'atualizadoEm': serializer.toJson<DateTime?>(atualizadoEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  SecoesChecklistData copyWith({
+    String? id,
+    String? checklistId,
+    Value<String?> secaoPaiId = const Value.absent(),
+    String? titulo,
+    Value<String?> descricao = const Value.absent(),
+    int? ordem,
+    bool? ativo,
+    Value<String?> ajudaSecao = const Value.absent(),
+    Value<String?> corTextoAjuda = const Value.absent(),
+    Value<int?> pontuacaoMaxima = const Value.absent(),
+    Value<double?> ponderacao = const Value.absent(),
+    bool? calculaScore,
+    Value<String?> tipoSecao = const Value.absent(),
+    Value<String?> acoesJson = const Value.absent(),
+    Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+    DateTime? criadoEm,
+    Value<DateTime?> atualizadoEm = const Value.absent(),
+    bool? isSynced,
+    Value<String?> serverId = const Value.absent(),
+  }) => SecoesChecklistData(
+    id: id ?? this.id,
+    checklistId: checklistId ?? this.checklistId,
+    secaoPaiId: secaoPaiId.present ? secaoPaiId.value : this.secaoPaiId,
+    titulo: titulo ?? this.titulo,
+    descricao: descricao.present ? descricao.value : this.descricao,
+    ordem: ordem ?? this.ordem,
+    ativo: ativo ?? this.ativo,
+    ajudaSecao: ajudaSecao.present ? ajudaSecao.value : this.ajudaSecao,
+    corTextoAjuda: corTextoAjuda.present
+        ? corTextoAjuda.value
+        : this.corTextoAjuda,
+    pontuacaoMaxima: pontuacaoMaxima.present
+        ? pontuacaoMaxima.value
+        : this.pontuacaoMaxima,
+    ponderacao: ponderacao.present ? ponderacao.value : this.ponderacao,
+    calculaScore: calculaScore ?? this.calculaScore,
+    tipoSecao: tipoSecao.present ? tipoSecao.value : this.tipoSecao,
+    acoesJson: acoesJson.present ? acoesJson.value : this.acoesJson,
+    condicoesVisibilidadeJson: condicoesVisibilidadeJson.present
+        ? condicoesVisibilidadeJson.value
+        : this.condicoesVisibilidadeJson,
+    criadoEm: criadoEm ?? this.criadoEm,
+    atualizadoEm: atualizadoEm.present ? atualizadoEm.value : this.atualizadoEm,
+    isSynced: isSynced ?? this.isSynced,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  SecoesChecklistData copyWithCompanion(SecoesChecklistCompanion data) {
+    return SecoesChecklistData(
+      id: data.id.present ? data.id.value : this.id,
+      checklistId: data.checklistId.present
+          ? data.checklistId.value
+          : this.checklistId,
+      secaoPaiId: data.secaoPaiId.present
+          ? data.secaoPaiId.value
+          : this.secaoPaiId,
+      titulo: data.titulo.present ? data.titulo.value : this.titulo,
+      descricao: data.descricao.present ? data.descricao.value : this.descricao,
+      ordem: data.ordem.present ? data.ordem.value : this.ordem,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      ajudaSecao: data.ajudaSecao.present
+          ? data.ajudaSecao.value
+          : this.ajudaSecao,
+      corTextoAjuda: data.corTextoAjuda.present
+          ? data.corTextoAjuda.value
+          : this.corTextoAjuda,
+      pontuacaoMaxima: data.pontuacaoMaxima.present
+          ? data.pontuacaoMaxima.value
+          : this.pontuacaoMaxima,
+      ponderacao: data.ponderacao.present
+          ? data.ponderacao.value
+          : this.ponderacao,
+      calculaScore: data.calculaScore.present
+          ? data.calculaScore.value
+          : this.calculaScore,
+      tipoSecao: data.tipoSecao.present ? data.tipoSecao.value : this.tipoSecao,
+      acoesJson: data.acoesJson.present ? data.acoesJson.value : this.acoesJson,
+      condicoesVisibilidadeJson: data.condicoesVisibilidadeJson.present
+          ? data.condicoesVisibilidadeJson.value
+          : this.condicoesVisibilidadeJson,
+      criadoEm: data.criadoEm.present ? data.criadoEm.value : this.criadoEm,
+      atualizadoEm: data.atualizadoEm.present
+          ? data.atualizadoEm.value
+          : this.atualizadoEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecoesChecklistData(')
+          ..write('id: $id, ')
+          ..write('checklistId: $checklistId, ')
+          ..write('secaoPaiId: $secaoPaiId, ')
+          ..write('titulo: $titulo, ')
+          ..write('descricao: $descricao, ')
+          ..write('ordem: $ordem, ')
+          ..write('ativo: $ativo, ')
+          ..write('ajudaSecao: $ajudaSecao, ')
+          ..write('corTextoAjuda: $corTextoAjuda, ')
+          ..write('pontuacaoMaxima: $pontuacaoMaxima, ')
+          ..write('ponderacao: $ponderacao, ')
+          ..write('calculaScore: $calculaScore, ')
+          ..write('tipoSecao: $tipoSecao, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('condicoesVisibilidadeJson: $condicoesVisibilidadeJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    checklistId,
+    secaoPaiId,
+    titulo,
+    descricao,
+    ordem,
+    ativo,
+    ajudaSecao,
+    corTextoAjuda,
+    pontuacaoMaxima,
+    ponderacao,
+    calculaScore,
+    tipoSecao,
+    acoesJson,
+    condicoesVisibilidadeJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SecoesChecklistData &&
+          other.id == this.id &&
+          other.checklistId == this.checklistId &&
+          other.secaoPaiId == this.secaoPaiId &&
+          other.titulo == this.titulo &&
+          other.descricao == this.descricao &&
+          other.ordem == this.ordem &&
+          other.ativo == this.ativo &&
+          other.ajudaSecao == this.ajudaSecao &&
+          other.corTextoAjuda == this.corTextoAjuda &&
+          other.pontuacaoMaxima == this.pontuacaoMaxima &&
+          other.ponderacao == this.ponderacao &&
+          other.calculaScore == this.calculaScore &&
+          other.tipoSecao == this.tipoSecao &&
+          other.acoesJson == this.acoesJson &&
+          other.condicoesVisibilidadeJson == this.condicoesVisibilidadeJson &&
+          other.criadoEm == this.criadoEm &&
+          other.atualizadoEm == this.atualizadoEm &&
+          other.isSynced == this.isSynced &&
+          other.serverId == this.serverId);
+}
+
+class SecoesChecklistCompanion extends UpdateCompanion<SecoesChecklistData> {
+  final Value<String> id;
+  final Value<String> checklistId;
+  final Value<String?> secaoPaiId;
+  final Value<String> titulo;
+  final Value<String?> descricao;
+  final Value<int> ordem;
+  final Value<bool> ativo;
+  final Value<String?> ajudaSecao;
+  final Value<String?> corTextoAjuda;
+  final Value<int?> pontuacaoMaxima;
+  final Value<double?> ponderacao;
+  final Value<bool> calculaScore;
+  final Value<String?> tipoSecao;
+  final Value<String?> acoesJson;
+  final Value<String?> condicoesVisibilidadeJson;
+  final Value<DateTime> criadoEm;
+  final Value<DateTime?> atualizadoEm;
+  final Value<bool> isSynced;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const SecoesChecklistCompanion({
+    this.id = const Value.absent(),
+    this.checklistId = const Value.absent(),
+    this.secaoPaiId = const Value.absent(),
+    this.titulo = const Value.absent(),
+    this.descricao = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.ajudaSecao = const Value.absent(),
+    this.corTextoAjuda = const Value.absent(),
+    this.pontuacaoMaxima = const Value.absent(),
+    this.ponderacao = const Value.absent(),
+    this.calculaScore = const Value.absent(),
+    this.tipoSecao = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    this.condicoesVisibilidadeJson = const Value.absent(),
+    this.criadoEm = const Value.absent(),
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SecoesChecklistCompanion.insert({
+    required String id,
+    required String checklistId,
+    this.secaoPaiId = const Value.absent(),
+    required String titulo,
+    this.descricao = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.ajudaSecao = const Value.absent(),
+    this.corTextoAjuda = const Value.absent(),
+    this.pontuacaoMaxima = const Value.absent(),
+    this.ponderacao = const Value.absent(),
+    this.calculaScore = const Value.absent(),
+    this.tipoSecao = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    this.condicoesVisibilidadeJson = const Value.absent(),
+    required DateTime criadoEm,
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       checklistId = Value(checklistId),
+       titulo = Value(titulo),
+       criadoEm = Value(criadoEm);
+  static Insertable<SecoesChecklistData> custom({
+    Expression<String>? id,
+    Expression<String>? checklistId,
+    Expression<String>? secaoPaiId,
+    Expression<String>? titulo,
+    Expression<String>? descricao,
+    Expression<int>? ordem,
+    Expression<bool>? ativo,
+    Expression<String>? ajudaSecao,
+    Expression<String>? corTextoAjuda,
+    Expression<int>? pontuacaoMaxima,
+    Expression<double>? ponderacao,
+    Expression<bool>? calculaScore,
+    Expression<String>? tipoSecao,
+    Expression<String>? acoesJson,
+    Expression<String>? condicoesVisibilidadeJson,
+    Expression<DateTime>? criadoEm,
+    Expression<DateTime>? atualizadoEm,
+    Expression<bool>? isSynced,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (checklistId != null) 'checklist_id': checklistId,
+      if (secaoPaiId != null) 'secao_pai_id': secaoPaiId,
+      if (titulo != null) 'titulo': titulo,
+      if (descricao != null) 'descricao': descricao,
+      if (ordem != null) 'ordem': ordem,
+      if (ativo != null) 'ativo': ativo,
+      if (ajudaSecao != null) 'ajuda_secao': ajudaSecao,
+      if (corTextoAjuda != null) 'cor_texto_ajuda': corTextoAjuda,
+      if (pontuacaoMaxima != null) 'pontuacao_maxima': pontuacaoMaxima,
+      if (ponderacao != null) 'ponderacao': ponderacao,
+      if (calculaScore != null) 'calcula_score': calculaScore,
+      if (tipoSecao != null) 'tipo_secao': tipoSecao,
+      if (acoesJson != null) 'acoes_json': acoesJson,
+      if (condicoesVisibilidadeJson != null)
+        'condicoes_visibilidade_json': condicoesVisibilidadeJson,
+      if (criadoEm != null) 'criado_em': criadoEm,
+      if (atualizadoEm != null) 'atualizado_em': atualizadoEm,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SecoesChecklistCompanion copyWith({
+    Value<String>? id,
+    Value<String>? checklistId,
+    Value<String?>? secaoPaiId,
+    Value<String>? titulo,
+    Value<String?>? descricao,
+    Value<int>? ordem,
+    Value<bool>? ativo,
+    Value<String?>? ajudaSecao,
+    Value<String?>? corTextoAjuda,
+    Value<int?>? pontuacaoMaxima,
+    Value<double?>? ponderacao,
+    Value<bool>? calculaScore,
+    Value<String?>? tipoSecao,
+    Value<String?>? acoesJson,
+    Value<String?>? condicoesVisibilidadeJson,
+    Value<DateTime>? criadoEm,
+    Value<DateTime?>? atualizadoEm,
+    Value<bool>? isSynced,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return SecoesChecklistCompanion(
+      id: id ?? this.id,
+      checklistId: checklistId ?? this.checklistId,
+      secaoPaiId: secaoPaiId ?? this.secaoPaiId,
+      titulo: titulo ?? this.titulo,
+      descricao: descricao ?? this.descricao,
+      ordem: ordem ?? this.ordem,
+      ativo: ativo ?? this.ativo,
+      ajudaSecao: ajudaSecao ?? this.ajudaSecao,
+      corTextoAjuda: corTextoAjuda ?? this.corTextoAjuda,
+      pontuacaoMaxima: pontuacaoMaxima ?? this.pontuacaoMaxima,
+      ponderacao: ponderacao ?? this.ponderacao,
+      calculaScore: calculaScore ?? this.calculaScore,
+      tipoSecao: tipoSecao ?? this.tipoSecao,
+      acoesJson: acoesJson ?? this.acoesJson,
+      condicoesVisibilidadeJson:
+          condicoesVisibilidadeJson ?? this.condicoesVisibilidadeJson,
+      criadoEm: criadoEm ?? this.criadoEm,
+      atualizadoEm: atualizadoEm ?? this.atualizadoEm,
+      isSynced: isSynced ?? this.isSynced,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (checklistId.present) {
+      map['checklist_id'] = Variable<String>(checklistId.value);
+    }
+    if (secaoPaiId.present) {
+      map['secao_pai_id'] = Variable<String>(secaoPaiId.value);
+    }
+    if (titulo.present) {
+      map['titulo'] = Variable<String>(titulo.value);
+    }
+    if (descricao.present) {
+      map['descricao'] = Variable<String>(descricao.value);
+    }
+    if (ordem.present) {
+      map['ordem'] = Variable<int>(ordem.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (ajudaSecao.present) {
+      map['ajuda_secao'] = Variable<String>(ajudaSecao.value);
+    }
+    if (corTextoAjuda.present) {
+      map['cor_texto_ajuda'] = Variable<String>(corTextoAjuda.value);
+    }
+    if (pontuacaoMaxima.present) {
+      map['pontuacao_maxima'] = Variable<int>(pontuacaoMaxima.value);
+    }
+    if (ponderacao.present) {
+      map['ponderacao'] = Variable<double>(ponderacao.value);
+    }
+    if (calculaScore.present) {
+      map['calcula_score'] = Variable<bool>(calculaScore.value);
+    }
+    if (tipoSecao.present) {
+      map['tipo_secao'] = Variable<String>(tipoSecao.value);
+    }
+    if (acoesJson.present) {
+      map['acoes_json'] = Variable<String>(acoesJson.value);
+    }
+    if (condicoesVisibilidadeJson.present) {
+      map['condicoes_visibilidade_json'] = Variable<String>(
+        condicoesVisibilidadeJson.value,
+      );
+    }
+    if (criadoEm.present) {
+      map['criado_em'] = Variable<DateTime>(criadoEm.value);
+    }
+    if (atualizadoEm.present) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecoesChecklistCompanion(')
+          ..write('id: $id, ')
+          ..write('checklistId: $checklistId, ')
+          ..write('secaoPaiId: $secaoPaiId, ')
+          ..write('titulo: $titulo, ')
+          ..write('descricao: $descricao, ')
+          ..write('ordem: $ordem, ')
+          ..write('ativo: $ativo, ')
+          ..write('ajudaSecao: $ajudaSecao, ')
+          ..write('corTextoAjuda: $corTextoAjuda, ')
+          ..write('pontuacaoMaxima: $pontuacaoMaxima, ')
+          ..write('ponderacao: $ponderacao, ')
+          ..write('calculaScore: $calculaScore, ')
+          ..write('tipoSecao: $tipoSecao, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('condicoesVisibilidadeJson: $condicoesVisibilidadeJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItensChecklistTable extends ItensChecklist
+    with TableInfo<$ItensChecklistTable, ItensChecklistData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItensChecklistTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _secaoIdMeta = const VerificationMeta(
+    'secaoId',
+  );
+  @override
+  late final GeneratedColumn<String> secaoId = GeneratedColumn<String>(
+    'secao_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rotuloMeta = const VerificationMeta('rotulo');
+  @override
+  late final GeneratedColumn<String> rotulo = GeneratedColumn<String>(
+    'rotulo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descricaoMeta = const VerificationMeta(
+    'descricao',
+  );
+  @override
+  late final GeneratedColumn<String> descricao = GeneratedColumn<String>(
+    'descricao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ajudaMeta = const VerificationMeta('ajuda');
+  @override
+  late final GeneratedColumn<String> ajuda = GeneratedColumn<String>(
+    'ajuda',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tipoMeta = const VerificationMeta('tipo');
+  @override
+  late final GeneratedColumn<String> tipo = GeneratedColumn<String>(
+    'tipo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ordemMeta = const VerificationMeta('ordem');
+  @override
+  late final GeneratedColumn<int> ordem = GeneratedColumn<int>(
+    'ordem',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _obrigatorioMeta = const VerificationMeta(
+    'obrigatorio',
+  );
+  @override
+  late final GeneratedColumn<bool> obrigatorio = GeneratedColumn<bool>(
+    'obrigatorio',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("obrigatorio" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _configuracoesJsonMeta = const VerificationMeta(
+    'configuracoesJson',
+  );
+  @override
+  late final GeneratedColumn<String> configuracoesJson =
+      GeneratedColumn<String>(
+        'configuracoes_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _acoesJsonMeta = const VerificationMeta(
+    'acoesJson',
+  );
+  @override
+  late final GeneratedColumn<String> acoesJson = GeneratedColumn<String>(
+    'acoes_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _condicoesVisibilidadeJsonMeta =
+      const VerificationMeta('condicoesVisibilidadeJson');
+  @override
+  late final GeneratedColumn<String> condicoesVisibilidadeJson =
+      GeneratedColumn<String>(
+        'condicoes_visibilidade_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _criadoEmMeta = const VerificationMeta(
+    'criadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> criadoEm = GeneratedColumn<DateTime>(
+    'criado_em',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atualizadoEmMeta = const VerificationMeta(
+    'atualizadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> atualizadoEm = GeneratedColumn<DateTime>(
+    'atualizado_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    secaoId,
+    rotulo,
+    descricao,
+    ajuda,
+    tipo,
+    ordem,
+    obrigatorio,
+    ativo,
+    configuracoesJson,
+    acoesJson,
+    condicoesVisibilidadeJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itens_checklist';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ItensChecklistData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('secao_id')) {
+      context.handle(
+        _secaoIdMeta,
+        secaoId.isAcceptableOrUnknown(data['secao_id']!, _secaoIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_secaoIdMeta);
+    }
+    if (data.containsKey('rotulo')) {
+      context.handle(
+        _rotuloMeta,
+        rotulo.isAcceptableOrUnknown(data['rotulo']!, _rotuloMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rotuloMeta);
+    }
+    if (data.containsKey('descricao')) {
+      context.handle(
+        _descricaoMeta,
+        descricao.isAcceptableOrUnknown(data['descricao']!, _descricaoMeta),
+      );
+    }
+    if (data.containsKey('ajuda')) {
+      context.handle(
+        _ajudaMeta,
+        ajuda.isAcceptableOrUnknown(data['ajuda']!, _ajudaMeta),
+      );
+    }
+    if (data.containsKey('tipo')) {
+      context.handle(
+        _tipoMeta,
+        tipo.isAcceptableOrUnknown(data['tipo']!, _tipoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tipoMeta);
+    }
+    if (data.containsKey('ordem')) {
+      context.handle(
+        _ordemMeta,
+        ordem.isAcceptableOrUnknown(data['ordem']!, _ordemMeta),
+      );
+    }
+    if (data.containsKey('obrigatorio')) {
+      context.handle(
+        _obrigatorioMeta,
+        obrigatorio.isAcceptableOrUnknown(
+          data['obrigatorio']!,
+          _obrigatorioMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('configuracoes_json')) {
+      context.handle(
+        _configuracoesJsonMeta,
+        configuracoesJson.isAcceptableOrUnknown(
+          data['configuracoes_json']!,
+          _configuracoesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('acoes_json')) {
+      context.handle(
+        _acoesJsonMeta,
+        acoesJson.isAcceptableOrUnknown(data['acoes_json']!, _acoesJsonMeta),
+      );
+    }
+    if (data.containsKey('condicoes_visibilidade_json')) {
+      context.handle(
+        _condicoesVisibilidadeJsonMeta,
+        condicoesVisibilidadeJson.isAcceptableOrUnknown(
+          data['condicoes_visibilidade_json']!,
+          _condicoesVisibilidadeJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('criado_em')) {
+      context.handle(
+        _criadoEmMeta,
+        criadoEm.isAcceptableOrUnknown(data['criado_em']!, _criadoEmMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criadoEmMeta);
+    }
+    if (data.containsKey('atualizado_em')) {
+      context.handle(
+        _atualizadoEmMeta,
+        atualizadoEm.isAcceptableOrUnknown(
+          data['atualizado_em']!,
+          _atualizadoEmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItensChecklistData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItensChecklistData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      secaoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secao_id'],
+      )!,
+      rotulo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rotulo'],
+      )!,
+      descricao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}descricao'],
+      ),
+      ajuda: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ajuda'],
+      ),
+      tipo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tipo'],
+      )!,
+      ordem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordem'],
+      )!,
+      obrigatorio: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}obrigatorio'],
+      )!,
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      configuracoesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}configuracoes_json'],
+      ),
+      acoesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}acoes_json'],
+      ),
+      condicoesVisibilidadeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}condicoes_visibilidade_json'],
+      ),
+      criadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}criado_em'],
+      )!,
+      atualizadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}atualizado_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $ItensChecklistTable createAlias(String alias) {
+    return $ItensChecklistTable(attachedDatabase, alias);
+  }
+}
+
+class ItensChecklistData extends DataClass
+    implements Insertable<ItensChecklistData> {
+  final String id;
+  final String secaoId;
+  final String rotulo;
+  final String? descricao;
+  final String? ajuda;
+  final String tipo;
+  final int ordem;
+  final bool obrigatorio;
+  final bool ativo;
+  final String? configuracoesJson;
+  final String? acoesJson;
+  final String? condicoesVisibilidadeJson;
+  final DateTime criadoEm;
+  final DateTime? atualizadoEm;
+  final bool isSynced;
+  final String? serverId;
+  const ItensChecklistData({
+    required this.id,
+    required this.secaoId,
+    required this.rotulo,
+    this.descricao,
+    this.ajuda,
+    required this.tipo,
+    required this.ordem,
+    required this.obrigatorio,
+    required this.ativo,
+    this.configuracoesJson,
+    this.acoesJson,
+    this.condicoesVisibilidadeJson,
+    required this.criadoEm,
+    this.atualizadoEm,
+    required this.isSynced,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['secao_id'] = Variable<String>(secaoId);
+    map['rotulo'] = Variable<String>(rotulo);
+    if (!nullToAbsent || descricao != null) {
+      map['descricao'] = Variable<String>(descricao);
+    }
+    if (!nullToAbsent || ajuda != null) {
+      map['ajuda'] = Variable<String>(ajuda);
+    }
+    map['tipo'] = Variable<String>(tipo);
+    map['ordem'] = Variable<int>(ordem);
+    map['obrigatorio'] = Variable<bool>(obrigatorio);
+    map['ativo'] = Variable<bool>(ativo);
+    if (!nullToAbsent || configuracoesJson != null) {
+      map['configuracoes_json'] = Variable<String>(configuracoesJson);
+    }
+    if (!nullToAbsent || acoesJson != null) {
+      map['acoes_json'] = Variable<String>(acoesJson);
+    }
+    if (!nullToAbsent || condicoesVisibilidadeJson != null) {
+      map['condicoes_visibilidade_json'] = Variable<String>(
+        condicoesVisibilidadeJson,
+      );
+    }
+    map['criado_em'] = Variable<DateTime>(criadoEm);
+    if (!nullToAbsent || atualizadoEm != null) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  ItensChecklistCompanion toCompanion(bool nullToAbsent) {
+    return ItensChecklistCompanion(
+      id: Value(id),
+      secaoId: Value(secaoId),
+      rotulo: Value(rotulo),
+      descricao: descricao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(descricao),
+      ajuda: ajuda == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ajuda),
+      tipo: Value(tipo),
+      ordem: Value(ordem),
+      obrigatorio: Value(obrigatorio),
+      ativo: Value(ativo),
+      configuracoesJson: configuracoesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(configuracoesJson),
+      acoesJson: acoesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(acoesJson),
+      condicoesVisibilidadeJson:
+          condicoesVisibilidadeJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(condicoesVisibilidadeJson),
+      criadoEm: Value(criadoEm),
+      atualizadoEm: atualizadoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(atualizadoEm),
+      isSynced: Value(isSynced),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory ItensChecklistData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItensChecklistData(
+      id: serializer.fromJson<String>(json['id']),
+      secaoId: serializer.fromJson<String>(json['secaoId']),
+      rotulo: serializer.fromJson<String>(json['rotulo']),
+      descricao: serializer.fromJson<String?>(json['descricao']),
+      ajuda: serializer.fromJson<String?>(json['ajuda']),
+      tipo: serializer.fromJson<String>(json['tipo']),
+      ordem: serializer.fromJson<int>(json['ordem']),
+      obrigatorio: serializer.fromJson<bool>(json['obrigatorio']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      configuracoesJson: serializer.fromJson<String?>(
+        json['configuracoesJson'],
+      ),
+      acoesJson: serializer.fromJson<String?>(json['acoesJson']),
+      condicoesVisibilidadeJson: serializer.fromJson<String?>(
+        json['condicoesVisibilidadeJson'],
+      ),
+      criadoEm: serializer.fromJson<DateTime>(json['criadoEm']),
+      atualizadoEm: serializer.fromJson<DateTime?>(json['atualizadoEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'secaoId': serializer.toJson<String>(secaoId),
+      'rotulo': serializer.toJson<String>(rotulo),
+      'descricao': serializer.toJson<String?>(descricao),
+      'ajuda': serializer.toJson<String?>(ajuda),
+      'tipo': serializer.toJson<String>(tipo),
+      'ordem': serializer.toJson<int>(ordem),
+      'obrigatorio': serializer.toJson<bool>(obrigatorio),
+      'ativo': serializer.toJson<bool>(ativo),
+      'configuracoesJson': serializer.toJson<String?>(configuracoesJson),
+      'acoesJson': serializer.toJson<String?>(acoesJson),
+      'condicoesVisibilidadeJson': serializer.toJson<String?>(
+        condicoesVisibilidadeJson,
+      ),
+      'criadoEm': serializer.toJson<DateTime>(criadoEm),
+      'atualizadoEm': serializer.toJson<DateTime?>(atualizadoEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  ItensChecklistData copyWith({
+    String? id,
+    String? secaoId,
+    String? rotulo,
+    Value<String?> descricao = const Value.absent(),
+    Value<String?> ajuda = const Value.absent(),
+    String? tipo,
+    int? ordem,
+    bool? obrigatorio,
+    bool? ativo,
+    Value<String?> configuracoesJson = const Value.absent(),
+    Value<String?> acoesJson = const Value.absent(),
+    Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+    DateTime? criadoEm,
+    Value<DateTime?> atualizadoEm = const Value.absent(),
+    bool? isSynced,
+    Value<String?> serverId = const Value.absent(),
+  }) => ItensChecklistData(
+    id: id ?? this.id,
+    secaoId: secaoId ?? this.secaoId,
+    rotulo: rotulo ?? this.rotulo,
+    descricao: descricao.present ? descricao.value : this.descricao,
+    ajuda: ajuda.present ? ajuda.value : this.ajuda,
+    tipo: tipo ?? this.tipo,
+    ordem: ordem ?? this.ordem,
+    obrigatorio: obrigatorio ?? this.obrigatorio,
+    ativo: ativo ?? this.ativo,
+    configuracoesJson: configuracoesJson.present
+        ? configuracoesJson.value
+        : this.configuracoesJson,
+    acoesJson: acoesJson.present ? acoesJson.value : this.acoesJson,
+    condicoesVisibilidadeJson: condicoesVisibilidadeJson.present
+        ? condicoesVisibilidadeJson.value
+        : this.condicoesVisibilidadeJson,
+    criadoEm: criadoEm ?? this.criadoEm,
+    atualizadoEm: atualizadoEm.present ? atualizadoEm.value : this.atualizadoEm,
+    isSynced: isSynced ?? this.isSynced,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  ItensChecklistData copyWithCompanion(ItensChecklistCompanion data) {
+    return ItensChecklistData(
+      id: data.id.present ? data.id.value : this.id,
+      secaoId: data.secaoId.present ? data.secaoId.value : this.secaoId,
+      rotulo: data.rotulo.present ? data.rotulo.value : this.rotulo,
+      descricao: data.descricao.present ? data.descricao.value : this.descricao,
+      ajuda: data.ajuda.present ? data.ajuda.value : this.ajuda,
+      tipo: data.tipo.present ? data.tipo.value : this.tipo,
+      ordem: data.ordem.present ? data.ordem.value : this.ordem,
+      obrigatorio: data.obrigatorio.present
+          ? data.obrigatorio.value
+          : this.obrigatorio,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      configuracoesJson: data.configuracoesJson.present
+          ? data.configuracoesJson.value
+          : this.configuracoesJson,
+      acoesJson: data.acoesJson.present ? data.acoesJson.value : this.acoesJson,
+      condicoesVisibilidadeJson: data.condicoesVisibilidadeJson.present
+          ? data.condicoesVisibilidadeJson.value
+          : this.condicoesVisibilidadeJson,
+      criadoEm: data.criadoEm.present ? data.criadoEm.value : this.criadoEm,
+      atualizadoEm: data.atualizadoEm.present
+          ? data.atualizadoEm.value
+          : this.atualizadoEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItensChecklistData(')
+          ..write('id: $id, ')
+          ..write('secaoId: $secaoId, ')
+          ..write('rotulo: $rotulo, ')
+          ..write('descricao: $descricao, ')
+          ..write('ajuda: $ajuda, ')
+          ..write('tipo: $tipo, ')
+          ..write('ordem: $ordem, ')
+          ..write('obrigatorio: $obrigatorio, ')
+          ..write('ativo: $ativo, ')
+          ..write('configuracoesJson: $configuracoesJson, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('condicoesVisibilidadeJson: $condicoesVisibilidadeJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    secaoId,
+    rotulo,
+    descricao,
+    ajuda,
+    tipo,
+    ordem,
+    obrigatorio,
+    ativo,
+    configuracoesJson,
+    acoesJson,
+    condicoesVisibilidadeJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItensChecklistData &&
+          other.id == this.id &&
+          other.secaoId == this.secaoId &&
+          other.rotulo == this.rotulo &&
+          other.descricao == this.descricao &&
+          other.ajuda == this.ajuda &&
+          other.tipo == this.tipo &&
+          other.ordem == this.ordem &&
+          other.obrigatorio == this.obrigatorio &&
+          other.ativo == this.ativo &&
+          other.configuracoesJson == this.configuracoesJson &&
+          other.acoesJson == this.acoesJson &&
+          other.condicoesVisibilidadeJson == this.condicoesVisibilidadeJson &&
+          other.criadoEm == this.criadoEm &&
+          other.atualizadoEm == this.atualizadoEm &&
+          other.isSynced == this.isSynced &&
+          other.serverId == this.serverId);
+}
+
+class ItensChecklistCompanion extends UpdateCompanion<ItensChecklistData> {
+  final Value<String> id;
+  final Value<String> secaoId;
+  final Value<String> rotulo;
+  final Value<String?> descricao;
+  final Value<String?> ajuda;
+  final Value<String> tipo;
+  final Value<int> ordem;
+  final Value<bool> obrigatorio;
+  final Value<bool> ativo;
+  final Value<String?> configuracoesJson;
+  final Value<String?> acoesJson;
+  final Value<String?> condicoesVisibilidadeJson;
+  final Value<DateTime> criadoEm;
+  final Value<DateTime?> atualizadoEm;
+  final Value<bool> isSynced;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const ItensChecklistCompanion({
+    this.id = const Value.absent(),
+    this.secaoId = const Value.absent(),
+    this.rotulo = const Value.absent(),
+    this.descricao = const Value.absent(),
+    this.ajuda = const Value.absent(),
+    this.tipo = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.obrigatorio = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.configuracoesJson = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    this.condicoesVisibilidadeJson = const Value.absent(),
+    this.criadoEm = const Value.absent(),
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItensChecklistCompanion.insert({
+    required String id,
+    required String secaoId,
+    required String rotulo,
+    this.descricao = const Value.absent(),
+    this.ajuda = const Value.absent(),
+    required String tipo,
+    this.ordem = const Value.absent(),
+    this.obrigatorio = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.configuracoesJson = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    this.condicoesVisibilidadeJson = const Value.absent(),
+    required DateTime criadoEm,
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       secaoId = Value(secaoId),
+       rotulo = Value(rotulo),
+       tipo = Value(tipo),
+       criadoEm = Value(criadoEm);
+  static Insertable<ItensChecklistData> custom({
+    Expression<String>? id,
+    Expression<String>? secaoId,
+    Expression<String>? rotulo,
+    Expression<String>? descricao,
+    Expression<String>? ajuda,
+    Expression<String>? tipo,
+    Expression<int>? ordem,
+    Expression<bool>? obrigatorio,
+    Expression<bool>? ativo,
+    Expression<String>? configuracoesJson,
+    Expression<String>? acoesJson,
+    Expression<String>? condicoesVisibilidadeJson,
+    Expression<DateTime>? criadoEm,
+    Expression<DateTime>? atualizadoEm,
+    Expression<bool>? isSynced,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (secaoId != null) 'secao_id': secaoId,
+      if (rotulo != null) 'rotulo': rotulo,
+      if (descricao != null) 'descricao': descricao,
+      if (ajuda != null) 'ajuda': ajuda,
+      if (tipo != null) 'tipo': tipo,
+      if (ordem != null) 'ordem': ordem,
+      if (obrigatorio != null) 'obrigatorio': obrigatorio,
+      if (ativo != null) 'ativo': ativo,
+      if (configuracoesJson != null) 'configuracoes_json': configuracoesJson,
+      if (acoesJson != null) 'acoes_json': acoesJson,
+      if (condicoesVisibilidadeJson != null)
+        'condicoes_visibilidade_json': condicoesVisibilidadeJson,
+      if (criadoEm != null) 'criado_em': criadoEm,
+      if (atualizadoEm != null) 'atualizado_em': atualizadoEm,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItensChecklistCompanion copyWith({
+    Value<String>? id,
+    Value<String>? secaoId,
+    Value<String>? rotulo,
+    Value<String?>? descricao,
+    Value<String?>? ajuda,
+    Value<String>? tipo,
+    Value<int>? ordem,
+    Value<bool>? obrigatorio,
+    Value<bool>? ativo,
+    Value<String?>? configuracoesJson,
+    Value<String?>? acoesJson,
+    Value<String?>? condicoesVisibilidadeJson,
+    Value<DateTime>? criadoEm,
+    Value<DateTime?>? atualizadoEm,
+    Value<bool>? isSynced,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return ItensChecklistCompanion(
+      id: id ?? this.id,
+      secaoId: secaoId ?? this.secaoId,
+      rotulo: rotulo ?? this.rotulo,
+      descricao: descricao ?? this.descricao,
+      ajuda: ajuda ?? this.ajuda,
+      tipo: tipo ?? this.tipo,
+      ordem: ordem ?? this.ordem,
+      obrigatorio: obrigatorio ?? this.obrigatorio,
+      ativo: ativo ?? this.ativo,
+      configuracoesJson: configuracoesJson ?? this.configuracoesJson,
+      acoesJson: acoesJson ?? this.acoesJson,
+      condicoesVisibilidadeJson:
+          condicoesVisibilidadeJson ?? this.condicoesVisibilidadeJson,
+      criadoEm: criadoEm ?? this.criadoEm,
+      atualizadoEm: atualizadoEm ?? this.atualizadoEm,
+      isSynced: isSynced ?? this.isSynced,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (secaoId.present) {
+      map['secao_id'] = Variable<String>(secaoId.value);
+    }
+    if (rotulo.present) {
+      map['rotulo'] = Variable<String>(rotulo.value);
+    }
+    if (descricao.present) {
+      map['descricao'] = Variable<String>(descricao.value);
+    }
+    if (ajuda.present) {
+      map['ajuda'] = Variable<String>(ajuda.value);
+    }
+    if (tipo.present) {
+      map['tipo'] = Variable<String>(tipo.value);
+    }
+    if (ordem.present) {
+      map['ordem'] = Variable<int>(ordem.value);
+    }
+    if (obrigatorio.present) {
+      map['obrigatorio'] = Variable<bool>(obrigatorio.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (configuracoesJson.present) {
+      map['configuracoes_json'] = Variable<String>(configuracoesJson.value);
+    }
+    if (acoesJson.present) {
+      map['acoes_json'] = Variable<String>(acoesJson.value);
+    }
+    if (condicoesVisibilidadeJson.present) {
+      map['condicoes_visibilidade_json'] = Variable<String>(
+        condicoesVisibilidadeJson.value,
+      );
+    }
+    if (criadoEm.present) {
+      map['criado_em'] = Variable<DateTime>(criadoEm.value);
+    }
+    if (atualizadoEm.present) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItensChecklistCompanion(')
+          ..write('id: $id, ')
+          ..write('secaoId: $secaoId, ')
+          ..write('rotulo: $rotulo, ')
+          ..write('descricao: $descricao, ')
+          ..write('ajuda: $ajuda, ')
+          ..write('tipo: $tipo, ')
+          ..write('ordem: $ordem, ')
+          ..write('obrigatorio: $obrigatorio, ')
+          ..write('ativo: $ativo, ')
+          ..write('configuracoesJson: $configuracoesJson, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('condicoesVisibilidadeJson: $condicoesVisibilidadeJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $OpcoesItemChecklistTable extends OpcoesItemChecklist
+    with TableInfo<$OpcoesItemChecklistTable, OpcoesItemChecklistData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OpcoesItemChecklistTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _textoMeta = const VerificationMeta('texto');
+  @override
+  late final GeneratedColumn<String> texto = GeneratedColumn<String>(
+    'texto',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valorMeta = const VerificationMeta('valor');
+  @override
+  late final GeneratedColumn<String> valor = GeneratedColumn<String>(
+    'valor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ordemMeta = const VerificationMeta('ordem');
+  @override
+  late final GeneratedColumn<int> ordem = GeneratedColumn<int>(
+    'ordem',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _corMeta = const VerificationMeta('cor');
+  @override
+  late final GeneratedColumn<String> cor = GeneratedColumn<String>(
+    'cor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pontuacaoMeta = const VerificationMeta(
+    'pontuacao',
+  );
+  @override
+  late final GeneratedColumn<int> pontuacao = GeneratedColumn<int>(
+    'pontuacao',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _comentarioPadraoMeta = const VerificationMeta(
+    'comentarioPadrao',
+  );
+  @override
+  late final GeneratedColumn<String> comentarioPadrao = GeneratedColumn<String>(
+    'comentario_padrao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _acoesJsonMeta = const VerificationMeta(
+    'acoesJson',
+  );
+  @override
+  late final GeneratedColumn<String> acoesJson = GeneratedColumn<String>(
+    'acoes_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _criadoEmMeta = const VerificationMeta(
+    'criadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> criadoEm = GeneratedColumn<DateTime>(
+    'criado_em',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atualizadoEmMeta = const VerificationMeta(
+    'atualizadoEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> atualizadoEm = GeneratedColumn<DateTime>(
+    'atualizado_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemId,
+    texto,
+    valor,
+    ordem,
+    cor,
+    pontuacao,
+    comentarioPadrao,
+    acoesJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'opcoes_item_checklist';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OpcoesItemChecklistData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('texto')) {
+      context.handle(
+        _textoMeta,
+        texto.isAcceptableOrUnknown(data['texto']!, _textoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_textoMeta);
+    }
+    if (data.containsKey('valor')) {
+      context.handle(
+        _valorMeta,
+        valor.isAcceptableOrUnknown(data['valor']!, _valorMeta),
+      );
+    }
+    if (data.containsKey('ordem')) {
+      context.handle(
+        _ordemMeta,
+        ordem.isAcceptableOrUnknown(data['ordem']!, _ordemMeta),
+      );
+    }
+    if (data.containsKey('cor')) {
+      context.handle(
+        _corMeta,
+        cor.isAcceptableOrUnknown(data['cor']!, _corMeta),
+      );
+    }
+    if (data.containsKey('pontuacao')) {
+      context.handle(
+        _pontuacaoMeta,
+        pontuacao.isAcceptableOrUnknown(data['pontuacao']!, _pontuacaoMeta),
+      );
+    }
+    if (data.containsKey('comentario_padrao')) {
+      context.handle(
+        _comentarioPadraoMeta,
+        comentarioPadrao.isAcceptableOrUnknown(
+          data['comentario_padrao']!,
+          _comentarioPadraoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('acoes_json')) {
+      context.handle(
+        _acoesJsonMeta,
+        acoesJson.isAcceptableOrUnknown(data['acoes_json']!, _acoesJsonMeta),
+      );
+    }
+    if (data.containsKey('criado_em')) {
+      context.handle(
+        _criadoEmMeta,
+        criadoEm.isAcceptableOrUnknown(data['criado_em']!, _criadoEmMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criadoEmMeta);
+    }
+    if (data.containsKey('atualizado_em')) {
+      context.handle(
+        _atualizadoEmMeta,
+        atualizadoEm.isAcceptableOrUnknown(
+          data['atualizado_em']!,
+          _atualizadoEmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  OpcoesItemChecklistData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OpcoesItemChecklistData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      texto: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}texto'],
+      )!,
+      valor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valor'],
+      ),
+      ordem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordem'],
+      )!,
+      cor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cor'],
+      ),
+      pontuacao: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pontuacao'],
+      ),
+      comentarioPadrao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}comentario_padrao'],
+      ),
+      acoesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}acoes_json'],
+      ),
+      criadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}criado_em'],
+      )!,
+      atualizadoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}atualizado_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $OpcoesItemChecklistTable createAlias(String alias) {
+    return $OpcoesItemChecklistTable(attachedDatabase, alias);
+  }
+}
+
+class OpcoesItemChecklistData extends DataClass
+    implements Insertable<OpcoesItemChecklistData> {
+  final String id;
+  final String itemId;
+  final String texto;
+  final String? valor;
+  final int ordem;
+  final String? cor;
+  final int? pontuacao;
+  final String? comentarioPadrao;
+  final String? acoesJson;
+  final DateTime criadoEm;
+  final DateTime? atualizadoEm;
+  final bool isSynced;
+  final String? serverId;
+  const OpcoesItemChecklistData({
+    required this.id,
+    required this.itemId,
+    required this.texto,
+    this.valor,
+    required this.ordem,
+    this.cor,
+    this.pontuacao,
+    this.comentarioPadrao,
+    this.acoesJson,
+    required this.criadoEm,
+    this.atualizadoEm,
+    required this.isSynced,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['item_id'] = Variable<String>(itemId);
+    map['texto'] = Variable<String>(texto);
+    if (!nullToAbsent || valor != null) {
+      map['valor'] = Variable<String>(valor);
+    }
+    map['ordem'] = Variable<int>(ordem);
+    if (!nullToAbsent || cor != null) {
+      map['cor'] = Variable<String>(cor);
+    }
+    if (!nullToAbsent || pontuacao != null) {
+      map['pontuacao'] = Variable<int>(pontuacao);
+    }
+    if (!nullToAbsent || comentarioPadrao != null) {
+      map['comentario_padrao'] = Variable<String>(comentarioPadrao);
+    }
+    if (!nullToAbsent || acoesJson != null) {
+      map['acoes_json'] = Variable<String>(acoesJson);
+    }
+    map['criado_em'] = Variable<DateTime>(criadoEm);
+    if (!nullToAbsent || atualizadoEm != null) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  OpcoesItemChecklistCompanion toCompanion(bool nullToAbsent) {
+    return OpcoesItemChecklistCompanion(
+      id: Value(id),
+      itemId: Value(itemId),
+      texto: Value(texto),
+      valor: valor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(valor),
+      ordem: Value(ordem),
+      cor: cor == null && nullToAbsent ? const Value.absent() : Value(cor),
+      pontuacao: pontuacao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pontuacao),
+      comentarioPadrao: comentarioPadrao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(comentarioPadrao),
+      acoesJson: acoesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(acoesJson),
+      criadoEm: Value(criadoEm),
+      atualizadoEm: atualizadoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(atualizadoEm),
+      isSynced: Value(isSynced),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory OpcoesItemChecklistData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OpcoesItemChecklistData(
+      id: serializer.fromJson<String>(json['id']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      texto: serializer.fromJson<String>(json['texto']),
+      valor: serializer.fromJson<String?>(json['valor']),
+      ordem: serializer.fromJson<int>(json['ordem']),
+      cor: serializer.fromJson<String?>(json['cor']),
+      pontuacao: serializer.fromJson<int?>(json['pontuacao']),
+      comentarioPadrao: serializer.fromJson<String?>(json['comentarioPadrao']),
+      acoesJson: serializer.fromJson<String?>(json['acoesJson']),
+      criadoEm: serializer.fromJson<DateTime>(json['criadoEm']),
+      atualizadoEm: serializer.fromJson<DateTime?>(json['atualizadoEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'itemId': serializer.toJson<String>(itemId),
+      'texto': serializer.toJson<String>(texto),
+      'valor': serializer.toJson<String?>(valor),
+      'ordem': serializer.toJson<int>(ordem),
+      'cor': serializer.toJson<String?>(cor),
+      'pontuacao': serializer.toJson<int?>(pontuacao),
+      'comentarioPadrao': serializer.toJson<String?>(comentarioPadrao),
+      'acoesJson': serializer.toJson<String?>(acoesJson),
+      'criadoEm': serializer.toJson<DateTime>(criadoEm),
+      'atualizadoEm': serializer.toJson<DateTime?>(atualizadoEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  OpcoesItemChecklistData copyWith({
+    String? id,
+    String? itemId,
+    String? texto,
+    Value<String?> valor = const Value.absent(),
+    int? ordem,
+    Value<String?> cor = const Value.absent(),
+    Value<int?> pontuacao = const Value.absent(),
+    Value<String?> comentarioPadrao = const Value.absent(),
+    Value<String?> acoesJson = const Value.absent(),
+    DateTime? criadoEm,
+    Value<DateTime?> atualizadoEm = const Value.absent(),
+    bool? isSynced,
+    Value<String?> serverId = const Value.absent(),
+  }) => OpcoesItemChecklistData(
+    id: id ?? this.id,
+    itemId: itemId ?? this.itemId,
+    texto: texto ?? this.texto,
+    valor: valor.present ? valor.value : this.valor,
+    ordem: ordem ?? this.ordem,
+    cor: cor.present ? cor.value : this.cor,
+    pontuacao: pontuacao.present ? pontuacao.value : this.pontuacao,
+    comentarioPadrao: comentarioPadrao.present
+        ? comentarioPadrao.value
+        : this.comentarioPadrao,
+    acoesJson: acoesJson.present ? acoesJson.value : this.acoesJson,
+    criadoEm: criadoEm ?? this.criadoEm,
+    atualizadoEm: atualizadoEm.present ? atualizadoEm.value : this.atualizadoEm,
+    isSynced: isSynced ?? this.isSynced,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  OpcoesItemChecklistData copyWithCompanion(OpcoesItemChecklistCompanion data) {
+    return OpcoesItemChecklistData(
+      id: data.id.present ? data.id.value : this.id,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      texto: data.texto.present ? data.texto.value : this.texto,
+      valor: data.valor.present ? data.valor.value : this.valor,
+      ordem: data.ordem.present ? data.ordem.value : this.ordem,
+      cor: data.cor.present ? data.cor.value : this.cor,
+      pontuacao: data.pontuacao.present ? data.pontuacao.value : this.pontuacao,
+      comentarioPadrao: data.comentarioPadrao.present
+          ? data.comentarioPadrao.value
+          : this.comentarioPadrao,
+      acoesJson: data.acoesJson.present ? data.acoesJson.value : this.acoesJson,
+      criadoEm: data.criadoEm.present ? data.criadoEm.value : this.criadoEm,
+      atualizadoEm: data.atualizadoEm.present
+          ? data.atualizadoEm.value
+          : this.atualizadoEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OpcoesItemChecklistData(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('texto: $texto, ')
+          ..write('valor: $valor, ')
+          ..write('ordem: $ordem, ')
+          ..write('cor: $cor, ')
+          ..write('pontuacao: $pontuacao, ')
+          ..write('comentarioPadrao: $comentarioPadrao, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemId,
+    texto,
+    valor,
+    ordem,
+    cor,
+    pontuacao,
+    comentarioPadrao,
+    acoesJson,
+    criadoEm,
+    atualizadoEm,
+    isSynced,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OpcoesItemChecklistData &&
+          other.id == this.id &&
+          other.itemId == this.itemId &&
+          other.texto == this.texto &&
+          other.valor == this.valor &&
+          other.ordem == this.ordem &&
+          other.cor == this.cor &&
+          other.pontuacao == this.pontuacao &&
+          other.comentarioPadrao == this.comentarioPadrao &&
+          other.acoesJson == this.acoesJson &&
+          other.criadoEm == this.criadoEm &&
+          other.atualizadoEm == this.atualizadoEm &&
+          other.isSynced == this.isSynced &&
+          other.serverId == this.serverId);
+}
+
+class OpcoesItemChecklistCompanion
+    extends UpdateCompanion<OpcoesItemChecklistData> {
+  final Value<String> id;
+  final Value<String> itemId;
+  final Value<String> texto;
+  final Value<String?> valor;
+  final Value<int> ordem;
+  final Value<String?> cor;
+  final Value<int?> pontuacao;
+  final Value<String?> comentarioPadrao;
+  final Value<String?> acoesJson;
+  final Value<DateTime> criadoEm;
+  final Value<DateTime?> atualizadoEm;
+  final Value<bool> isSynced;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const OpcoesItemChecklistCompanion({
+    this.id = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.texto = const Value.absent(),
+    this.valor = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.cor = const Value.absent(),
+    this.pontuacao = const Value.absent(),
+    this.comentarioPadrao = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    this.criadoEm = const Value.absent(),
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OpcoesItemChecklistCompanion.insert({
+    required String id,
+    required String itemId,
+    required String texto,
+    this.valor = const Value.absent(),
+    this.ordem = const Value.absent(),
+    this.cor = const Value.absent(),
+    this.pontuacao = const Value.absent(),
+    this.comentarioPadrao = const Value.absent(),
+    this.acoesJson = const Value.absent(),
+    required DateTime criadoEm,
+    this.atualizadoEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       itemId = Value(itemId),
+       texto = Value(texto),
+       criadoEm = Value(criadoEm);
+  static Insertable<OpcoesItemChecklistData> custom({
+    Expression<String>? id,
+    Expression<String>? itemId,
+    Expression<String>? texto,
+    Expression<String>? valor,
+    Expression<int>? ordem,
+    Expression<String>? cor,
+    Expression<int>? pontuacao,
+    Expression<String>? comentarioPadrao,
+    Expression<String>? acoesJson,
+    Expression<DateTime>? criadoEm,
+    Expression<DateTime>? atualizadoEm,
+    Expression<bool>? isSynced,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemId != null) 'item_id': itemId,
+      if (texto != null) 'texto': texto,
+      if (valor != null) 'valor': valor,
+      if (ordem != null) 'ordem': ordem,
+      if (cor != null) 'cor': cor,
+      if (pontuacao != null) 'pontuacao': pontuacao,
+      if (comentarioPadrao != null) 'comentario_padrao': comentarioPadrao,
+      if (acoesJson != null) 'acoes_json': acoesJson,
+      if (criadoEm != null) 'criado_em': criadoEm,
+      if (atualizadoEm != null) 'atualizado_em': atualizadoEm,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OpcoesItemChecklistCompanion copyWith({
+    Value<String>? id,
+    Value<String>? itemId,
+    Value<String>? texto,
+    Value<String?>? valor,
+    Value<int>? ordem,
+    Value<String?>? cor,
+    Value<int?>? pontuacao,
+    Value<String?>? comentarioPadrao,
+    Value<String?>? acoesJson,
+    Value<DateTime>? criadoEm,
+    Value<DateTime?>? atualizadoEm,
+    Value<bool>? isSynced,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return OpcoesItemChecklistCompanion(
+      id: id ?? this.id,
+      itemId: itemId ?? this.itemId,
+      texto: texto ?? this.texto,
+      valor: valor ?? this.valor,
+      ordem: ordem ?? this.ordem,
+      cor: cor ?? this.cor,
+      pontuacao: pontuacao ?? this.pontuacao,
+      comentarioPadrao: comentarioPadrao ?? this.comentarioPadrao,
+      acoesJson: acoesJson ?? this.acoesJson,
+      criadoEm: criadoEm ?? this.criadoEm,
+      atualizadoEm: atualizadoEm ?? this.atualizadoEm,
+      isSynced: isSynced ?? this.isSynced,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (texto.present) {
+      map['texto'] = Variable<String>(texto.value);
+    }
+    if (valor.present) {
+      map['valor'] = Variable<String>(valor.value);
+    }
+    if (ordem.present) {
+      map['ordem'] = Variable<int>(ordem.value);
+    }
+    if (cor.present) {
+      map['cor'] = Variable<String>(cor.value);
+    }
+    if (pontuacao.present) {
+      map['pontuacao'] = Variable<int>(pontuacao.value);
+    }
+    if (comentarioPadrao.present) {
+      map['comentario_padrao'] = Variable<String>(comentarioPadrao.value);
+    }
+    if (acoesJson.present) {
+      map['acoes_json'] = Variable<String>(acoesJson.value);
+    }
+    if (criadoEm.present) {
+      map['criado_em'] = Variable<DateTime>(criadoEm.value);
+    }
+    if (atualizadoEm.present) {
+      map['atualizado_em'] = Variable<DateTime>(atualizadoEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OpcoesItemChecklistCompanion(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('texto: $texto, ')
+          ..write('valor: $valor, ')
+          ..write('ordem: $ordem, ')
+          ..write('cor: $cor, ')
+          ..write('pontuacao: $pontuacao, ')
+          ..write('comentarioPadrao: $comentarioPadrao, ')
+          ..write('acoesJson: $acoesJson, ')
+          ..write('criadoEm: $criadoEm, ')
+          ..write('atualizadoEm: $atualizadoEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('serverId: $serverId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5734,6 +8813,1392 @@ class CategoriasEstabelecimentoCompanion
   }
 }
 
+class $EquipesTable extends Equipes with TableInfo<$EquipesTable, Equipe> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EquipesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _codigoMeta = const VerificationMeta('codigo');
+  @override
+  late final GeneratedColumn<String> codigo = GeneratedColumn<String>(
+    'codigo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nomeMeta = const VerificationMeta('nome');
+  @override
+  late final GeneratedColumn<String> nome = GeneratedColumn<String>(
+    'nome',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descricaoMeta = const VerificationMeta(
+    'descricao',
+  );
+  @override
+  late final GeneratedColumn<String> descricao = GeneratedColumn<String>(
+    'descricao',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supervisorIdMeta = const VerificationMeta(
+    'supervisorId',
+  );
+  @override
+  late final GeneratedColumn<String> supervisorId = GeneratedColumn<String>(
+    'supervisor_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supervisorNomeMeta = const VerificationMeta(
+    'supervisorNome',
+  );
+  @override
+  late final GeneratedColumn<String> supervisorNome = GeneratedColumn<String>(
+    'supervisor_nome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    codigo,
+    nome,
+    descricao,
+    supervisorId,
+    supervisorNome,
+    ativo,
+    isSynced,
+    createdAt,
+    updatedAt,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'equipes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Equipe> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('codigo')) {
+      context.handle(
+        _codigoMeta,
+        codigo.isAcceptableOrUnknown(data['codigo']!, _codigoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codigoMeta);
+    }
+    if (data.containsKey('nome')) {
+      context.handle(
+        _nomeMeta,
+        nome.isAcceptableOrUnknown(data['nome']!, _nomeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nomeMeta);
+    }
+    if (data.containsKey('descricao')) {
+      context.handle(
+        _descricaoMeta,
+        descricao.isAcceptableOrUnknown(data['descricao']!, _descricaoMeta),
+      );
+    }
+    if (data.containsKey('supervisor_id')) {
+      context.handle(
+        _supervisorIdMeta,
+        supervisorId.isAcceptableOrUnknown(
+          data['supervisor_id']!,
+          _supervisorIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('supervisor_nome')) {
+      context.handle(
+        _supervisorNomeMeta,
+        supervisorNome.isAcceptableOrUnknown(
+          data['supervisor_nome']!,
+          _supervisorNomeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Equipe map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Equipe(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      codigo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}codigo'],
+      )!,
+      nome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nome'],
+      )!,
+      descricao: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}descricao'],
+      ),
+      supervisorId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supervisor_id'],
+      ),
+      supervisorNome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supervisor_nome'],
+      ),
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $EquipesTable createAlias(String alias) {
+    return $EquipesTable(attachedDatabase, alias);
+  }
+}
+
+class Equipe extends DataClass implements Insertable<Equipe> {
+  final String id;
+  final String codigo;
+  final String nome;
+  final String? descricao;
+  final String? supervisorId;
+  final String? supervisorNome;
+  final bool ativo;
+  final bool isSynced;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? serverId;
+  const Equipe({
+    required this.id,
+    required this.codigo,
+    required this.nome,
+    this.descricao,
+    this.supervisorId,
+    this.supervisorNome,
+    required this.ativo,
+    required this.isSynced,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['codigo'] = Variable<String>(codigo);
+    map['nome'] = Variable<String>(nome);
+    if (!nullToAbsent || descricao != null) {
+      map['descricao'] = Variable<String>(descricao);
+    }
+    if (!nullToAbsent || supervisorId != null) {
+      map['supervisor_id'] = Variable<String>(supervisorId);
+    }
+    if (!nullToAbsent || supervisorNome != null) {
+      map['supervisor_nome'] = Variable<String>(supervisorNome);
+    }
+    map['ativo'] = Variable<bool>(ativo);
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  EquipesCompanion toCompanion(bool nullToAbsent) {
+    return EquipesCompanion(
+      id: Value(id),
+      codigo: Value(codigo),
+      nome: Value(nome),
+      descricao: descricao == null && nullToAbsent
+          ? const Value.absent()
+          : Value(descricao),
+      supervisorId: supervisorId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supervisorId),
+      supervisorNome: supervisorNome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supervisorNome),
+      ativo: Value(ativo),
+      isSynced: Value(isSynced),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory Equipe.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Equipe(
+      id: serializer.fromJson<String>(json['id']),
+      codigo: serializer.fromJson<String>(json['codigo']),
+      nome: serializer.fromJson<String>(json['nome']),
+      descricao: serializer.fromJson<String?>(json['descricao']),
+      supervisorId: serializer.fromJson<String?>(json['supervisorId']),
+      supervisorNome: serializer.fromJson<String?>(json['supervisorNome']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'codigo': serializer.toJson<String>(codigo),
+      'nome': serializer.toJson<String>(nome),
+      'descricao': serializer.toJson<String?>(descricao),
+      'supervisorId': serializer.toJson<String?>(supervisorId),
+      'supervisorNome': serializer.toJson<String?>(supervisorNome),
+      'ativo': serializer.toJson<bool>(ativo),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  Equipe copyWith({
+    String? id,
+    String? codigo,
+    String? nome,
+    Value<String?> descricao = const Value.absent(),
+    Value<String?> supervisorId = const Value.absent(),
+    Value<String?> supervisorNome = const Value.absent(),
+    bool? ativo,
+    bool? isSynced,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<String?> serverId = const Value.absent(),
+  }) => Equipe(
+    id: id ?? this.id,
+    codigo: codigo ?? this.codigo,
+    nome: nome ?? this.nome,
+    descricao: descricao.present ? descricao.value : this.descricao,
+    supervisorId: supervisorId.present ? supervisorId.value : this.supervisorId,
+    supervisorNome: supervisorNome.present
+        ? supervisorNome.value
+        : this.supervisorNome,
+    ativo: ativo ?? this.ativo,
+    isSynced: isSynced ?? this.isSynced,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  Equipe copyWithCompanion(EquipesCompanion data) {
+    return Equipe(
+      id: data.id.present ? data.id.value : this.id,
+      codigo: data.codigo.present ? data.codigo.value : this.codigo,
+      nome: data.nome.present ? data.nome.value : this.nome,
+      descricao: data.descricao.present ? data.descricao.value : this.descricao,
+      supervisorId: data.supervisorId.present
+          ? data.supervisorId.value
+          : this.supervisorId,
+      supervisorNome: data.supervisorNome.present
+          ? data.supervisorNome.value
+          : this.supervisorNome,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Equipe(')
+          ..write('id: $id, ')
+          ..write('codigo: $codigo, ')
+          ..write('nome: $nome, ')
+          ..write('descricao: $descricao, ')
+          ..write('supervisorId: $supervisorId, ')
+          ..write('supervisorNome: $supervisorNome, ')
+          ..write('ativo: $ativo, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    codigo,
+    nome,
+    descricao,
+    supervisorId,
+    supervisorNome,
+    ativo,
+    isSynced,
+    createdAt,
+    updatedAt,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Equipe &&
+          other.id == this.id &&
+          other.codigo == this.codigo &&
+          other.nome == this.nome &&
+          other.descricao == this.descricao &&
+          other.supervisorId == this.supervisorId &&
+          other.supervisorNome == this.supervisorNome &&
+          other.ativo == this.ativo &&
+          other.isSynced == this.isSynced &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverId == this.serverId);
+}
+
+class EquipesCompanion extends UpdateCompanion<Equipe> {
+  final Value<String> id;
+  final Value<String> codigo;
+  final Value<String> nome;
+  final Value<String?> descricao;
+  final Value<String?> supervisorId;
+  final Value<String?> supervisorNome;
+  final Value<bool> ativo;
+  final Value<bool> isSynced;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const EquipesCompanion({
+    this.id = const Value.absent(),
+    this.codigo = const Value.absent(),
+    this.nome = const Value.absent(),
+    this.descricao = const Value.absent(),
+    this.supervisorId = const Value.absent(),
+    this.supervisorNome = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EquipesCompanion.insert({
+    required String id,
+    required String codigo,
+    required String nome,
+    this.descricao = const Value.absent(),
+    this.supervisorId = const Value.absent(),
+    this.supervisorNome = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       codigo = Value(codigo),
+       nome = Value(nome),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<Equipe> custom({
+    Expression<String>? id,
+    Expression<String>? codigo,
+    Expression<String>? nome,
+    Expression<String>? descricao,
+    Expression<String>? supervisorId,
+    Expression<String>? supervisorNome,
+    Expression<bool>? ativo,
+    Expression<bool>? isSynced,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (codigo != null) 'codigo': codigo,
+      if (nome != null) 'nome': nome,
+      if (descricao != null) 'descricao': descricao,
+      if (supervisorId != null) 'supervisor_id': supervisorId,
+      if (supervisorNome != null) 'supervisor_nome': supervisorNome,
+      if (ativo != null) 'ativo': ativo,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EquipesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? codigo,
+    Value<String>? nome,
+    Value<String?>? descricao,
+    Value<String?>? supervisorId,
+    Value<String?>? supervisorNome,
+    Value<bool>? ativo,
+    Value<bool>? isSynced,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return EquipesCompanion(
+      id: id ?? this.id,
+      codigo: codigo ?? this.codigo,
+      nome: nome ?? this.nome,
+      descricao: descricao ?? this.descricao,
+      supervisorId: supervisorId ?? this.supervisorId,
+      supervisorNome: supervisorNome ?? this.supervisorNome,
+      ativo: ativo ?? this.ativo,
+      isSynced: isSynced ?? this.isSynced,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (codigo.present) {
+      map['codigo'] = Variable<String>(codigo.value);
+    }
+    if (nome.present) {
+      map['nome'] = Variable<String>(nome.value);
+    }
+    if (descricao.present) {
+      map['descricao'] = Variable<String>(descricao.value);
+    }
+    if (supervisorId.present) {
+      map['supervisor_id'] = Variable<String>(supervisorId.value);
+    }
+    if (supervisorNome.present) {
+      map['supervisor_nome'] = Variable<String>(supervisorNome.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EquipesCompanion(')
+          ..write('id: $id, ')
+          ..write('codigo: $codigo, ')
+          ..write('nome: $nome, ')
+          ..write('descricao: $descricao, ')
+          ..write('supervisorId: $supervisorId, ')
+          ..write('supervisorNome: $supervisorNome, ')
+          ..write('ativo: $ativo, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EquipeMembrosTable extends EquipeMembros
+    with TableInfo<$EquipeMembrosTable, EquipeMembro> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EquipeMembrosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _equipeIdMeta = const VerificationMeta(
+    'equipeId',
+  );
+  @override
+  late final GeneratedColumn<String> equipeId = GeneratedColumn<String>(
+    'equipe_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _usuarioIdMeta = const VerificationMeta(
+    'usuarioId',
+  );
+  @override
+  late final GeneratedColumn<String> usuarioId = GeneratedColumn<String>(
+    'usuario_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _usuarioNomeMeta = const VerificationMeta(
+    'usuarioNome',
+  );
+  @override
+  late final GeneratedColumn<String> usuarioNome = GeneratedColumn<String>(
+    'usuario_nome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usuarioEmailMeta = const VerificationMeta(
+    'usuarioEmail',
+  );
+  @override
+  late final GeneratedColumn<String> usuarioEmail = GeneratedColumn<String>(
+    'usuario_email',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ativoMeta = const VerificationMeta('ativo');
+  @override
+  late final GeneratedColumn<bool> ativo = GeneratedColumn<bool>(
+    'ativo',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ativo" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _entradaEmMeta = const VerificationMeta(
+    'entradaEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> entradaEm = GeneratedColumn<DateTime>(
+    'entrada_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _saidaEmMeta = const VerificationMeta(
+    'saidaEm',
+  );
+  @override
+  late final GeneratedColumn<DateTime> saidaEm = GeneratedColumn<DateTime>(
+    'saida_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    equipeId,
+    usuarioId,
+    usuarioNome,
+    usuarioEmail,
+    ativo,
+    entradaEm,
+    saidaEm,
+    isSynced,
+    createdAt,
+    updatedAt,
+    serverId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'equipe_membros';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EquipeMembro> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('equipe_id')) {
+      context.handle(
+        _equipeIdMeta,
+        equipeId.isAcceptableOrUnknown(data['equipe_id']!, _equipeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_equipeIdMeta);
+    }
+    if (data.containsKey('usuario_id')) {
+      context.handle(
+        _usuarioIdMeta,
+        usuarioId.isAcceptableOrUnknown(data['usuario_id']!, _usuarioIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_usuarioIdMeta);
+    }
+    if (data.containsKey('usuario_nome')) {
+      context.handle(
+        _usuarioNomeMeta,
+        usuarioNome.isAcceptableOrUnknown(
+          data['usuario_nome']!,
+          _usuarioNomeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('usuario_email')) {
+      context.handle(
+        _usuarioEmailMeta,
+        usuarioEmail.isAcceptableOrUnknown(
+          data['usuario_email']!,
+          _usuarioEmailMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ativo')) {
+      context.handle(
+        _ativoMeta,
+        ativo.isAcceptableOrUnknown(data['ativo']!, _ativoMeta),
+      );
+    }
+    if (data.containsKey('entrada_em')) {
+      context.handle(
+        _entradaEmMeta,
+        entradaEm.isAcceptableOrUnknown(data['entrada_em']!, _entradaEmMeta),
+      );
+    }
+    if (data.containsKey('saida_em')) {
+      context.handle(
+        _saidaEmMeta,
+        saidaEm.isAcceptableOrUnknown(data['saida_em']!, _saidaEmMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EquipeMembro map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EquipeMembro(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      equipeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}equipe_id'],
+      )!,
+      usuarioId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}usuario_id'],
+      )!,
+      usuarioNome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}usuario_nome'],
+      ),
+      usuarioEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}usuario_email'],
+      ),
+      ativo: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ativo'],
+      )!,
+      entradaEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}entrada_em'],
+      ),
+      saidaEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}saida_em'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      ),
+    );
+  }
+
+  @override
+  $EquipeMembrosTable createAlias(String alias) {
+    return $EquipeMembrosTable(attachedDatabase, alias);
+  }
+}
+
+class EquipeMembro extends DataClass implements Insertable<EquipeMembro> {
+  final String id;
+  final String equipeId;
+  final String usuarioId;
+  final String? usuarioNome;
+  final String? usuarioEmail;
+  final bool ativo;
+  final DateTime? entradaEm;
+  final DateTime? saidaEm;
+  final bool isSynced;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? serverId;
+  const EquipeMembro({
+    required this.id,
+    required this.equipeId,
+    required this.usuarioId,
+    this.usuarioNome,
+    this.usuarioEmail,
+    required this.ativo,
+    this.entradaEm,
+    this.saidaEm,
+    required this.isSynced,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['equipe_id'] = Variable<String>(equipeId);
+    map['usuario_id'] = Variable<String>(usuarioId);
+    if (!nullToAbsent || usuarioNome != null) {
+      map['usuario_nome'] = Variable<String>(usuarioNome);
+    }
+    if (!nullToAbsent || usuarioEmail != null) {
+      map['usuario_email'] = Variable<String>(usuarioEmail);
+    }
+    map['ativo'] = Variable<bool>(ativo);
+    if (!nullToAbsent || entradaEm != null) {
+      map['entrada_em'] = Variable<DateTime>(entradaEm);
+    }
+    if (!nullToAbsent || saidaEm != null) {
+      map['saida_em'] = Variable<DateTime>(saidaEm);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    return map;
+  }
+
+  EquipeMembrosCompanion toCompanion(bool nullToAbsent) {
+    return EquipeMembrosCompanion(
+      id: Value(id),
+      equipeId: Value(equipeId),
+      usuarioId: Value(usuarioId),
+      usuarioNome: usuarioNome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(usuarioNome),
+      usuarioEmail: usuarioEmail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(usuarioEmail),
+      ativo: Value(ativo),
+      entradaEm: entradaEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entradaEm),
+      saidaEm: saidaEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(saidaEm),
+      isSynced: Value(isSynced),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+    );
+  }
+
+  factory EquipeMembro.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EquipeMembro(
+      id: serializer.fromJson<String>(json['id']),
+      equipeId: serializer.fromJson<String>(json['equipeId']),
+      usuarioId: serializer.fromJson<String>(json['usuarioId']),
+      usuarioNome: serializer.fromJson<String?>(json['usuarioNome']),
+      usuarioEmail: serializer.fromJson<String?>(json['usuarioEmail']),
+      ativo: serializer.fromJson<bool>(json['ativo']),
+      entradaEm: serializer.fromJson<DateTime?>(json['entradaEm']),
+      saidaEm: serializer.fromJson<DateTime?>(json['saidaEm']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'equipeId': serializer.toJson<String>(equipeId),
+      'usuarioId': serializer.toJson<String>(usuarioId),
+      'usuarioNome': serializer.toJson<String?>(usuarioNome),
+      'usuarioEmail': serializer.toJson<String?>(usuarioEmail),
+      'ativo': serializer.toJson<bool>(ativo),
+      'entradaEm': serializer.toJson<DateTime?>(entradaEm),
+      'saidaEm': serializer.toJson<DateTime?>(saidaEm),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'serverId': serializer.toJson<String?>(serverId),
+    };
+  }
+
+  EquipeMembro copyWith({
+    String? id,
+    String? equipeId,
+    String? usuarioId,
+    Value<String?> usuarioNome = const Value.absent(),
+    Value<String?> usuarioEmail = const Value.absent(),
+    bool? ativo,
+    Value<DateTime?> entradaEm = const Value.absent(),
+    Value<DateTime?> saidaEm = const Value.absent(),
+    bool? isSynced,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<String?> serverId = const Value.absent(),
+  }) => EquipeMembro(
+    id: id ?? this.id,
+    equipeId: equipeId ?? this.equipeId,
+    usuarioId: usuarioId ?? this.usuarioId,
+    usuarioNome: usuarioNome.present ? usuarioNome.value : this.usuarioNome,
+    usuarioEmail: usuarioEmail.present ? usuarioEmail.value : this.usuarioEmail,
+    ativo: ativo ?? this.ativo,
+    entradaEm: entradaEm.present ? entradaEm.value : this.entradaEm,
+    saidaEm: saidaEm.present ? saidaEm.value : this.saidaEm,
+    isSynced: isSynced ?? this.isSynced,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverId: serverId.present ? serverId.value : this.serverId,
+  );
+  EquipeMembro copyWithCompanion(EquipeMembrosCompanion data) {
+    return EquipeMembro(
+      id: data.id.present ? data.id.value : this.id,
+      equipeId: data.equipeId.present ? data.equipeId.value : this.equipeId,
+      usuarioId: data.usuarioId.present ? data.usuarioId.value : this.usuarioId,
+      usuarioNome: data.usuarioNome.present
+          ? data.usuarioNome.value
+          : this.usuarioNome,
+      usuarioEmail: data.usuarioEmail.present
+          ? data.usuarioEmail.value
+          : this.usuarioEmail,
+      ativo: data.ativo.present ? data.ativo.value : this.ativo,
+      entradaEm: data.entradaEm.present ? data.entradaEm.value : this.entradaEm,
+      saidaEm: data.saidaEm.present ? data.saidaEm.value : this.saidaEm,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EquipeMembro(')
+          ..write('id: $id, ')
+          ..write('equipeId: $equipeId, ')
+          ..write('usuarioId: $usuarioId, ')
+          ..write('usuarioNome: $usuarioNome, ')
+          ..write('usuarioEmail: $usuarioEmail, ')
+          ..write('ativo: $ativo, ')
+          ..write('entradaEm: $entradaEm, ')
+          ..write('saidaEm: $saidaEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverId: $serverId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    equipeId,
+    usuarioId,
+    usuarioNome,
+    usuarioEmail,
+    ativo,
+    entradaEm,
+    saidaEm,
+    isSynced,
+    createdAt,
+    updatedAt,
+    serverId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EquipeMembro &&
+          other.id == this.id &&
+          other.equipeId == this.equipeId &&
+          other.usuarioId == this.usuarioId &&
+          other.usuarioNome == this.usuarioNome &&
+          other.usuarioEmail == this.usuarioEmail &&
+          other.ativo == this.ativo &&
+          other.entradaEm == this.entradaEm &&
+          other.saidaEm == this.saidaEm &&
+          other.isSynced == this.isSynced &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverId == this.serverId);
+}
+
+class EquipeMembrosCompanion extends UpdateCompanion<EquipeMembro> {
+  final Value<String> id;
+  final Value<String> equipeId;
+  final Value<String> usuarioId;
+  final Value<String?> usuarioNome;
+  final Value<String?> usuarioEmail;
+  final Value<bool> ativo;
+  final Value<DateTime?> entradaEm;
+  final Value<DateTime?> saidaEm;
+  final Value<bool> isSynced;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String?> serverId;
+  final Value<int> rowid;
+  const EquipeMembrosCompanion({
+    this.id = const Value.absent(),
+    this.equipeId = const Value.absent(),
+    this.usuarioId = const Value.absent(),
+    this.usuarioNome = const Value.absent(),
+    this.usuarioEmail = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.entradaEm = const Value.absent(),
+    this.saidaEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EquipeMembrosCompanion.insert({
+    required String id,
+    required String equipeId,
+    required String usuarioId,
+    this.usuarioNome = const Value.absent(),
+    this.usuarioEmail = const Value.absent(),
+    this.ativo = const Value.absent(),
+    this.entradaEm = const Value.absent(),
+    this.saidaEm = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.serverId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       equipeId = Value(equipeId),
+       usuarioId = Value(usuarioId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<EquipeMembro> custom({
+    Expression<String>? id,
+    Expression<String>? equipeId,
+    Expression<String>? usuarioId,
+    Expression<String>? usuarioNome,
+    Expression<String>? usuarioEmail,
+    Expression<bool>? ativo,
+    Expression<DateTime>? entradaEm,
+    Expression<DateTime>? saidaEm,
+    Expression<bool>? isSynced,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? serverId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (equipeId != null) 'equipe_id': equipeId,
+      if (usuarioId != null) 'usuario_id': usuarioId,
+      if (usuarioNome != null) 'usuario_nome': usuarioNome,
+      if (usuarioEmail != null) 'usuario_email': usuarioEmail,
+      if (ativo != null) 'ativo': ativo,
+      if (entradaEm != null) 'entrada_em': entradaEm,
+      if (saidaEm != null) 'saida_em': saidaEm,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverId != null) 'server_id': serverId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EquipeMembrosCompanion copyWith({
+    Value<String>? id,
+    Value<String>? equipeId,
+    Value<String>? usuarioId,
+    Value<String?>? usuarioNome,
+    Value<String?>? usuarioEmail,
+    Value<bool>? ativo,
+    Value<DateTime?>? entradaEm,
+    Value<DateTime?>? saidaEm,
+    Value<bool>? isSynced,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String?>? serverId,
+    Value<int>? rowid,
+  }) {
+    return EquipeMembrosCompanion(
+      id: id ?? this.id,
+      equipeId: equipeId ?? this.equipeId,
+      usuarioId: usuarioId ?? this.usuarioId,
+      usuarioNome: usuarioNome ?? this.usuarioNome,
+      usuarioEmail: usuarioEmail ?? this.usuarioEmail,
+      ativo: ativo ?? this.ativo,
+      entradaEm: entradaEm ?? this.entradaEm,
+      saidaEm: saidaEm ?? this.saidaEm,
+      isSynced: isSynced ?? this.isSynced,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverId: serverId ?? this.serverId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (equipeId.present) {
+      map['equipe_id'] = Variable<String>(equipeId.value);
+    }
+    if (usuarioId.present) {
+      map['usuario_id'] = Variable<String>(usuarioId.value);
+    }
+    if (usuarioNome.present) {
+      map['usuario_nome'] = Variable<String>(usuarioNome.value);
+    }
+    if (usuarioEmail.present) {
+      map['usuario_email'] = Variable<String>(usuarioEmail.value);
+    }
+    if (ativo.present) {
+      map['ativo'] = Variable<bool>(ativo.value);
+    }
+    if (entradaEm.present) {
+      map['entrada_em'] = Variable<DateTime>(entradaEm.value);
+    }
+    if (saidaEm.present) {
+      map['saida_em'] = Variable<DateTime>(saidaEm.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EquipeMembrosCompanion(')
+          ..write('id: $id, ')
+          ..write('equipeId: $equipeId, ')
+          ..write('usuarioId: $usuarioId, ')
+          ..write('usuarioNome: $usuarioNome, ')
+          ..write('usuarioEmail: $usuarioEmail, ')
+          ..write('ativo: $ativo, ')
+          ..write('entradaEm: $entradaEm, ')
+          ..write('saidaEm: $saidaEm, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverId: $serverId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SincronizacoesTable extends Sincronizacoes
     with TableInfo<$SincronizacoesTable, Sincronizacoe> {
   @override
@@ -6481,11 +10946,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $RespostasInspecaoTable(this);
   late final $AnexosInspecaoTable anexosInspecao = $AnexosInspecaoTable(this);
   late final $ChecklistsTable checklists = $ChecklistsTable(this);
+  late final $SecoesChecklistTable secoesChecklist = $SecoesChecklistTable(
+    this,
+  );
+  late final $ItensChecklistTable itensChecklist = $ItensChecklistTable(this);
+  late final $OpcoesItemChecklistTable opcoesItemChecklist =
+      $OpcoesItemChecklistTable(this);
   late final $EstabelecimentosTable estabelecimentos = $EstabelecimentosTable(
     this,
   );
   late final $CategoriasEstabelecimentoTable categoriasEstabelecimento =
       $CategoriasEstabelecimentoTable(this);
+  late final $EquipesTable equipes = $EquipesTable(this);
+  late final $EquipeMembrosTable equipeMembros = $EquipeMembrosTable(this);
   late final $SincronizacoesTable sincronizacoes = $SincronizacoesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -6496,8 +10969,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     respostasInspecao,
     anexosInspecao,
     checklists,
+    secoesChecklist,
+    itensChecklist,
+    opcoesItemChecklist,
     estabelecimentos,
     categoriasEstabelecimento,
+    equipes,
+    equipeMembros,
     sincronizacoes,
   ];
 }
@@ -8031,28 +12509,38 @@ typedef $$ChecklistsTableCreateCompanionBuilder =
     ChecklistsCompanion Function({
       required String id,
       required String nome,
-      required String versao,
-      Value<String?> categoria,
-      required String jsonData,
+      Value<String?> descricao,
+      Value<String?> categoriaId,
+      Value<String?> categoriaNome,
+      Value<String?> criadoPorId,
+      Value<String?> criadoPorNome,
+      Value<bool> publico,
+      Value<bool> ativo,
+      Value<String?> configuracoesJson,
+      required DateTime criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
       required DateTime dataDownload,
-      required DateTime ultimaAtualizacao,
-      Value<bool> isAtivo,
-      required DateTime createdAt,
-      required DateTime updatedAt,
+      Value<String?> serverId,
       Value<int> rowid,
     });
 typedef $$ChecklistsTableUpdateCompanionBuilder =
     ChecklistsCompanion Function({
       Value<String> id,
       Value<String> nome,
-      Value<String> versao,
-      Value<String?> categoria,
-      Value<String> jsonData,
+      Value<String?> descricao,
+      Value<String?> categoriaId,
+      Value<String?> categoriaNome,
+      Value<String?> criadoPorId,
+      Value<String?> criadoPorNome,
+      Value<bool> publico,
+      Value<bool> ativo,
+      Value<String?> configuracoesJson,
+      Value<DateTime> criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
       Value<DateTime> dataDownload,
-      Value<DateTime> ultimaAtualizacao,
-      Value<bool> isAtivo,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
+      Value<String?> serverId,
       Value<int> rowid,
     });
 
@@ -8075,18 +12563,58 @@ class $$ChecklistsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get versao => $composableBuilder(
-    column: $table.versao,
+  ColumnFilters<String> get descricao => $composableBuilder(
+    column: $table.descricao,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get categoria => $composableBuilder(
-    column: $table.categoria,
+  ColumnFilters<String> get categoriaId => $composableBuilder(
+    column: $table.categoriaId,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get jsonData => $composableBuilder(
-    column: $table.jsonData,
+  ColumnFilters<String> get categoriaNome => $composableBuilder(
+    column: $table.categoriaNome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get criadoPorId => $composableBuilder(
+    column: $table.criadoPorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get criadoPorNome => $composableBuilder(
+    column: $table.criadoPorNome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get publico => $composableBuilder(
+    column: $table.publico,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8095,23 +12623,8 @@ class $$ChecklistsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get ultimaAtualizacao => $composableBuilder(
-    column: $table.ultimaAtualizacao,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isAtivo => $composableBuilder(
-    column: $table.isAtivo,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8135,18 +12648,58 @@ class $$ChecklistsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get versao => $composableBuilder(
-    column: $table.versao,
+  ColumnOrderings<String> get descricao => $composableBuilder(
+    column: $table.descricao,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get categoria => $composableBuilder(
-    column: $table.categoria,
+  ColumnOrderings<String> get categoriaId => $composableBuilder(
+    column: $table.categoriaId,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get jsonData => $composableBuilder(
-    column: $table.jsonData,
+  ColumnOrderings<String> get categoriaNome => $composableBuilder(
+    column: $table.categoriaNome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get criadoPorId => $composableBuilder(
+    column: $table.criadoPorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get criadoPorNome => $composableBuilder(
+    column: $table.criadoPorNome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get publico => $composableBuilder(
+    column: $table.publico,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8155,23 +12708,8 @@ class $$ChecklistsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get ultimaAtualizacao => $composableBuilder(
-    column: $table.ultimaAtualizacao,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isAtivo => $composableBuilder(
-    column: $table.isAtivo,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -8191,33 +12729,58 @@ class $$ChecklistsTableAnnotationComposer
   GeneratedColumn<String> get nome =>
       $composableBuilder(column: $table.nome, builder: (column) => column);
 
-  GeneratedColumn<String> get versao =>
-      $composableBuilder(column: $table.versao, builder: (column) => column);
+  GeneratedColumn<String> get descricao =>
+      $composableBuilder(column: $table.descricao, builder: (column) => column);
 
-  GeneratedColumn<String> get categoria =>
-      $composableBuilder(column: $table.categoria, builder: (column) => column);
+  GeneratedColumn<String> get categoriaId => $composableBuilder(
+    column: $table.categoriaId,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get jsonData =>
-      $composableBuilder(column: $table.jsonData, builder: (column) => column);
+  GeneratedColumn<String> get categoriaNome => $composableBuilder(
+    column: $table.categoriaNome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get criadoPorId => $composableBuilder(
+    column: $table.criadoPorId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get criadoPorNome => $composableBuilder(
+    column: $table.criadoPorNome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get publico =>
+      $composableBuilder(column: $table.publico, builder: (column) => column);
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get criadoEm =>
+      $composableBuilder(column: $table.criadoEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
   GeneratedColumn<DateTime> get dataDownload => $composableBuilder(
     column: $table.dataDownload,
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get ultimaAtualizacao => $composableBuilder(
-    column: $table.ultimaAtualizacao,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get isAtivo =>
-      $composableBuilder(column: $table.isAtivo, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
 }
 
 class $$ChecklistsTableTableManager
@@ -8253,52 +12816,72 @@ class $$ChecklistsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> nome = const Value.absent(),
-                Value<String> versao = const Value.absent(),
-                Value<String?> categoria = const Value.absent(),
-                Value<String> jsonData = const Value.absent(),
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> categoriaId = const Value.absent(),
+                Value<String?> categoriaNome = const Value.absent(),
+                Value<String?> criadoPorId = const Value.absent(),
+                Value<String?> criadoPorNome = const Value.absent(),
+                Value<bool> publico = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> configuracoesJson = const Value.absent(),
+                Value<DateTime> criadoEm = const Value.absent(),
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
                 Value<DateTime> dataDownload = const Value.absent(),
-                Value<DateTime> ultimaAtualizacao = const Value.absent(),
-                Value<bool> isAtivo = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChecklistsCompanion(
                 id: id,
                 nome: nome,
-                versao: versao,
-                categoria: categoria,
-                jsonData: jsonData,
+                descricao: descricao,
+                categoriaId: categoriaId,
+                categoriaNome: categoriaNome,
+                criadoPorId: criadoPorId,
+                criadoPorNome: criadoPorNome,
+                publico: publico,
+                ativo: ativo,
+                configuracoesJson: configuracoesJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
                 dataDownload: dataDownload,
-                ultimaAtualizacao: ultimaAtualizacao,
-                isAtivo: isAtivo,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
+                serverId: serverId,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
                 required String nome,
-                required String versao,
-                Value<String?> categoria = const Value.absent(),
-                required String jsonData,
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> categoriaId = const Value.absent(),
+                Value<String?> categoriaNome = const Value.absent(),
+                Value<String?> criadoPorId = const Value.absent(),
+                Value<String?> criadoPorNome = const Value.absent(),
+                Value<bool> publico = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> configuracoesJson = const Value.absent(),
+                required DateTime criadoEm,
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
                 required DateTime dataDownload,
-                required DateTime ultimaAtualizacao,
-                Value<bool> isAtivo = const Value.absent(),
-                required DateTime createdAt,
-                required DateTime updatedAt,
+                Value<String?> serverId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChecklistsCompanion.insert(
                 id: id,
                 nome: nome,
-                versao: versao,
-                categoria: categoria,
-                jsonData: jsonData,
+                descricao: descricao,
+                categoriaId: categoriaId,
+                categoriaNome: categoriaNome,
+                criadoPorId: criadoPorId,
+                criadoPorNome: criadoPorNome,
+                publico: publico,
+                ativo: ativo,
+                configuracoesJson: configuracoesJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
                 dataDownload: dataDownload,
-                ultimaAtualizacao: ultimaAtualizacao,
-                isAtivo: isAtivo,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
+                serverId: serverId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -8321,6 +12904,1295 @@ typedef $$ChecklistsTableProcessedTableManager =
       $$ChecklistsTableUpdateCompanionBuilder,
       (Checklist, BaseReferences<_$AppDatabase, $ChecklistsTable, Checklist>),
       Checklist,
+      PrefetchHooks Function()
+    >;
+typedef $$SecoesChecklistTableCreateCompanionBuilder =
+    SecoesChecklistCompanion Function({
+      required String id,
+      required String checklistId,
+      Value<String?> secaoPaiId,
+      required String titulo,
+      Value<String?> descricao,
+      Value<int> ordem,
+      Value<bool> ativo,
+      Value<String?> ajudaSecao,
+      Value<String?> corTextoAjuda,
+      Value<int?> pontuacaoMaxima,
+      Value<double?> ponderacao,
+      Value<bool> calculaScore,
+      Value<String?> tipoSecao,
+      Value<String?> acoesJson,
+      Value<String?> condicoesVisibilidadeJson,
+      required DateTime criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$SecoesChecklistTableUpdateCompanionBuilder =
+    SecoesChecklistCompanion Function({
+      Value<String> id,
+      Value<String> checklistId,
+      Value<String?> secaoPaiId,
+      Value<String> titulo,
+      Value<String?> descricao,
+      Value<int> ordem,
+      Value<bool> ativo,
+      Value<String?> ajudaSecao,
+      Value<String?> corTextoAjuda,
+      Value<int?> pontuacaoMaxima,
+      Value<double?> ponderacao,
+      Value<bool> calculaScore,
+      Value<String?> tipoSecao,
+      Value<String?> acoesJson,
+      Value<String?> condicoesVisibilidadeJson,
+      Value<DateTime> criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$SecoesChecklistTableFilterComposer
+    extends Composer<_$AppDatabase, $SecoesChecklistTable> {
+  $$SecoesChecklistTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get checklistId => $composableBuilder(
+    column: $table.checklistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secaoPaiId => $composableBuilder(
+    column: $table.secaoPaiId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titulo => $composableBuilder(
+    column: $table.titulo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ajudaSecao => $composableBuilder(
+    column: $table.ajudaSecao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get corTextoAjuda => $composableBuilder(
+    column: $table.corTextoAjuda,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pontuacaoMaxima => $composableBuilder(
+    column: $table.pontuacaoMaxima,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get ponderacao => $composableBuilder(
+    column: $table.ponderacao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get calculaScore => $composableBuilder(
+    column: $table.calculaScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tipoSecao => $composableBuilder(
+    column: $table.tipoSecao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SecoesChecklistTableOrderingComposer
+    extends Composer<_$AppDatabase, $SecoesChecklistTable> {
+  $$SecoesChecklistTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get checklistId => $composableBuilder(
+    column: $table.checklistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get secaoPaiId => $composableBuilder(
+    column: $table.secaoPaiId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titulo => $composableBuilder(
+    column: $table.titulo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ajudaSecao => $composableBuilder(
+    column: $table.ajudaSecao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get corTextoAjuda => $composableBuilder(
+    column: $table.corTextoAjuda,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pontuacaoMaxima => $composableBuilder(
+    column: $table.pontuacaoMaxima,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get ponderacao => $composableBuilder(
+    column: $table.ponderacao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get calculaScore => $composableBuilder(
+    column: $table.calculaScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tipoSecao => $composableBuilder(
+    column: $table.tipoSecao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SecoesChecklistTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SecoesChecklistTable> {
+  $$SecoesChecklistTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get checklistId => $composableBuilder(
+    column: $table.checklistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get secaoPaiId => $composableBuilder(
+    column: $table.secaoPaiId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get titulo =>
+      $composableBuilder(column: $table.titulo, builder: (column) => column);
+
+  GeneratedColumn<String> get descricao =>
+      $composableBuilder(column: $table.descricao, builder: (column) => column);
+
+  GeneratedColumn<int> get ordem =>
+      $composableBuilder(column: $table.ordem, builder: (column) => column);
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<String> get ajudaSecao => $composableBuilder(
+    column: $table.ajudaSecao,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get corTextoAjuda => $composableBuilder(
+    column: $table.corTextoAjuda,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pontuacaoMaxima => $composableBuilder(
+    column: $table.pontuacaoMaxima,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get ponderacao => $composableBuilder(
+    column: $table.ponderacao,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get calculaScore => $composableBuilder(
+    column: $table.calculaScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tipoSecao =>
+      $composableBuilder(column: $table.tipoSecao, builder: (column) => column);
+
+  GeneratedColumn<String> get acoesJson =>
+      $composableBuilder(column: $table.acoesJson, builder: (column) => column);
+
+  GeneratedColumn<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get criadoEm =>
+      $composableBuilder(column: $table.criadoEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$SecoesChecklistTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SecoesChecklistTable,
+          SecoesChecklistData,
+          $$SecoesChecklistTableFilterComposer,
+          $$SecoesChecklistTableOrderingComposer,
+          $$SecoesChecklistTableAnnotationComposer,
+          $$SecoesChecklistTableCreateCompanionBuilder,
+          $$SecoesChecklistTableUpdateCompanionBuilder,
+          (
+            SecoesChecklistData,
+            BaseReferences<
+              _$AppDatabase,
+              $SecoesChecklistTable,
+              SecoesChecklistData
+            >,
+          ),
+          SecoesChecklistData,
+          PrefetchHooks Function()
+        > {
+  $$SecoesChecklistTableTableManager(
+    _$AppDatabase db,
+    $SecoesChecklistTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SecoesChecklistTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SecoesChecklistTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SecoesChecklistTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> checklistId = const Value.absent(),
+                Value<String?> secaoPaiId = const Value.absent(),
+                Value<String> titulo = const Value.absent(),
+                Value<String?> descricao = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> ajudaSecao = const Value.absent(),
+                Value<String?> corTextoAjuda = const Value.absent(),
+                Value<int?> pontuacaoMaxima = const Value.absent(),
+                Value<double?> ponderacao = const Value.absent(),
+                Value<bool> calculaScore = const Value.absent(),
+                Value<String?> tipoSecao = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+                Value<DateTime> criadoEm = const Value.absent(),
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SecoesChecklistCompanion(
+                id: id,
+                checklistId: checklistId,
+                secaoPaiId: secaoPaiId,
+                titulo: titulo,
+                descricao: descricao,
+                ordem: ordem,
+                ativo: ativo,
+                ajudaSecao: ajudaSecao,
+                corTextoAjuda: corTextoAjuda,
+                pontuacaoMaxima: pontuacaoMaxima,
+                ponderacao: ponderacao,
+                calculaScore: calculaScore,
+                tipoSecao: tipoSecao,
+                acoesJson: acoesJson,
+                condicoesVisibilidadeJson: condicoesVisibilidadeJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String checklistId,
+                Value<String?> secaoPaiId = const Value.absent(),
+                required String titulo,
+                Value<String?> descricao = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> ajudaSecao = const Value.absent(),
+                Value<String?> corTextoAjuda = const Value.absent(),
+                Value<int?> pontuacaoMaxima = const Value.absent(),
+                Value<double?> ponderacao = const Value.absent(),
+                Value<bool> calculaScore = const Value.absent(),
+                Value<String?> tipoSecao = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+                required DateTime criadoEm,
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SecoesChecklistCompanion.insert(
+                id: id,
+                checklistId: checklistId,
+                secaoPaiId: secaoPaiId,
+                titulo: titulo,
+                descricao: descricao,
+                ordem: ordem,
+                ativo: ativo,
+                ajudaSecao: ajudaSecao,
+                corTextoAjuda: corTextoAjuda,
+                pontuacaoMaxima: pontuacaoMaxima,
+                ponderacao: ponderacao,
+                calculaScore: calculaScore,
+                tipoSecao: tipoSecao,
+                acoesJson: acoesJson,
+                condicoesVisibilidadeJson: condicoesVisibilidadeJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SecoesChecklistTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SecoesChecklistTable,
+      SecoesChecklistData,
+      $$SecoesChecklistTableFilterComposer,
+      $$SecoesChecklistTableOrderingComposer,
+      $$SecoesChecklistTableAnnotationComposer,
+      $$SecoesChecklistTableCreateCompanionBuilder,
+      $$SecoesChecklistTableUpdateCompanionBuilder,
+      (
+        SecoesChecklistData,
+        BaseReferences<
+          _$AppDatabase,
+          $SecoesChecklistTable,
+          SecoesChecklistData
+        >,
+      ),
+      SecoesChecklistData,
+      PrefetchHooks Function()
+    >;
+typedef $$ItensChecklistTableCreateCompanionBuilder =
+    ItensChecklistCompanion Function({
+      required String id,
+      required String secaoId,
+      required String rotulo,
+      Value<String?> descricao,
+      Value<String?> ajuda,
+      required String tipo,
+      Value<int> ordem,
+      Value<bool> obrigatorio,
+      Value<bool> ativo,
+      Value<String?> configuracoesJson,
+      Value<String?> acoesJson,
+      Value<String?> condicoesVisibilidadeJson,
+      required DateTime criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$ItensChecklistTableUpdateCompanionBuilder =
+    ItensChecklistCompanion Function({
+      Value<String> id,
+      Value<String> secaoId,
+      Value<String> rotulo,
+      Value<String?> descricao,
+      Value<String?> ajuda,
+      Value<String> tipo,
+      Value<int> ordem,
+      Value<bool> obrigatorio,
+      Value<bool> ativo,
+      Value<String?> configuracoesJson,
+      Value<String?> acoesJson,
+      Value<String?> condicoesVisibilidadeJson,
+      Value<DateTime> criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$ItensChecklistTableFilterComposer
+    extends Composer<_$AppDatabase, $ItensChecklistTable> {
+  $$ItensChecklistTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secaoId => $composableBuilder(
+    column: $table.secaoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rotulo => $composableBuilder(
+    column: $table.rotulo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ajuda => $composableBuilder(
+    column: $table.ajuda,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tipo => $composableBuilder(
+    column: $table.tipo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get obrigatorio => $composableBuilder(
+    column: $table.obrigatorio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ItensChecklistTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItensChecklistTable> {
+  $$ItensChecklistTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get secaoId => $composableBuilder(
+    column: $table.secaoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rotulo => $composableBuilder(
+    column: $table.rotulo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ajuda => $composableBuilder(
+    column: $table.ajuda,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tipo => $composableBuilder(
+    column: $table.tipo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get obrigatorio => $composableBuilder(
+    column: $table.obrigatorio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ItensChecklistTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItensChecklistTable> {
+  $$ItensChecklistTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get secaoId =>
+      $composableBuilder(column: $table.secaoId, builder: (column) => column);
+
+  GeneratedColumn<String> get rotulo =>
+      $composableBuilder(column: $table.rotulo, builder: (column) => column);
+
+  GeneratedColumn<String> get descricao =>
+      $composableBuilder(column: $table.descricao, builder: (column) => column);
+
+  GeneratedColumn<String> get ajuda =>
+      $composableBuilder(column: $table.ajuda, builder: (column) => column);
+
+  GeneratedColumn<String> get tipo =>
+      $composableBuilder(column: $table.tipo, builder: (column) => column);
+
+  GeneratedColumn<int> get ordem =>
+      $composableBuilder(column: $table.ordem, builder: (column) => column);
+
+  GeneratedColumn<bool> get obrigatorio => $composableBuilder(
+    column: $table.obrigatorio,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<String> get configuracoesJson => $composableBuilder(
+    column: $table.configuracoesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get acoesJson =>
+      $composableBuilder(column: $table.acoesJson, builder: (column) => column);
+
+  GeneratedColumn<String> get condicoesVisibilidadeJson => $composableBuilder(
+    column: $table.condicoesVisibilidadeJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get criadoEm =>
+      $composableBuilder(column: $table.criadoEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$ItensChecklistTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ItensChecklistTable,
+          ItensChecklistData,
+          $$ItensChecklistTableFilterComposer,
+          $$ItensChecklistTableOrderingComposer,
+          $$ItensChecklistTableAnnotationComposer,
+          $$ItensChecklistTableCreateCompanionBuilder,
+          $$ItensChecklistTableUpdateCompanionBuilder,
+          (
+            ItensChecklistData,
+            BaseReferences<
+              _$AppDatabase,
+              $ItensChecklistTable,
+              ItensChecklistData
+            >,
+          ),
+          ItensChecklistData,
+          PrefetchHooks Function()
+        > {
+  $$ItensChecklistTableTableManager(
+    _$AppDatabase db,
+    $ItensChecklistTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItensChecklistTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItensChecklistTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItensChecklistTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> secaoId = const Value.absent(),
+                Value<String> rotulo = const Value.absent(),
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> ajuda = const Value.absent(),
+                Value<String> tipo = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<bool> obrigatorio = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> configuracoesJson = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+                Value<DateTime> criadoEm = const Value.absent(),
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ItensChecklistCompanion(
+                id: id,
+                secaoId: secaoId,
+                rotulo: rotulo,
+                descricao: descricao,
+                ajuda: ajuda,
+                tipo: tipo,
+                ordem: ordem,
+                obrigatorio: obrigatorio,
+                ativo: ativo,
+                configuracoesJson: configuracoesJson,
+                acoesJson: acoesJson,
+                condicoesVisibilidadeJson: condicoesVisibilidadeJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String secaoId,
+                required String rotulo,
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> ajuda = const Value.absent(),
+                required String tipo,
+                Value<int> ordem = const Value.absent(),
+                Value<bool> obrigatorio = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<String?> configuracoesJson = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                Value<String?> condicoesVisibilidadeJson = const Value.absent(),
+                required DateTime criadoEm,
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ItensChecklistCompanion.insert(
+                id: id,
+                secaoId: secaoId,
+                rotulo: rotulo,
+                descricao: descricao,
+                ajuda: ajuda,
+                tipo: tipo,
+                ordem: ordem,
+                obrigatorio: obrigatorio,
+                ativo: ativo,
+                configuracoesJson: configuracoesJson,
+                acoesJson: acoesJson,
+                condicoesVisibilidadeJson: condicoesVisibilidadeJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ItensChecklistTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ItensChecklistTable,
+      ItensChecklistData,
+      $$ItensChecklistTableFilterComposer,
+      $$ItensChecklistTableOrderingComposer,
+      $$ItensChecklistTableAnnotationComposer,
+      $$ItensChecklistTableCreateCompanionBuilder,
+      $$ItensChecklistTableUpdateCompanionBuilder,
+      (
+        ItensChecklistData,
+        BaseReferences<_$AppDatabase, $ItensChecklistTable, ItensChecklistData>,
+      ),
+      ItensChecklistData,
+      PrefetchHooks Function()
+    >;
+typedef $$OpcoesItemChecklistTableCreateCompanionBuilder =
+    OpcoesItemChecklistCompanion Function({
+      required String id,
+      required String itemId,
+      required String texto,
+      Value<String?> valor,
+      Value<int> ordem,
+      Value<String?> cor,
+      Value<int?> pontuacao,
+      Value<String?> comentarioPadrao,
+      Value<String?> acoesJson,
+      required DateTime criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$OpcoesItemChecklistTableUpdateCompanionBuilder =
+    OpcoesItemChecklistCompanion Function({
+      Value<String> id,
+      Value<String> itemId,
+      Value<String> texto,
+      Value<String?> valor,
+      Value<int> ordem,
+      Value<String?> cor,
+      Value<int?> pontuacao,
+      Value<String?> comentarioPadrao,
+      Value<String?> acoesJson,
+      Value<DateTime> criadoEm,
+      Value<DateTime?> atualizadoEm,
+      Value<bool> isSynced,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$OpcoesItemChecklistTableFilterComposer
+    extends Composer<_$AppDatabase, $OpcoesItemChecklistTable> {
+  $$OpcoesItemChecklistTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get texto => $composableBuilder(
+    column: $table.texto,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get valor => $composableBuilder(
+    column: $table.valor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cor => $composableBuilder(
+    column: $table.cor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pontuacao => $composableBuilder(
+    column: $table.pontuacao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get comentarioPadrao => $composableBuilder(
+    column: $table.comentarioPadrao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OpcoesItemChecklistTableOrderingComposer
+    extends Composer<_$AppDatabase, $OpcoesItemChecklistTable> {
+  $$OpcoesItemChecklistTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get texto => $composableBuilder(
+    column: $table.texto,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get valor => $composableBuilder(
+    column: $table.valor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ordem => $composableBuilder(
+    column: $table.ordem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cor => $composableBuilder(
+    column: $table.cor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pontuacao => $composableBuilder(
+    column: $table.pontuacao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get comentarioPadrao => $composableBuilder(
+    column: $table.comentarioPadrao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get acoesJson => $composableBuilder(
+    column: $table.acoesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get criadoEm => $composableBuilder(
+    column: $table.criadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OpcoesItemChecklistTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OpcoesItemChecklistTable> {
+  $$OpcoesItemChecklistTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get texto =>
+      $composableBuilder(column: $table.texto, builder: (column) => column);
+
+  GeneratedColumn<String> get valor =>
+      $composableBuilder(column: $table.valor, builder: (column) => column);
+
+  GeneratedColumn<int> get ordem =>
+      $composableBuilder(column: $table.ordem, builder: (column) => column);
+
+  GeneratedColumn<String> get cor =>
+      $composableBuilder(column: $table.cor, builder: (column) => column);
+
+  GeneratedColumn<int> get pontuacao =>
+      $composableBuilder(column: $table.pontuacao, builder: (column) => column);
+
+  GeneratedColumn<String> get comentarioPadrao => $composableBuilder(
+    column: $table.comentarioPadrao,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get acoesJson =>
+      $composableBuilder(column: $table.acoesJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get criadoEm =>
+      $composableBuilder(column: $table.criadoEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get atualizadoEm => $composableBuilder(
+    column: $table.atualizadoEm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$OpcoesItemChecklistTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OpcoesItemChecklistTable,
+          OpcoesItemChecklistData,
+          $$OpcoesItemChecklistTableFilterComposer,
+          $$OpcoesItemChecklistTableOrderingComposer,
+          $$OpcoesItemChecklistTableAnnotationComposer,
+          $$OpcoesItemChecklistTableCreateCompanionBuilder,
+          $$OpcoesItemChecklistTableUpdateCompanionBuilder,
+          (
+            OpcoesItemChecklistData,
+            BaseReferences<
+              _$AppDatabase,
+              $OpcoesItemChecklistTable,
+              OpcoesItemChecklistData
+            >,
+          ),
+          OpcoesItemChecklistData,
+          PrefetchHooks Function()
+        > {
+  $$OpcoesItemChecklistTableTableManager(
+    _$AppDatabase db,
+    $OpcoesItemChecklistTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OpcoesItemChecklistTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OpcoesItemChecklistTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$OpcoesItemChecklistTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> texto = const Value.absent(),
+                Value<String?> valor = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<String?> cor = const Value.absent(),
+                Value<int?> pontuacao = const Value.absent(),
+                Value<String?> comentarioPadrao = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                Value<DateTime> criadoEm = const Value.absent(),
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OpcoesItemChecklistCompanion(
+                id: id,
+                itemId: itemId,
+                texto: texto,
+                valor: valor,
+                ordem: ordem,
+                cor: cor,
+                pontuacao: pontuacao,
+                comentarioPadrao: comentarioPadrao,
+                acoesJson: acoesJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String itemId,
+                required String texto,
+                Value<String?> valor = const Value.absent(),
+                Value<int> ordem = const Value.absent(),
+                Value<String?> cor = const Value.absent(),
+                Value<int?> pontuacao = const Value.absent(),
+                Value<String?> comentarioPadrao = const Value.absent(),
+                Value<String?> acoesJson = const Value.absent(),
+                required DateTime criadoEm,
+                Value<DateTime?> atualizadoEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OpcoesItemChecklistCompanion.insert(
+                id: id,
+                itemId: itemId,
+                texto: texto,
+                valor: valor,
+                ordem: ordem,
+                cor: cor,
+                pontuacao: pontuacao,
+                comentarioPadrao: comentarioPadrao,
+                acoesJson: acoesJson,
+                criadoEm: criadoEm,
+                atualizadoEm: atualizadoEm,
+                isSynced: isSynced,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OpcoesItemChecklistTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OpcoesItemChecklistTable,
+      OpcoesItemChecklistData,
+      $$OpcoesItemChecklistTableFilterComposer,
+      $$OpcoesItemChecklistTableOrderingComposer,
+      $$OpcoesItemChecklistTableAnnotationComposer,
+      $$OpcoesItemChecklistTableCreateCompanionBuilder,
+      $$OpcoesItemChecklistTableUpdateCompanionBuilder,
+      (
+        OpcoesItemChecklistData,
+        BaseReferences<
+          _$AppDatabase,
+          $OpcoesItemChecklistTable,
+          OpcoesItemChecklistData
+        >,
+      ),
+      OpcoesItemChecklistData,
       PrefetchHooks Function()
     >;
 typedef $$EstabelecimentosTableCreateCompanionBuilder =
@@ -9118,6 +14990,655 @@ typedef $$CategoriasEstabelecimentoTableProcessedTableManager =
       CategoriasEstabelecimentoData,
       PrefetchHooks Function()
     >;
+typedef $$EquipesTableCreateCompanionBuilder =
+    EquipesCompanion Function({
+      required String id,
+      required String codigo,
+      required String nome,
+      Value<String?> descricao,
+      Value<String?> supervisorId,
+      Value<String?> supervisorNome,
+      Value<bool> ativo,
+      Value<bool> isSynced,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$EquipesTableUpdateCompanionBuilder =
+    EquipesCompanion Function({
+      Value<String> id,
+      Value<String> codigo,
+      Value<String> nome,
+      Value<String?> descricao,
+      Value<String?> supervisorId,
+      Value<String?> supervisorNome,
+      Value<bool> ativo,
+      Value<bool> isSynced,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$EquipesTableFilterComposer
+    extends Composer<_$AppDatabase, $EquipesTable> {
+  $$EquipesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get codigo => $composableBuilder(
+    column: $table.codigo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nome => $composableBuilder(
+    column: $table.nome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supervisorId => $composableBuilder(
+    column: $table.supervisorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supervisorNome => $composableBuilder(
+    column: $table.supervisorNome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EquipesTableOrderingComposer
+    extends Composer<_$AppDatabase, $EquipesTable> {
+  $$EquipesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get codigo => $composableBuilder(
+    column: $table.codigo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nome => $composableBuilder(
+    column: $table.nome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get descricao => $composableBuilder(
+    column: $table.descricao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supervisorId => $composableBuilder(
+    column: $table.supervisorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supervisorNome => $composableBuilder(
+    column: $table.supervisorNome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EquipesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EquipesTable> {
+  $$EquipesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get codigo =>
+      $composableBuilder(column: $table.codigo, builder: (column) => column);
+
+  GeneratedColumn<String> get nome =>
+      $composableBuilder(column: $table.nome, builder: (column) => column);
+
+  GeneratedColumn<String> get descricao =>
+      $composableBuilder(column: $table.descricao, builder: (column) => column);
+
+  GeneratedColumn<String> get supervisorId => $composableBuilder(
+    column: $table.supervisorId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get supervisorNome => $composableBuilder(
+    column: $table.supervisorNome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$EquipesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EquipesTable,
+          Equipe,
+          $$EquipesTableFilterComposer,
+          $$EquipesTableOrderingComposer,
+          $$EquipesTableAnnotationComposer,
+          $$EquipesTableCreateCompanionBuilder,
+          $$EquipesTableUpdateCompanionBuilder,
+          (Equipe, BaseReferences<_$AppDatabase, $EquipesTable, Equipe>),
+          Equipe,
+          PrefetchHooks Function()
+        > {
+  $$EquipesTableTableManager(_$AppDatabase db, $EquipesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EquipesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EquipesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EquipesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> codigo = const Value.absent(),
+                Value<String> nome = const Value.absent(),
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> supervisorId = const Value.absent(),
+                Value<String?> supervisorNome = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EquipesCompanion(
+                id: id,
+                codigo: codigo,
+                nome: nome,
+                descricao: descricao,
+                supervisorId: supervisorId,
+                supervisorNome: supervisorNome,
+                ativo: ativo,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String codigo,
+                required String nome,
+                Value<String?> descricao = const Value.absent(),
+                Value<String?> supervisorId = const Value.absent(),
+                Value<String?> supervisorNome = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EquipesCompanion.insert(
+                id: id,
+                codigo: codigo,
+                nome: nome,
+                descricao: descricao,
+                supervisorId: supervisorId,
+                supervisorNome: supervisorNome,
+                ativo: ativo,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EquipesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EquipesTable,
+      Equipe,
+      $$EquipesTableFilterComposer,
+      $$EquipesTableOrderingComposer,
+      $$EquipesTableAnnotationComposer,
+      $$EquipesTableCreateCompanionBuilder,
+      $$EquipesTableUpdateCompanionBuilder,
+      (Equipe, BaseReferences<_$AppDatabase, $EquipesTable, Equipe>),
+      Equipe,
+      PrefetchHooks Function()
+    >;
+typedef $$EquipeMembrosTableCreateCompanionBuilder =
+    EquipeMembrosCompanion Function({
+      required String id,
+      required String equipeId,
+      required String usuarioId,
+      Value<String?> usuarioNome,
+      Value<String?> usuarioEmail,
+      Value<bool> ativo,
+      Value<DateTime?> entradaEm,
+      Value<DateTime?> saidaEm,
+      Value<bool> isSynced,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+typedef $$EquipeMembrosTableUpdateCompanionBuilder =
+    EquipeMembrosCompanion Function({
+      Value<String> id,
+      Value<String> equipeId,
+      Value<String> usuarioId,
+      Value<String?> usuarioNome,
+      Value<String?> usuarioEmail,
+      Value<bool> ativo,
+      Value<DateTime?> entradaEm,
+      Value<DateTime?> saidaEm,
+      Value<bool> isSynced,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String?> serverId,
+      Value<int> rowid,
+    });
+
+class $$EquipeMembrosTableFilterComposer
+    extends Composer<_$AppDatabase, $EquipeMembrosTable> {
+  $$EquipeMembrosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get equipeId => $composableBuilder(
+    column: $table.equipeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get usuarioId => $composableBuilder(
+    column: $table.usuarioId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get usuarioNome => $composableBuilder(
+    column: $table.usuarioNome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get usuarioEmail => $composableBuilder(
+    column: $table.usuarioEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get entradaEm => $composableBuilder(
+    column: $table.entradaEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get saidaEm => $composableBuilder(
+    column: $table.saidaEm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EquipeMembrosTableOrderingComposer
+    extends Composer<_$AppDatabase, $EquipeMembrosTable> {
+  $$EquipeMembrosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get equipeId => $composableBuilder(
+    column: $table.equipeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get usuarioId => $composableBuilder(
+    column: $table.usuarioId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get usuarioNome => $composableBuilder(
+    column: $table.usuarioNome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get usuarioEmail => $composableBuilder(
+    column: $table.usuarioEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get ativo => $composableBuilder(
+    column: $table.ativo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get entradaEm => $composableBuilder(
+    column: $table.entradaEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get saidaEm => $composableBuilder(
+    column: $table.saidaEm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EquipeMembrosTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EquipeMembrosTable> {
+  $$EquipeMembrosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get equipeId =>
+      $composableBuilder(column: $table.equipeId, builder: (column) => column);
+
+  GeneratedColumn<String> get usuarioId =>
+      $composableBuilder(column: $table.usuarioId, builder: (column) => column);
+
+  GeneratedColumn<String> get usuarioNome => $composableBuilder(
+    column: $table.usuarioNome,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get usuarioEmail => $composableBuilder(
+    column: $table.usuarioEmail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get ativo =>
+      $composableBuilder(column: $table.ativo, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get entradaEm =>
+      $composableBuilder(column: $table.entradaEm, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get saidaEm =>
+      $composableBuilder(column: $table.saidaEm, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+}
+
+class $$EquipeMembrosTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EquipeMembrosTable,
+          EquipeMembro,
+          $$EquipeMembrosTableFilterComposer,
+          $$EquipeMembrosTableOrderingComposer,
+          $$EquipeMembrosTableAnnotationComposer,
+          $$EquipeMembrosTableCreateCompanionBuilder,
+          $$EquipeMembrosTableUpdateCompanionBuilder,
+          (
+            EquipeMembro,
+            BaseReferences<_$AppDatabase, $EquipeMembrosTable, EquipeMembro>,
+          ),
+          EquipeMembro,
+          PrefetchHooks Function()
+        > {
+  $$EquipeMembrosTableTableManager(_$AppDatabase db, $EquipeMembrosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EquipeMembrosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EquipeMembrosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EquipeMembrosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> equipeId = const Value.absent(),
+                Value<String> usuarioId = const Value.absent(),
+                Value<String?> usuarioNome = const Value.absent(),
+                Value<String?> usuarioEmail = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<DateTime?> entradaEm = const Value.absent(),
+                Value<DateTime?> saidaEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EquipeMembrosCompanion(
+                id: id,
+                equipeId: equipeId,
+                usuarioId: usuarioId,
+                usuarioNome: usuarioNome,
+                usuarioEmail: usuarioEmail,
+                ativo: ativo,
+                entradaEm: entradaEm,
+                saidaEm: saidaEm,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String equipeId,
+                required String usuarioId,
+                Value<String?> usuarioNome = const Value.absent(),
+                Value<String?> usuarioEmail = const Value.absent(),
+                Value<bool> ativo = const Value.absent(),
+                Value<DateTime?> entradaEm = const Value.absent(),
+                Value<DateTime?> saidaEm = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<String?> serverId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EquipeMembrosCompanion.insert(
+                id: id,
+                equipeId: equipeId,
+                usuarioId: usuarioId,
+                usuarioNome: usuarioNome,
+                usuarioEmail: usuarioEmail,
+                ativo: ativo,
+                entradaEm: entradaEm,
+                saidaEm: saidaEm,
+                isSynced: isSynced,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverId: serverId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EquipeMembrosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EquipeMembrosTable,
+      EquipeMembro,
+      $$EquipeMembrosTableFilterComposer,
+      $$EquipeMembrosTableOrderingComposer,
+      $$EquipeMembrosTableAnnotationComposer,
+      $$EquipeMembrosTableCreateCompanionBuilder,
+      $$EquipeMembrosTableUpdateCompanionBuilder,
+      (
+        EquipeMembro,
+        BaseReferences<_$AppDatabase, $EquipeMembrosTable, EquipeMembro>,
+      ),
+      EquipeMembro,
+      PrefetchHooks Function()
+    >;
 typedef $$SincronizacoesTableCreateCompanionBuilder =
     SincronizacoesCompanion Function({
       Value<int> id,
@@ -9475,6 +15996,12 @@ class $AppDatabaseManager {
       $$AnexosInspecaoTableTableManager(_db, _db.anexosInspecao);
   $$ChecklistsTableTableManager get checklists =>
       $$ChecklistsTableTableManager(_db, _db.checklists);
+  $$SecoesChecklistTableTableManager get secoesChecklist =>
+      $$SecoesChecklistTableTableManager(_db, _db.secoesChecklist);
+  $$ItensChecklistTableTableManager get itensChecklist =>
+      $$ItensChecklistTableTableManager(_db, _db.itensChecklist);
+  $$OpcoesItemChecklistTableTableManager get opcoesItemChecklist =>
+      $$OpcoesItemChecklistTableTableManager(_db, _db.opcoesItemChecklist);
   $$EstabelecimentosTableTableManager get estabelecimentos =>
       $$EstabelecimentosTableTableManager(_db, _db.estabelecimentos);
   $$CategoriasEstabelecimentoTableTableManager get categoriasEstabelecimento =>
@@ -9482,6 +16009,10 @@ class $AppDatabaseManager {
         _db,
         _db.categoriasEstabelecimento,
       );
+  $$EquipesTableTableManager get equipes =>
+      $$EquipesTableTableManager(_db, _db.equipes);
+  $$EquipeMembrosTableTableManager get equipeMembros =>
+      $$EquipeMembrosTableTableManager(_db, _db.equipeMembros);
   $$SincronizacoesTableTableManager get sincronizacoes =>
       $$SincronizacoesTableTableManager(_db, _db.sincronizacoes);
 }

@@ -1,12 +1,16 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/services/data_service.dart';
+import 'package:inspecao/services/database_service.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:inspecao/screens/notifications_screen.dart';
+import 'package:intl/intl.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -17,9 +21,12 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final _dataService = DataService();
+  final _dbService = DatabaseService();
   List<Inspection> _inspections = [];
   InspectionStatus? _statusFilter;
   Map<String, Establishment> _establishmentsCache = {};
+  List<AppNotification> _notifications = [];
+  bool _isLoading = false;
   
   // Variáveis do mapa
   MapController _mapController = MapController();
@@ -31,8 +38,26 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInspections();
+    _loadInspections(sync: false);
+    _loadNotifications();
     _getCurrentLocation();
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final notifications = await _dataService.getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifications = notifications;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _notifications = [];
+        });
+      }
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -74,36 +99,22 @@ class _MapScreenState extends State<MapScreen> {
     _markers.clear();
     
     for (final inspection in _filteredInspections) {
+      final establishment = _establishmentsCache[inspection.establishmentId];
+      final establishmentName = establishment?.nome ?? inspection.titulo;
+      
       _markers.add(
         Marker(
           point: LatLng(inspection.latitude, inspection.longitude),
-          width: 40,
-          height: 40,
+          width: 50,
+          height: 50,
           child: GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => InspectionDetailScreen(inspection: inspection),
-              ),
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _getStatusColor(inspection.status),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                _getStatusIcon(inspection.status),
-                color: Colors.white,
-                size: 20,
-              ),
+            onTap: () {
+              _showInspectionPopup(inspection, establishmentName);
+            },
+            child: Icon(
+              Icons.location_on,
+              color: _getStatusColor(inspection.status),
+              size: 48,
             ),
           ),
         ),
@@ -141,6 +152,306 @@ class _MapScreenState extends State<MapScreen> {
     }
     
     setState(() {});
+  }
+
+  void _showInspectionPopup(Inspection inspection, String establishmentName) {
+    final establishment = _establishmentsCache[inspection.establishmentId];
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Seta apontando para baixo (conectando ao marcador)
+            CustomPaint(
+              size: const Size(20, 12),
+              painter: _ArrowPainter(),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header com botão fechar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          inspection.titulo, // Número da inspeção
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E2E2E),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 22, color: Color(0xFF666666)),
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Nome do estabelecimento
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1976D2).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.business, size: 18, color: Color(0xFF1976D2)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            establishmentName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2E2E2E),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Status com badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(inspection.status).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _getStatusColor(inspection.status).withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _getStatusIcon(inspection.status),
+                          size: 18,
+                          color: _getStatusColor(inspection.status),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Status: ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF666666),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          inspection.statusText,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _getStatusColor(inspection.status),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Data e Hora com ícone
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Data: ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF666666),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('dd/MM/yyyy').format(inspection.dataAgendada),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2E2E2E),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(Icons.access_time, size: 18, color: Colors.grey[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat('HH:mm').format(inspection.dataAgendada),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2E2E2E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Divisor
+                  if (establishment != null && (establishment.telefone != null || establishment.email != null)) ...[
+                    const SizedBox(height: 20),
+                    const Divider(height: 1, thickness: 1),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.contacts, size: 20, color: Colors.grey[700]),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Contatos',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E2E2E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Contato - Nome do estabelecimento
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Contato - $establishmentName',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2E2E2E),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Telefone
+                          if (establishment.telefone != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Tel: ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF666666),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    establishment.telefone!,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2E2E2E),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Email
+                          if (establishment.email != null)
+                            Row(
+                              children: [
+                                Icon(Icons.email, size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Email: ',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF666666),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    establishment.email!,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2E2E2E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ] else
+                    const SizedBox(height: 20),
+                  // Botão ver detalhes
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InspectionDetailScreen(inspection: inspection),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: const Color(0xFF1976D2),
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Ver detalhes',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _changeMapType() {
@@ -210,22 +521,47 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<void> _loadInspections() async {
-    final inspections = await _dataService.getInspections();
-    
-    // Carregar estabelecimentos para cache
-    final establishments = await _dataService.getAllEstablishments();
-    final establishmentsMap = <String, Establishment>{};
-    for (final establishment in establishments) {
-      establishmentsMap[establishment.id] = establishment;
-    }
-    
-    if (mounted) {
-      setState(() {
-        _inspections = inspections;
-        _establishmentsCache = establishmentsMap;
-      });
-      _updateMarkers();
+  Future<void> _loadInspections({bool sync = false}) async {
+    try {
+      setState(() => _isLoading = true);
+      
+      List<Inspection> inspections = [];
+      Map<String, Establishment> establishmentsMap = {};
+      
+      if (sync) {
+        // Sincronizar com API quando solicitado
+        inspections = await _dataService.getInspections();
+        final establishments = await _dataService.getAllEstablishments();
+        for (final establishment in establishments) {
+          establishmentsMap[establishment.id] = establishment;
+        }
+      } else {
+        // Carregar apenas do banco local (sem sincronizar)
+        await _dbService.initialize();
+        inspections = await _dbService.getInspections();
+        final establishments = await _dbService.getEstablishments();
+        for (final establishment in establishments) {
+          establishmentsMap[establishment.id] = establishment;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _inspections = inspections;
+          _establishmentsCache = establishmentsMap;
+        });
+        _updateMarkers();
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _inspections = [];
+          _establishmentsCache = {};
+          _isLoading = false;
+        });
+      }
+      print('Erro ao carregar inspeções: $e');
     }
   }
 
@@ -242,25 +578,6 @@ class _MapScreenState extends State<MapScreen> {
     });
     
     return filtered;
-  }
-
-  Future<void> _openMap(Inspection inspection) async {
-    final url = 'https://www.google.com/maps/search/?api=1&query=${inspection.latitude},${inspection.longitude}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
-  }
-
-  Future<void> _openAllInspectionsMap() async {
-    if (_filteredInspections.isEmpty) return;
-    
-    // Criar URL do Google Maps com múltiplos pontos
-    final points = _filteredInspections.map((i) => '${i.latitude},${i.longitude}').join('|');
-    final url = 'https://www.google.com/maps/dir/$points';
-    
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
   }
 
   Color _getStatusColor(InspectionStatus status) {
@@ -297,7 +614,7 @@ class _MapScreenState extends State<MapScreen> {
       case InspectionStatus.rascunho:
         return Icons.edit;
       case InspectionStatus.emAndamento:
-        return Icons.play_circle;
+        return Icons.access_time;
       case InspectionStatus.concluida:
         return Icons.check_circle;
       case InspectionStatus.sincronizada:
@@ -321,144 +638,47 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  String _getInspectionDisplayTitle(Inspection inspection) {
-    if (inspection.establishmentId == null) {
-      return inspection.titulo;
-    }
-    
-    final establishment = _establishmentsCache[inspection.establishmentId];
-    if (establishment != null) {
-      return '${inspection.titulo} - ${establishment.nome}';
-    }
-    
-    return inspection.titulo;
-  }
-
-  Widget _buildMapWidget() {
-    if (_inspections.isEmpty) {
-      return Container(
-        height: 300,
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[400]!),
+  void _showFilterMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.map, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text('Nenhuma inspeção encontrada'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 400,
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _currentLocation ?? LatLng(
-                  _inspections.first.latitude,
-                  _inspections.first.longitude,
-                ),
-                initialZoom: 12.0,
-                minZoom: 3.0,
-                maxZoom: 18.0,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.all,
-                ),
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
-              children: [
-                _getTileLayer(),
-                MarkerLayer(markers: _markers),
-              ],
             ),
-            // Controles do mapa
-            Positioned(
-              top: 16,
-              right: 16,
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FloatingActionButton.small(
-                    onPressed: _changeMapType,
-                    tooltip: 'Trocar Layer ($_currentMapStyle)',
-                    child: Icon(
-                      _currentMapStyle == 'OpenStreetMap' 
-                          ? Icons.map 
-                          : _currentMapStyle == 'CartoDB'
-                              ? Icons.terrain
-                              : Icons.satellite,
+                  const Text(
+                    'Filtrar por Status',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2E2E2E),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  FloatingActionButton.small(
-                    onPressed: _centerMapOnInspections,
-                    tooltip: 'Centralizar nas Inspeções',
-                    child: const Icon(Icons.center_focus_strong),
-                  ),
-                  const SizedBox(height: 8),
-                  FloatingActionButton.small(
-                    onPressed: _getCurrentLocation,
-                    tooltip: 'Minha Localização',
-                    child: _isLoadingLocation 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.my_location),
-                  ),
+                  const SizedBox(height: 20),
+                  _buildFilterOption(null, 'Todas'),
+                  _buildFilterOption(InspectionStatus.rascunho, 'Rascunho'),
+                  _buildFilterOption(InspectionStatus.emAndamento, 'Em Andamento'),
+                  _buildFilterOption(InspectionStatus.concluida, 'Concluídas'),
+                  _buildFilterOption(InspectionStatus.finalizada, 'Finalizadas'),
                 ],
-              ),
-            ),
-            // Botão para abrir no Google Maps
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: FloatingActionButton.small(
-                onPressed: _openAllInspectionsMap,
-                tooltip: 'Abrir no Google Maps',
-                child: const Icon(Icons.open_in_new),
-              ),
-            ),
-            // Indicador do layer atual
-            Positioned(
-              top: 16,
-              left: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _currentMapStyle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
               ),
             ),
           ],
@@ -467,191 +687,54 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapa Geográfico'),
+  Widget _buildFilterOption(InspectionStatus? status, String label) {
+    final isSelected = _statusFilter == status;
+    return ListTile(
+      leading: Icon(
+        status == null ? Icons.clear_all : _getStatusIcon(status),
+        color: isSelected ? const Color(0xFF1976D2) : Colors.grey[600],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadInspections,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildMapWidget(),
-              
-              // Legenda
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Legenda',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildLegendItem(Colors.grey, 'Rascunho'),
-                        const SizedBox(width: 20),
-                        _buildLegendItem(Colors.orange, 'Em Andamento'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildLegendItem(Colors.green, 'Concluídas'),
-                        const SizedBox(width: 20),
-                        _buildLegendItem(Colors.red, 'Inválidas'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Lista de Inspeções
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Text(
-                      'Inspeções (${_filteredInspections.length})',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const Spacer(),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Theme.of(context).colorScheme.surface,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: PopupMenuButton<InspectionStatus?>(
-                        onSelected: (status) => setState(() => _statusFilter = status),
-                        icon: Icon(
-                          Icons.filter_list,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: null,
-                            child: Row(
-                              children: [
-                                Icon(Icons.clear_all, size: 16),
-                                SizedBox(width: 8),
-                                Text('Todas'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: InspectionStatus.rascunho,
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit, color: Colors.grey, size: 16),
-                                const SizedBox(width: 8),
-                                const Text('Rascunho'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: InspectionStatus.emAndamento,
-                            child: Row(
-                              children: [
-                                Icon(Icons.play_circle, color: Colors.orange, size: 16),
-                                const SizedBox(width: 8),
-                                const Text('Em Andamento'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: InspectionStatus.concluida,
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                const SizedBox(width: 8),
-                                const Text('Concluídas'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_statusFilter != null) ...[
-                      const SizedBox(width: 8),
-                      Chip(
-                        label: Text(_statusFilter!.name),
-                        onDeleted: () => setState(() => _statusFilter = null),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _filteredInspections.length,
-                itemBuilder: (context, index) {
-                  final inspection = _filteredInspections[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _getStatusColor(inspection.status),
-                        child: Icon(
-                          _getStatusIcon(inspection.status),
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      title: Text(_getInspectionDisplayTitle(inspection)),
-                      subtitle: Text(inspection.endereco),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.map),
-                            onPressed: () => _openMap(inspection),
-                            tooltip: 'Abrir no mapa',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.info),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InspectionDetailScreen(inspection: inspection),
-                              ),
-                            ),
-                            tooltip: 'Ver detalhes',
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          color: isSelected ? const Color(0xFF1976D2) : const Color(0xFF2E2E2E),
         ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check, color: Color(0xFF1976D2))
+          : null,
+      onTap: () {
+        setState(() {
+          _statusFilter = status;
+        });
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  Widget _buildLegend() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildLegendItem(Colors.grey, 'Rascunho'),
+          _buildLegendItem(Colors.orange, 'Em Andamento'),
+          _buildLegendItem(Colors.blue, 'Concluídas'),
+          _buildLegendItem(Colors.green, 'Finalizadas'),
+          _buildLegendItem(Colors.red, 'Inválidas'),
+        ],
       ),
     );
   }
@@ -671,9 +754,323 @@ class _MapScreenState extends State<MapScreen> {
         const SizedBox(width: 6),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF666666),
+          ),
         ),
       ],
     );
   }
+
+  Widget _buildMapHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1976D2),
+            Color(0xFF1565C0),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // App Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Logo e nome
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'web/icons/icon-192.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF1976D2),
+                                size: 20,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Mapa',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Ícones de ação compactos
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const NotificationsScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                            ),
+                          ),
+                          if (_notifications.where((n) => !n.isRead).isNotEmpty)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  '${_notifications.where((n) => !n.isRead).length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: _isLoading 
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: _isLoading ? null : () async {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          
+                          try {
+                            await _loadInspections(sync: true);
+                            await _loadNotifications();
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          } catch (e) {
+                            await _loadInspections(sync: false);
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
+                        },
+                      ),
+                      GestureDetector(
+                        onTap: _showFilterMenu,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(Icons.tune, color: Colors.white, size: 24),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFE3F0E9),
+      body: Column(
+        children: [
+          // Header fixo
+          _buildMapHeader(),
+          // Legenda
+          _buildLegend(),
+          // Mapa expandido
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _loadInspections(sync: true),
+              child: _inspections.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhuma inspeção encontrada',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Stack(
+                      children: [
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: _currentLocation ?? LatLng(
+                              _inspections.first.latitude,
+                              _inspections.first.longitude,
+                            ),
+                            initialZoom: 12.0,
+                            minZoom: 3.0,
+                            maxZoom: 18.0,
+                            interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.all,
+                            ),
+                          ),
+                          children: [
+                            _getTileLayer(),
+                            MarkerLayer(markers: _markers),
+                          ],
+                        ),
+                        // Controles do mapa
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: Column(
+                            children: [
+                              FloatingActionButton.small(
+                                onPressed: _changeMapType,
+                                tooltip: 'Trocar Layer ($_currentMapStyle)',
+                                backgroundColor: Colors.white,
+                                child: Icon(
+                                  _currentMapStyle == 'OpenStreetMap' 
+                                      ? Icons.map 
+                                      : _currentMapStyle == 'CartoDB'
+                                          ? Icons.terrain
+                                          : Icons.satellite,
+                                  color: const Color(0xFF1976D2),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              FloatingActionButton.small(
+                                onPressed: _centerMapOnInspections,
+                                tooltip: 'Centralizar nas Inspeções',
+                                backgroundColor: Colors.white,
+                                child: const Icon(
+                                  Icons.center_focus_strong,
+                                  color: Color(0xFF1976D2),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              FloatingActionButton.small(
+                                onPressed: _getCurrentLocation,
+                                tooltip: 'Minha Localização',
+                                backgroundColor: Colors.white,
+                                child: _isLoadingLocation 
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.my_location,
+                                        color: Color(0xFF1976D2),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Indicador do layer atual
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _currentMapStyle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Classe para desenhar a seta apontando para baixo
+class _ArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final path = ui.Path();
+    path.moveTo(size.width / 2, size.height);
+    path.lineTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
