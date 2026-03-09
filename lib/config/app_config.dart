@@ -17,20 +17,20 @@ class AppConfig {
     // Se não foi definido, detectar automaticamente
     if (kIsWeb) {
       // Web usa localhost normalmente
-      return 'http://localhost:8081';
+      return 'https://api.inspecao.rubenpires.dev';
     } else if (Platform.isAndroid) {
       // Android: 
       // - Emulador: usar 10.0.2.2 (mapeia para localhost do host)
       // - Dispositivo físico: precisa do IP da máquina host
       // Por padrão, tentar 10.0.2.2 (funciona no emulador)
       // Para dispositivo físico, defina: flutter run --dart-define=API_BASE_URL=http://SEU_IP:8081
-      return 'http://10.0.2.2:8081';
+      return 'https://api.inspecao.rubenpires.dev';
     } else if (Platform.isIOS) {
       // iOS: usar localhost normalmente
-      return 'http://localhost:8081';
+      return 'https://api.inspecao.rubenpires.dev';
     } else {
       // Desktop: usar localhost normalmente
-      return 'http://localhost:8081';
+      return 'https://api.inspecao.rubenpires.dev';
     }
   }
   
