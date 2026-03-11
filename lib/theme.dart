@@ -3,11 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 class LightModeColors {
   // Paleta de Cores INSPEV - Requisito R49
-  // Cor 1: #00778b (PANTONE 7506 C) - Cor Principal Escura
-  static const lightPrimary = Color(0xFF00778B);
+  // Cor 1: #18778a (PANTONE 7506 C) - Cor Principal Escura
+  static const lightPrimary = Color(0xFF18778A);
   static const lightOnPrimary = Color(0xFFFFFFFF);
-  // Cor 2: #478d9d (PANTONE P 119-13 U) - Cor Média
-  static const lightSecondary = Color(0xFF478D9D);
+  // Cor 2: #027a8a (PANTONE P 119-13 U) - Cor Média
+  static const lightSecondary = Color(0xFF027A8A);
   static const lightOnSecondary = Color(0xFFFFFFFF);
   // Cor 3: #6fa3b0 (PANTONE 16-4610 TCX) - Cor Clara
   static const lightTertiary = Color(0xFF6FA3B0);
@@ -80,11 +80,11 @@ class FontSizes {
 ThemeData get lightTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.light(
-    primary: LightModeColors.lightPrimary, // #00778b - Cor Principal INSPEV
+    primary: LightModeColors.lightPrimary, // #18778a - Cor Principal INSPEV
     onPrimary: LightModeColors.lightOnPrimary,
     primaryContainer: LightModeColors.lightPrimaryContainer,
     onPrimaryContainer: LightModeColors.lightOnPrimaryContainer,
-    secondary: LightModeColors.lightSecondary, // #478d9d - Cor Média INSPEV
+    secondary: LightModeColors.lightSecondary, // #027a8a - Cor Média INSPEV
     onSecondary: LightModeColors.lightOnSecondary,
     secondaryContainer: LightModeColors.lightSecondaryContainer,
     onSecondaryContainer: LightModeColors.lightOnSecondaryContainer,

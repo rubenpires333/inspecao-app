@@ -294,7 +294,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1976D2).withOpacity(0.3),
+                    color: const Color(0xFF18778A).withOpacity(0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -308,7 +308,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   );
                   _loadData(sync: false);
                 },
-                backgroundColor: const Color(0xFF1976D2),
+                backgroundColor: const Color(0xFF18778A),
                 foregroundColor: Colors.white,
                 child: const Icon(Icons.add),
               ),
@@ -324,8 +324,8 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2), // lightPrimary sempre
-            Color(0xFF1565C0), // lightPrimary com opacidade
+            Color(0xFF18778A), // lightPrimary sempre
+            Color(0xFF18778A), // lightPrimary com opacidade
           ],
         ),
       ),
@@ -358,7 +358,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.check_circle,
-                                color: Color(0xFF1976D2),
+                                color: Color(0xFF18778A),
                                 size: 20,
                               );
                             },
@@ -533,10 +533,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1976D2) : Colors.white,
+          color: isSelected ? const Color(0xFF18778A) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF1976D2) : Colors.grey[300]!,
+            color: isSelected ? const Color(0xFF18778A) : Colors.grey[300]!,
           ),
         ),
         child: Text(
@@ -842,7 +842,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         Navigator.pop(context);
                       },
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF1976D2)),
+                        side: const BorderSide(color: Color(0xFF18778A)),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -851,7 +851,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                       child: const Text(
                         'Limpar Filtros',
                         style: TextStyle(
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF18778A),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -865,7 +865,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1976D2),
+                        backgroundColor: const Color(0xFFC4E1E8),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -916,11 +916,11 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           children: [
             Text(
               '${_minScore.clamp(0.0, 100.0).round()}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1976D2)),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF18778A)),
             ),
             Text(
               '${_maxScore.clamp(0.0, 100.0).round()}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1976D2)),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF18778A)),
             ),
           ],
         ),
@@ -933,7 +933,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           min: 0.0,
           max: 100.0,
           divisions: 20,
-          activeColor: const Color(0xFF1976D2),
+          activeColor: const Color(0xFF18778A),
           inactiveColor: Colors.grey[200],
           onChanged: (RangeValues values) {
             setState(() {
@@ -959,9 +959,9 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1976D2) : Colors.white,
+          color: isSelected ? const Color(0xFF18778A) : Colors.white,
           border: Border.all(
-            color: isSelected ? const Color(0xFF1976D2) : Colors.grey[300]!,
+            color: isSelected ? const Color(0xFF18778A) : Colors.grey[300]!,
           ),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -1109,9 +1109,9 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                           return ListTile(
                             title: Text(company),
                             selected: isSelected,
-                            selectedTileColor: const Color(0xFF1976D2).withOpacity(0.1),
+                            selectedTileColor: const Color(0xFF18778A).withOpacity(0.1),
                             trailing: isSelected
-                                ? const Icon(Icons.check, color: Color(0xFF1976D2))
+                                ? const Icon(Icons.check, color: Color(0xFF18778A))
                                 : null,
                             onTap: () {
                               setState(() {
@@ -1149,7 +1149,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                     icon: const Icon(Icons.clear),
                     label: const Text('Limpar Seleção'),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF1976D2)),
+                      side: const BorderSide(color: Color(0xFF18778A)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -1189,9 +1189,9 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                         return ListTile(
                           title: Text(location),
                           selected: isSelected,
-                          selectedTileColor: const Color(0xFF1976D2).withOpacity(0.1),
+                          selectedTileColor: const Color(0xFF18778A).withOpacity(0.1),
                           trailing: isSelected
-                              ? const Icon(Icons.check, color: Color(0xFF1976D2))
+                              ? const Icon(Icons.check, color: Color(0xFF18778A))
                               : null,
                           onTap: () {
                             setState(() {
@@ -1227,7 +1227,7 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                 icon: const Icon(Icons.clear),
                 label: const Text('Limpar Seleção'),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF1976D2)),
+                  side: const BorderSide(color: Color(0xFF18778A)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),

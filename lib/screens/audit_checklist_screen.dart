@@ -232,8 +232,8 @@ class _AuditChecklistScreenState extends State<AuditChecklistScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2), // lightPrimary
-            Color(0xFF1565C0),
+            Color(0xFF18778A), // lightPrimary
+            Color(0xFF18778A),
           ],
         ),
       ),

@@ -39,7 +39,7 @@ class AppBarWidget extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       leading: leading,
       automaticallyImplyLeading: automaticallyImplyLeading,
-      backgroundColor: backgroundColor ?? const Color(0xFF1976D2),
+      backgroundColor: backgroundColor ?? const Color(0xFF18778A),
       foregroundColor: foregroundColor ?? Colors.white,
       elevation: elevation ?? 0,
       bottom: bottom,

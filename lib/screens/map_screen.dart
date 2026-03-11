@@ -206,12 +206,12 @@ class _MapScreenState extends State<MapScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1976D2).withOpacity(0.1),
+                      color: const Color(0xFF18778A).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.business, size: 18, color: Color(0xFF1976D2)),
+                        const Icon(Icons.business, size: 18, color: Color(0xFF18778A)),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -421,7 +421,7 @@ class _MapScreenState extends State<MapScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF1976D2),
+                        backgroundColor: const Color(0xFF18778A),
                         foregroundColor: Colors.white,
                         elevation: 2,
                         shape: RoundedRectangleBorder(
@@ -692,17 +692,17 @@ class _MapScreenState extends State<MapScreen> {
     return ListTile(
       leading: Icon(
         status == null ? Icons.clear_all : _getStatusIcon(status),
-        color: isSelected ? const Color(0xFF1976D2) : Colors.grey[600],
+        color: isSelected ? const Color(0xFF18778A) : Colors.grey[600],
       ),
       title: Text(
         label,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          color: isSelected ? const Color(0xFF1976D2) : const Color(0xFF2E2E2E),
+          color: isSelected ? const Color(0xFF18778A) : const Color(0xFF2E2E2E),
         ),
       ),
       trailing: isSelected
-          ? const Icon(Icons.check, color: Color(0xFF1976D2))
+          ? const Icon(Icons.check, color: Color(0xFF18778A))
           : null,
       onTap: () {
         setState(() {
@@ -770,8 +770,8 @@ class _MapScreenState extends State<MapScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2),
-            Color(0xFF1565C0),
+            Color(0xFF18778A),
+            Color(0xFF18778A),
           ],
         ),
       ),
@@ -804,7 +804,7 @@ class _MapScreenState extends State<MapScreen> {
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.check_circle,
-                                color: Color(0xFF1976D2),
+                                color: Color(0xFF18778A),
                                 size: 20,
                               );
                             },
@@ -989,7 +989,7 @@ class _MapScreenState extends State<MapScreen> {
                                       : _currentMapStyle == 'CartoDB'
                                           ? Icons.terrain
                                           : Icons.satellite,
-                                  color: const Color(0xFF1976D2),
+                                  color: const Color(0xFF18778A),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -999,7 +999,7 @@ class _MapScreenState extends State<MapScreen> {
                                 backgroundColor: Colors.white,
                                 child: const Icon(
                                   Icons.center_focus_strong,
-                                  color: Color(0xFF1976D2),
+                                  color: Color(0xFF18778A),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -1013,12 +1013,12 @@ class _MapScreenState extends State<MapScreen> {
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF18778A)),
                                         ),
                                       )
                                     : const Icon(
                                         Icons.my_location,
-                                        color: Color(0xFF1976D2),
+                                        color: Color(0xFF18778A),
                                       ),
                               ),
                             ],

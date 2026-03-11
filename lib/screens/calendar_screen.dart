@@ -134,13 +134,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: const Color(0xFF1976D2),
+              primary: const Color(0xFF18778A),
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF1976D2),
+                foregroundColor: const Color(0xFF18778A),
               ),
             ),
           ),
@@ -270,15 +270,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         titleTextStyle: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF18778A),
                         ),
                         leftChevronIcon: const Icon(
                           Icons.chevron_left,
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF18778A),
                         ),
                         rightChevronIcon: const Icon(
                           Icons.chevron_right,
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF18778A),
                         ),
                       ),
                       onHeaderTapped: (focusedDay) {
@@ -539,8 +539,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2),
-            Color(0xFF1565C0),
+            Color(0xFF18778A),
+            Color(0xFF18778A),
           ],
         ),
       ),
@@ -573,7 +573,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.check_circle,
-                                color: Color(0xFF1976D2),
+                                color: Color(0xFF18778A),
                                 size: 20,
                               );
                             },

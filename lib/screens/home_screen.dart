@@ -92,10 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1976D2) : Colors.white,
+          color: isSelected ? const Color(0xFF027A8A) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF1976D2) : Colors.grey[300]!,
+            color: isSelected ? const Color(0xFF027A8A) : Colors.grey[300]!,
           ),
         ),
         child: Text(
@@ -333,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF18778A)),
                         ),
                         SizedBox(height: 16),
                         Text(
@@ -371,8 +371,8 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2), // lightPrimary sempre
-            Color(0xFF1565C0), // lightPrimary com opacidade
+            Color(0xFF18778A), // lightPrimary sempre
+            Color(0xFF18778A), // lightPrimary com opacidade
           ],
         ),
       ),
@@ -405,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.check_circle,
-                                color: Color(0xFF1976D2), // lightPrimary sempre
+                                color: Color(0xFF18778A), // lightPrimary sempre
                                 size: 20,
                               );
                             },
@@ -601,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Text(
                     'Ver Todas',
                     style: TextStyle(
-                    color: Color(0xFF1976D2), // lightPrimary sempre
+                    color: Color(0xFF18778A), // lightPrimary sempre
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -639,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+                    borderSide: const BorderSide(color: Color(0xFF18778A), width: 2),
                   ),
                 ),
               );
@@ -699,14 +699,14 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1976D2), // lightPrimary sempre
-            Color(0xFF1565C0), // lightPrimary com opacidade
+            Color(0xFF18778A), // lightPrimary sempre
+            Color(0xFF027A8A), // lightPrimary com opacidade
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1976D2).withOpacity(0.3), // lightPrimary sempre
+            color: const Color(0xFF18778A).withOpacity(0.3), // lightPrimary sempre
             spreadRadius: 2,
             blurRadius: 8,
             offset: const Offset(0, 4),
@@ -963,7 +963,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF1976D2).withOpacity(0.3),
+                    color: const Color(0xFF18778A).withOpacity(0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -977,7 +977,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                   _loadData();
                 },
-                backgroundColor: const Color(0xFF1976D2),
+                backgroundColor: const Color(0xFF18778A),
                 foregroundColor: Colors.white,
                 child: const Icon(Icons.add),
               ),
@@ -997,7 +997,7 @@ class _HomeScreenState extends State<HomeScreen> {
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: const Color(0xFF1976D2), // lightPrimary sempre
+          selectedItemColor: const Color(0xFF18778A), // lightPrimary sempre
           unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           backgroundColor: Theme.of(context).colorScheme.surface,
           elevation: 0,
