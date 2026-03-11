@@ -665,4 +665,24 @@ class DatabaseService {
       return [];
     }
   }
+
+  /// Busca seções de um checklist pelo checklistId
+  Future<List<db.SecoesChecklistData>> getSecoesByChecklist(String checklistId) async {
+    try {
+      return await _database.getSecoesByChecklist(checklistId);
+    } catch (e) {
+      print('Erro ao buscar seções do checklist $checklistId: $e');
+      return [];
+    }
+  }
+
+  /// Busca itens ativos de uma seção pelo secaoId
+  Future<List<db.ItensChecklistData>> getItensAtivosBySecao(String secaoId) async {
+    try {
+      return await _database.getItensAtivosBySecao(secaoId);
+    } catch (e) {
+      print('Erro ao buscar itens da seção $secaoId: $e');
+      return [];
+    }
+  }
 }
