@@ -11,17 +11,17 @@ import 'package:inspecao/widgets/non_conformity_action_dialog.dart';
 import 'package:inspecao/services/database_service.dart';
 
 // ─── Paleta ──────────────────────────────────────────────────────────────────
-const _kPrimary     = Color(0xFF18778A);
-const _kPrimaryMid  = Color(0xFF1A8FA5);
-const _kPrimaryLight= Color(0xFFE8F4F7);
-const _kSurface     = Color(0xFFF7FAFB);
-const _kBorder      = Color(0xFFE2ECF0);
-const _kTextPrimary = Color(0xFF0F2A31);
-const _kTextSecondary = Color(0xFF5A7A83);
-const _kSuccess     = Color(0xFF1DAF6E);
-const _kWarning     = Color(0xFFF59E0B);
-const _kError       = Color(0xFFEF4444);
-const _kNaoAplica   = Color(0xFF6B7FD7);
+const _kPrimary      = Color(0xFF18778A);
+const _kPrimaryMid   = Color(0xFF1A8FA5);
+const _kPrimaryLight = Color(0xFFE8F4F7);
+const _kSurface      = Color(0xFFF7FAFB);
+const _kBorder       = Color(0xFFE2ECF0);
+const _kTextPrimary  = Color(0xFF0F2A31);
+const _kTextSecondary= Color(0xFF5A7A83);
+const _kSuccess      = Color(0xFF1DAF6E);
+const _kWarning      = Color(0xFFF59E0B);
+const _kError        = Color(0xFFEF4444);
+const _kNaoAplica    = Color(0xFF6B7FD7);
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -44,11 +44,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   late TabController _tabController;
 
   // Estatísticas
-  int get _totalItens => _inspection.itens.length;
-  int get _conformes => _inspection.itens.where((i) => i.status == ItemStatus.conforme).length;
+  int get _totalItens   => _inspection.itens.length;
+  int get _conformes    => _inspection.itens.where((i) => i.status == ItemStatus.conforme).length;
   int get _naoConformes => _inspection.itens.where((i) => i.status == ItemStatus.naoConforme).length;
-  int get _naoAplica => _inspection.itens.where((i) => i.status == ItemStatus.naoAplica).length;
-  int get _pendentes => _inspection.itens.where((i) => i.status == ItemStatus.pendente).length;
+  int get _naoAplica    => _inspection.itens.where((i) => i.status == ItemStatus.naoAplica).length;
+  int get _pendentes    => _inspection.itens.where((i) => i.status == ItemStatus.pendente).length;
   double get _progresso => _totalItens > 0 ? (_totalItens - _pendentes) / _totalItens : 0;
 
   @override
@@ -76,27 +76,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   }
 
   /// Carrega os itens do checklist associado à inspeção.
-  /// Se a inspeção já tem itens (respostas guardadas), usa-os.
-  /// Caso contrário, carrega os ItensChecklist da base local pelo checklistId
-  /// e cria InspectionItems com status pendente.
   Future<void> _loadChecklistItens() async {
-    // Se já tem itens carregados, não fazer nada
     if (_inspection.itens.isNotEmpty) return;
-
-    // Sem checklistId não há como carregar
     if (_inspection.checklistId == null) return;
 
     if (mounted) setState(() => _loadingItens = true);
 
     try {
-      // Usar o DatabaseService singleton (mesma instância do DataService)
       final dbService = DatabaseService();
       await dbService.initialize();
 
-      // Buscar seções do checklist via DatabaseService
       final secoes = await dbService.getSecoesByChecklist(_inspection.checklistId!);
-
       final itens = <InspectionItem>[];
+
       for (final secao in secoes) {
         final itensSecao = await dbService.getItensAtivosBySecao(secao.id);
         for (final item in itensSecao) {
@@ -111,13 +103,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         }
       }
 
-      // Ordenar por secção (ordem da secção) e depois por item
       itens.sort((a, b) => a.ordem.compareTo(b.ordem));
 
       if (mounted && itens.isNotEmpty) {
         final updated = _inspection.copyWith(itens: itens);
         setState(() => _inspection = updated);
-        // Persistir os itens na base local para próximas aberturas
         await _dataService.updateInspection(updated);
       }
     } catch (e) {
@@ -141,7 +131,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       if (_pendentes > 0) {
         final ok = await _showConfirmDialog(
           title: 'Finalizar com itens pendentes?',
-          message: '$_pendentes ${_pendentes == 1 ? 'item ainda não foi avaliado' : 'itens ainda não foram avaliados'}. Deseja finalizar mesmo assim?',
+          message:
+              '$_pendentes ${_pendentes == 1 ? 'item ainda não foi avaliado' : 'itens ainda não foram avaliados'}. Deseja finalizar mesmo assim?',
           confirmLabel: 'Finalizar',
           confirmColor: _kWarning,
           icon: Icons.warning_amber_rounded,
@@ -163,11 +154,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
 
-    DateTime? dataInicio = _inspection.dataInicio;
+    DateTime? dataInicio    = _inspection.dataInicio;
     DateTime? dataConclusao = _inspection.dataConclusao;
 
-    if (newStatus == InspectionStatus.emAndamento) dataInicio = DateTime.now();
-    if (newStatus == InspectionStatus.concluida) dataConclusao = DateTime.now();
+    if (newStatus == InspectionStatus.emAndamento) dataInicio    = DateTime.now();
+    if (newStatus == InspectionStatus.concluida)   dataConclusao = DateTime.now();
 
     final updated = _inspection.copyWith(
       status: newStatus,
@@ -182,9 +173,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         setState(() => _inspection = updated);
         HapticFeedback.heavyImpact();
         _showSnack(
-          newStatus == InspectionStatus.emAndamento
-              ? 'Inspeção iniciada!'
-              : 'Inspeção concluída!',
+          newStatus == InspectionStatus.emAndamento ? 'Inspeção iniciada!' : 'Inspeção concluída!',
           newStatus == InspectionStatus.emAndamento ? _kSuccess : _kPrimary,
           newStatus == InspectionStatus.emAndamento
               ? Icons.play_circle_fill_rounded
@@ -244,16 +233,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     );
     if (result != null) {
       final responsibles = result['responsibles'] as List<String>;
-      final dueDate = result['dueDate'] as DateTime;
+      final dueDate      = result['dueDate'] as DateTime;
       await _dataService.createActionPlanForNonConformity(
-        inspectionId: _inspection.id,
+        inspectionId:    _inspection.id,
         inspectionItemId: item.id,
         itemDescription: item.descricao,
-        responsibles: responsibles,
-        dueDate: dueDate,
+        responsibles:    responsibles,
+        dueDate:         dueDate,
       );
       _applyItemStatus(item, ItemStatus.naoConforme);
-      if (mounted) _showSnack('Não conformidade registada!', _kError, Icons.warning_rounded);
+      if (mounted) _showSnack('Não conformidade registada!', _kWarning, Icons.warning_rounded);
     }
   }
 
@@ -281,47 +270,57 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     bool isDanger = false,
   }) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-        title: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: confirmColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: confirmColor, size: 22),
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            title: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: confirmColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: confirmColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _kTextPrimary))),
+            ]),
+            content:
+                Text(message, style: const TextStyle(color: _kTextSecondary, height: 1.5)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar', style: TextStyle(color: _kTextSecondary)),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: confirmColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                child: Text(confirmLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _kTextPrimary))),
-        ]),
-        content: Text(message, style: const TextStyle(color: _kTextSecondary, height: 1.5)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar', style: TextStyle(color: _kTextSecondary)),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: confirmColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
+
+  bool get _canEdit => _inspection.status == InspectionStatus.emAndamento;
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final canEdit = _inspection.status == InspectionStatus.emAndamento;
+    final canEdit = _canEdit;
     return Scaffold(
       backgroundColor: _kSurface,
       body: NestedScrollView(
@@ -381,34 +380,39 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 children: [
                   // Número / ID
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       _inspection.serverId != null
-                          ? 'Nº ${_inspection.serverId!.substring(0, 8).toUpperCase()}'
-                          : 'LOCAL · ${_inspection.id.substring(0, 8)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 0.5),
+                          ? 'Nº ${_inspection.serverId}'
+                          : _inspection.id.substring(0, 8).toUpperCase(),
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 8),
+                  // Título
                   Text(
                     _inspection.titulo,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      height: 1.2,
-                    ),
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
+                  // Local
                   Row(children: [
-                    const Icon(Icons.location_on_rounded, size: 14, color: Colors.white60),
+                    const Icon(Icons.location_on_rounded,
+                        color: Colors.white60, size: 14),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -419,48 +423,35 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   // Barra de progresso
-                  _buildProgressBar(),
+                  Row(children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: _progresso,
+                          backgroundColor: Colors.white24,
+                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                          minHeight: 5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${(_progresso * 100).round()}%',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ]),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${((_totalItens - _pendentes))} / $_totalItens itens avaliados',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            Text(
-              '${(_progresso * 100).toInt()}%',
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: _progresso,
-            minHeight: 5,
-            backgroundColor: Colors.white.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              _progresso == 1.0 ? _kSuccess : Colors.white,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -475,8 +466,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         unselectedLabelColor: _kTextSecondary,
         indicatorColor: _kPrimary,
         indicatorWeight: 2.5,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+        labelStyle:
+            const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle:
+            const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
         tabs: [
           const Tab(text: 'Detalhes'),
           Tab(
@@ -485,12 +478,17 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               if (_pendentes > 0) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
                     color: _kWarning,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text('$_pendentes', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
+                  child: Text('$_pendentes',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700)),
                 ),
               ],
             ]),
@@ -509,13 +507,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cards de estatísticas
           _buildStatsRow(),
           const SizedBox(height: 16),
-          // Info card
           _buildInfoCard(),
           const SizedBox(height: 16),
-          // Datas
           _buildDatesCard(),
           const SizedBox(height: 80),
         ],
@@ -526,13 +521,33 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   Widget _buildStatsRow() {
     return Row(
       children: [
-        Expanded(child: _StatCard(value: '$_conformes', label: 'Conforme', color: _kSuccess, icon: Icons.check_circle_rounded)),
+        Expanded(
+            child: _StatCard(
+                value: '$_conformes',
+                label: 'Conforme',
+                color: _kSuccess,
+                icon: Icons.check_circle_rounded)),
         const SizedBox(width: 10),
-        Expanded(child: _StatCard(value: '$_naoConformes', label: 'N. Conforme', color: _kError, icon: Icons.cancel_rounded)),
+        Expanded(
+            child: _StatCard(
+                value: '$_naoConformes',
+                label: 'N. Conforme',
+                color: _kError,
+                icon: Icons.cancel_rounded)),
         const SizedBox(width: 10),
-        Expanded(child: _StatCard(value: '$_naoAplica', label: 'N/A', color: _kNaoAplica, icon: Icons.remove_circle_rounded)),
+        Expanded(
+            child: _StatCard(
+                value: '$_naoAplica',
+                label: 'N/A',
+                color: _kNaoAplica,
+                icon: Icons.remove_circle_rounded)),
         const SizedBox(width: 10),
-        Expanded(child: _StatCard(value: '$_pendentes', label: 'Pendente', color: _kTextSecondary, icon: Icons.schedule_rounded)),
+        Expanded(
+            child: _StatCard(
+                value: '$_pendentes',
+                label: 'Pendente',
+                color: _kTextSecondary,
+                icon: Icons.schedule_rounded)),
       ],
     );
   }
@@ -550,9 +565,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
             _infoRow(Icons.location_on_rounded, 'Endereço', _establishment!.endereco),
             const _Divider(),
           ],
-          _infoRow(Icons.calendar_today_rounded, 'Data Agendada', DateFormat('dd/MM/yyyy').format(_inspection.dataAgendada)),
-          _infoRow(Icons.access_time_rounded, 'Horário', DateFormat('HH:mm').format(_inspection.dataAgendada)),
-          _infoRow(Icons.sync_rounded, 'Sincronização', _inspection.isSynced ? 'Sincronizado ✓' : 'Pendente'),
+          _infoRow(Icons.calendar_today_rounded, 'Data Agendada',
+              DateFormat('dd/MM/yyyy').format(_inspection.dataAgendada)),
+          _infoRow(Icons.access_time_rounded, 'Horário',
+              DateFormat('HH:mm').format(_inspection.dataAgendada)),
+          _infoRow(Icons.sync_rounded, 'Sincronização',
+              _inspection.isSynced ? 'Sincronizado ✓' : 'Pendente'),
         ],
       ),
     );
@@ -577,7 +595,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           if (_inspection.dataInicio != null && _inspection.dataConclusao != null) ...[
             const _Divider(),
             _infoRow(Icons.timer_outlined, 'Duração', () {
-              final diff = _inspection.dataConclusao!.difference(_inspection.dataInicio!);
+              final diff =
+                  _inspection.dataConclusao!.difference(_inspection.dataInicio!);
               final h = diff.inHours;
               final m = diff.inMinutes.remainder(60);
               return h > 0 ? '${h}h ${m}min' : '${m} min';
@@ -591,7 +610,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   // ─── Tab: Checklist ───────────────────────────────────────────────────────
 
   Widget _buildTabChecklist(bool canEdit) {
-    // A carregar itens do checklist
     if (_loadingItens) {
       return const Center(
         child: Column(
@@ -599,13 +617,13 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           children: [
             CircularProgressIndicator(color: _kPrimary, strokeWidth: 2.5),
             SizedBox(height: 16),
-            Text('A carregar checklist...', style: TextStyle(color: _kTextSecondary, fontSize: 14)),
+            Text('A carregar checklist...',
+                style: TextStyle(color: _kTextSecondary, fontSize: 14)),
           ],
         ),
       );
     }
 
-    // Sem checklistId associado
     if (_inspection.checklistId == null) {
       return Center(
         child: Column(
@@ -613,19 +631,25 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: _kBorder.withOpacity(0.4), shape: BoxShape.circle),
-              child: const Icon(Icons.assignment_late_outlined, size: 40, color: _kTextSecondary),
+              decoration: BoxDecoration(
+                  color: _kBorder.withOpacity(0.4), shape: BoxShape.circle),
+              child: const Icon(Icons.assignment_late_outlined,
+                  size: 40, color: _kTextSecondary),
             ),
             const SizedBox(height: 16),
-            const Text('Sem checklist associado', style: TextStyle(color: _kTextPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            const Text('Sem checklist associado',
+                style: TextStyle(
+                    color: _kTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            const Text('Esta inspeção não tem checklist configurado.', style: TextStyle(color: _kTextSecondary, fontSize: 13)),
+            const Text('Esta inspeção não tem checklist configurado.',
+                style: TextStyle(color: _kTextSecondary, fontSize: 13)),
           ],
         ),
       );
     }
 
-    // Itens ainda a carregar (checklistId existe mas itens ainda vazios)
     if (_inspection.itens.isEmpty) {
       return Center(
         child: Column(
@@ -633,19 +657,31 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: _kPrimaryLight, shape: BoxShape.circle),
-              child: const Icon(Icons.cloud_download_outlined, size: 40, color: _kPrimary),
+              decoration:
+                  BoxDecoration(color: _kPrimaryLight, shape: BoxShape.circle),
+              child: const Icon(Icons.cloud_download_outlined,
+                  size: 40, color: _kPrimary),
             ),
             const SizedBox(height: 16),
-            const Text('Checklist sem itens locais', style: TextStyle(color: _kTextPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            const Text('Checklist sem itens locais',
+                style: TextStyle(
+                    color: _kTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            const Text('Os itens do checklist não foram sincronizados para este dispositivo.', style: TextStyle(color: _kTextSecondary, fontSize: 13), textAlign: TextAlign.center),
+            const Text(
+                'Os itens do checklist não foram sincronizados para este dispositivo.',
+                style: TextStyle(color: _kTextSecondary, fontSize: 13),
+                textAlign: TextAlign.center),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _loadChecklistItens,
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Tentar novamente'),
-              style: FilledButton.styleFrom(backgroundColor: _kPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              style: FilledButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
             ),
           ],
         ),
@@ -664,23 +700,23 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         // Resumo visual inline
         _buildChecklistSummary(),
         const SizedBox(height: 16),
-        // Grupos
+        // Grupos por categoria
         for (final entry in grouped.entries) ...[
           _CategoryHeader(label: entry.key),
           const SizedBox(height: 6),
           ...entry.value.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _InspectionItemCard(
-              item: item,
-              enabled: canEdit,
-              inspectionId: _inspection.id,
-              inspectionStatus: _inspection.status,
-              onStatusChanged: (s) => _updateItemStatus(item, s),
-            ),
-          )),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _InspectionItemCard(
+                  item: item,
+                  enabled: canEdit,
+                  inspectionId: _inspection.id,
+                  inspectionStatus: _inspection.status,
+                  onStatusChanged: (s) => _updateItemStatus(item, s),
+                ),
+              )),
           const SizedBox(height: 8),
         ],
-        // Plano de ação
+        // Plano de ação (abaixo do checklist, sempre visível quando relevante)
         if (_inspection.status == InspectionStatus.emAndamento ||
             _inspection.status == InspectionStatus.concluida) ...[
           const SizedBox(height: 8),
@@ -706,19 +742,32 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       ),
       child: Row(
         children: [
-          Expanded(child: _MiniStat(value: '$_conformes', label: 'Conf.', color: _kSuccess)),
+          Expanded(
+              child: _MiniStat(
+                  value: '$_conformes', label: 'Conf.', color: _kSuccess)),
           _verticalDivider(),
-          Expanded(child: _MiniStat(value: '$_naoConformes', label: 'N.Conf.', color: _kError)),
+          Expanded(
+              child: _MiniStat(
+                  value: '$_naoConformes',
+                  label: 'N.Conf.',
+                  color: _kError)),
           _verticalDivider(),
-          Expanded(child: _MiniStat(value: '$_naoAplica', label: 'N/A', color: _kNaoAplica)),
+          Expanded(
+              child: _MiniStat(
+                  value: '$_naoAplica', label: 'N/A', color: _kNaoAplica)),
           _verticalDivider(),
-          Expanded(child: _MiniStat(value: '$_pendentes', label: 'Pend.', color: _kTextSecondary)),
+          Expanded(
+              child: _MiniStat(
+                  value: '$_pendentes',
+                  label: 'Pend.',
+                  color: _kTextSecondary)),
         ],
       ),
     );
   }
 
-  Widget _verticalDivider() => Container(width: 1, height: 32, color: _kBorder);
+  Widget _verticalDivider() =>
+      Container(width: 1, height: 32, color: _kBorder);
 
   // ─── Tab: Comentários ─────────────────────────────────────────────────────
 
@@ -744,11 +793,13 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 hintText: canEdit
                     ? 'Adicione observações gerais sobre a inspeção...'
                     : 'Sem observações registadas.',
-                hintStyle: const TextStyle(color: _kTextSecondary, fontSize: 14),
+                hintStyle:
+                    const TextStyle(color: _kTextSecondary, fontSize: 14),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.all(16),
               ),
-              style: const TextStyle(fontSize: 14, color: _kTextPrimary, height: 1.5),
+              style: const TextStyle(
+                  fontSize: 14, color: _kTextPrimary, height: 1.5),
             ),
           ),
           if (canEdit) ...[
@@ -758,12 +809,17 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               child: FilledButton.icon(
                 onPressed: _isLoading ? null : _saveComments,
                 icon: _isLoading
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_rounded, size: 18),
                 label: Text(_isLoading ? 'A guardar...' : 'Guardar Observações'),
                 style: FilledButton.styleFrom(
                   backgroundColor: _kPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
@@ -779,7 +835,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   Widget? _buildBottomBar() {
     final status = _inspection.status;
-    if (status != InspectionStatus.rascunho && status != InspectionStatus.emAndamento) {
+    if (status != InspectionStatus.rascunho &&
+        status != InspectionStatus.emAndamento) {
       return null;
     }
     return Container(
@@ -788,7 +845,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         color: Colors.white,
         border: Border(top: BorderSide(color: _kBorder)),
         boxShadow: [
-          BoxShadow(color: _kPrimary.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, -4)),
+          BoxShadow(
+              color: _kPrimary.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -4)),
         ],
       ),
       child: SafeArea(
@@ -798,7 +858,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 icon: Icons.play_circle_fill_rounded,
                 color: _kSuccess,
                 loading: _isLoading,
-                onPressed: () => _updateInspectionStatus(InspectionStatus.emAndamento),
+                onPressed: () =>
+                    _updateInspectionStatus(InspectionStatus.emAndamento),
               )
             : Row(
                 children: [
@@ -806,9 +867,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                     child: _ActionButton(
                       label: 'Concluir',
                       icon: Icons.check_circle_rounded,
-                      color: _pendentes == 0 ? _kPrimary : _kPrimary,
+                      color: _kPrimary,
                       loading: _isLoading,
-                      onPressed: () => _updateInspectionStatus(InspectionStatus.concluida),
+                      onPressed: () =>
+                          _updateInspectionStatus(InspectionStatus.concluida),
                     ),
                   ),
                 ],
@@ -823,7 +885,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     return Row(children: [
       Icon(icon, size: 16, color: _kPrimary),
       const SizedBox(width: 8),
-      Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kTextPrimary)),
+      Text(title,
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _kTextPrimary)),
     ]);
   }
 
@@ -837,10 +903,15 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           const SizedBox(width: 10),
           SizedBox(
             width: 110,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: _kTextSecondary)),
+            child: Text(label,
+                style: const TextStyle(fontSize: 13, color: _kTextSecondary)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kTextPrimary)),
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kTextPrimary)),
           ),
         ],
       ),
@@ -850,17 +921,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
 // ─── Widgets auxiliares ──────────────────────────────────────────────────────
 
-class _Card extends StatelessWidget {
-  final Widget child;
-  const _Card({required this.child});
-  @override
-  Widget build(BuildContext context) => Container(
+Widget _Card({required Widget child}) {
+  return Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: _kBorder),
-      boxShadow: [BoxShadow(color: _kPrimary.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      boxShadow: [
+        BoxShadow(
+            color: _kPrimary.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2))
+      ],
     ),
     child: child,
   );
@@ -870,9 +943,9 @@ class _Divider extends StatelessWidget {
   const _Divider();
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Divider(height: 1, color: _kBorder),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Divider(height: 1, color: _kBorder),
+      );
 }
 
 class _StatCard extends StatelessWidget {
@@ -880,48 +953,80 @@ class _StatCard extends StatelessWidget {
   final String label;
   final Color color;
   final IconData icon;
-  const _StatCard({required this.value, required this.label, required this.color, required this.icon});
+  const _StatCard(
+      {required this.value,
+      required this.label,
+      required this.color,
+      required this.icon});
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.08),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-        Text(label, style: const TextStyle(fontSize: 10, color: _kTextSecondary), textAlign: TextAlign.center),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: color)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10, color: _kTextSecondary),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      );
 }
 
 class _MiniStat extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
-  const _MiniStat({required this.value, required this.label, required this.color});
+  const _MiniStat(
+      {required this.value, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) => Column(children: [
-    Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-    Text(label, style: const TextStyle(fontSize: 11, color: _kTextSecondary)),
-  ]);
+        Text(value,
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: _kTextSecondary)),
+      ]);
 }
 
 class _CategoryHeader extends StatelessWidget {
   final String label;
   const _CategoryHeader({required this.label});
+
   @override
   Widget build(BuildContext context) => Row(children: [
-    Container(width: 3, height: 16, decoration: BoxDecoration(color: _kPrimary, borderRadius: BorderRadius.circular(2))),
-    const SizedBox(width: 8),
-    Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kPrimary, letterSpacing: 0.8)),
-  ]);
+        Container(
+            width: 3,
+            height: 16,
+            decoration: BoxDecoration(
+                color: _kPrimary,
+                borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        // CORRIGIDO: Expanded para evitar overflow em títulos longos
+        Expanded(
+          child: Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: _kPrimary,
+                letterSpacing: 0.8),
+            softWrap: true,
+          ),
+        ),
+      ]);
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -930,48 +1035,52 @@ class _StatusBadge extends StatelessWidget {
 
   Color get _color {
     switch (status) {
-      case InspectionStatus.rascunho: return Colors.grey;
-      case InspectionStatus.emAndamento: return _kWarning;
-      case InspectionStatus.concluida: return Colors.blue;
-      case InspectionStatus.sincronizada: return Colors.cyan;
-      case InspectionStatus.porVerificar: return Colors.amber;
-      case InspectionStatus.verificada: return Colors.lightBlue;
-      case InspectionStatus.invalida: return _kError;
+      case InspectionStatus.rascunho:        return Colors.grey;
+      case InspectionStatus.emAndamento:     return _kWarning;
+      case InspectionStatus.concluida:       return Colors.blue;
+      case InspectionStatus.sincronizada:    return Colors.cyan;
+      case InspectionStatus.porVerificar:    return Colors.amber;
+      case InspectionStatus.verificada:      return Colors.lightBlue;
+      case InspectionStatus.invalida:        return _kError;
       case InspectionStatus.relatorioGerado: return Colors.purple;
       case InspectionStatus.parecerDdrsDdrf: return Colors.indigo;
-      case InspectionStatus.assinaturaCa: return Colors.teal;
-      case InspectionStatus.finalizada: return _kSuccess;
+      case InspectionStatus.assinaturaCa:    return Colors.teal;
+      case InspectionStatus.finalizada:      return _kSuccess;
       case InspectionStatus.disponibilizada: return Colors.lightGreen;
     }
   }
 
   String get _label {
     switch (status) {
-      case InspectionStatus.rascunho: return 'Rascunho';
-      case InspectionStatus.emAndamento: return 'Em Andamento';
-      case InspectionStatus.concluida: return 'Concluída';
-      case InspectionStatus.sincronizada: return 'Sincronizada';
-      case InspectionStatus.porVerificar: return 'Por Verificar';
-      case InspectionStatus.verificada: return 'Verificada';
-      case InspectionStatus.invalida: return 'Inválida';
+      case InspectionStatus.rascunho:        return 'Rascunho';
+      case InspectionStatus.emAndamento:     return 'Em Andamento';
+      case InspectionStatus.concluida:       return 'Concluída';
+      case InspectionStatus.sincronizada:    return 'Sincronizada';
+      case InspectionStatus.porVerificar:    return 'Por Verificar';
+      case InspectionStatus.verificada:      return 'Verificada';
+      case InspectionStatus.invalida:        return 'Inválida';
       case InspectionStatus.relatorioGerado: return 'Relatório';
       case InspectionStatus.parecerDdrsDdrf: return 'Parecer';
-      case InspectionStatus.assinaturaCa: return 'Assinatura CA';
-      case InspectionStatus.finalizada: return 'Finalizada';
+      case InspectionStatus.assinaturaCa:    return 'Assinatura CA';
+      case InspectionStatus.finalizada:      return 'Finalizada';
       case InspectionStatus.disponibilizada: return 'Disponível';
     }
   }
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: _color.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _color.withOpacity(0.5)),
-    ),
-    child: Text(_label, style: TextStyle(color: _color, fontSize: 11, fontWeight: FontWeight.w700)),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: _color.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _color.withOpacity(0.5)),
+        ),
+        child: Text(_label,
+            style: TextStyle(
+                color: _color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700)),
+      );
 }
 
 class _ActionButton extends StatelessWidget {
@@ -980,24 +1089,36 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final bool loading;
   final VoidCallback onPressed;
-  const _ActionButton({required this.label, required this.icon, required this.color, required this.loading, required this.onPressed});
+  const _ActionButton(
+      {required this.label,
+      required this.icon,
+      required this.color,
+      required this.loading,
+      required this.onPressed});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    child: FilledButton.icon(
-      onPressed: loading ? null : onPressed,
-      icon: loading
-          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-      style: FilledButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    ),
-  );
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: loading ? null : onPressed,
+          icon: loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : Icon(icon, size: 20),
+          label: Text(label,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w700)),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      );
 }
 
 // ─── InspectionItemCard ───────────────────────────────────────────────────────
@@ -1026,25 +1147,26 @@ class _InspectionItemCardState extends State<_InspectionItemCard> {
 
   Color get _statusColor {
     switch (widget.item.status) {
-      case ItemStatus.pendente: return _kTextSecondary;
-      case ItemStatus.conforme: return _kSuccess;
+      case ItemStatus.pendente:    return _kTextSecondary;
+      case ItemStatus.conforme:    return _kSuccess;
       case ItemStatus.naoConforme: return _kError;
-      case ItemStatus.naoAplica: return _kNaoAplica;
+      case ItemStatus.naoAplica:   return _kNaoAplica;
     }
   }
 
   IconData get _statusIcon {
     switch (widget.item.status) {
-      case ItemStatus.pendente: return Icons.schedule_rounded;
-      case ItemStatus.conforme: return Icons.check_circle_rounded;
+      case ItemStatus.pendente:    return Icons.schedule_rounded;
+      case ItemStatus.conforme:    return Icons.check_circle_rounded;
       case ItemStatus.naoConforme: return Icons.cancel_rounded;
-      case ItemStatus.naoAplica: return Icons.remove_circle_rounded;
+      case ItemStatus.naoAplica:   return Icons.remove_circle_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isPendente = widget.item.status == ItemStatus.pendente;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
@@ -1055,69 +1177,123 @@ class _InspectionItemCardState extends State<_InspectionItemCard> {
           width: isPendente ? 1 : 1.5,
         ),
         boxShadow: [
-          BoxShadow(color: _statusColor.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: _statusColor.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  // Status icon
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: _statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(_statusIcon, color: _statusColor, size: 18),
+          // ── Cabeçalho: ícone de status + descrição (sem os botões aqui!) ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ícone de status
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(width: 12),
-                  // Descrição
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.item.descricao,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isPendente ? _kTextSecondary : _kTextPrimary,
-                          ),
+                  child: Icon(_statusIcon, color: _statusColor, size: 18),
+                ),
+                const SizedBox(width: 12),
+                // Descrição — ocupa toda a largura restante e quebra linha
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.item.descricao,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isPendente ? _kTextSecondary : _kTextPrimary,
+                          height: 1.4,
                         ),
-                        if (widget.item.obrigatorio)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 2),
-                            child: Text('Obrigatório', style: TextStyle(fontSize: 10, color: _kError)),
-                          ),
-                      ],
-                    ),
+                        softWrap: true,  // ← garante quebra de linha
+                      ),
+                      if (widget.item.obrigatorio)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Text('Obrigatório',
+                              style: TextStyle(fontSize: 10, color: _kError)),
+                        ),
+                    ],
                   ),
-                  // Acções rápidas (se enabled)
-                  if (widget.enabled)
-                    _QuickActions(item: widget.item, onStatusChanged: widget.onStatusChanged)
-                  else
-                    Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                        color: _kTextSecondary, size: 20),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Botões de resposta ABAIXO da descrição, com texto das opções ──
+          if (widget.enabled) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: _QuickActions(
+                item: widget.item,
+                onStatusChanged: widget.onStatusChanged,
+              ),
+            ),
+          ],
+
+          // ── Rodapé clicável para expandir evidências ──────────────────────
+          InkWell(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _kSurface,
+                border: Border(top: BorderSide(color: _kBorder)),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.photo_library_outlined,
+                      size: 13, color: _kTextSecondary),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Evidências e observações',
+                    style: const TextStyle(
+                        fontSize: 11, color: _kTextSecondary),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: _kTextSecondary,
+                    size: 16,
+                  ),
                 ],
               ),
             ),
           ),
-          // Expandido: observação + evidências
+
+          // ── Painel expansível: observação + evidências ────────────────────
           if (_expanded) ...[
-            Divider(height: 1, color: _kBorder),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.item.observacao != null && widget.item.observacao!.isNotEmpty) ...[
+                  if (widget.item.observacao != null &&
+                      widget.item.observacao!.isNotEmpty) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
@@ -1126,11 +1302,17 @@ class _InspectionItemCardState extends State<_InspectionItemCard> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: _kBorder),
                       ),
-                      child: Text(widget.item.observacao!,
-                          style: const TextStyle(fontSize: 13, color: _kTextSecondary, height: 1.4)),
+                      child: Text(
+                        widget.item.observacao!,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: _kTextSecondary,
+                            height: 1.4),
+                      ),
                     ),
                     const SizedBox(height: 10),
                   ],
+                  // Widget de evidências (fotos/anexos)
                   ItemEvidenceWidget(
                     inspectionId: widget.inspectionId,
                     itemId: widget.item.id,
@@ -1149,59 +1331,106 @@ class _InspectionItemCardState extends State<_InspectionItemCard> {
   }
 }
 
+// ─── _QuickActions — botões de resposta em largura total com TEXTO das opções ─
+
 class _QuickActions extends StatelessWidget {
   final InspectionItem item;
   final ValueChanged<ItemStatus> onStatusChanged;
-  const _QuickActions({required this.item, required this.onStatusChanged});
+  const _QuickActions(
+      {required this.item, required this.onStatusChanged});
 
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      _QBtn(
-        icon: Icons.check_rounded,
-        color: _kSuccess,
-        selected: item.status == ItemStatus.conforme,
-        onTap: () => onStatusChanged(ItemStatus.conforme),
-      ),
-      const SizedBox(width: 6),
-      _QBtn(
-        icon: Icons.close_rounded,
-        color: _kError,
-        selected: item.status == ItemStatus.naoConforme,
-        onTap: () => onStatusChanged(ItemStatus.naoConforme),
-      ),
-      const SizedBox(width: 6),
-      _QBtn(
-        icon: Icons.remove_rounded,
-        color: _kNaoAplica,
-        selected: item.status == ItemStatus.naoAplica,
-        onTap: () => onStatusChanged(ItemStatus.naoAplica),
-      ),
-    ],
-  );
+        children: [
+          // ✓ Conforme
+          Expanded(
+            child: _QBtn(
+              icon: Icons.check_rounded,
+              label: 'Conforme',
+              color: _kSuccess,
+              selected: item.status == ItemStatus.conforme,
+              onTap: () => onStatusChanged(ItemStatus.conforme),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // ✗ Não Conforme
+          Expanded(
+            child: _QBtn(
+              icon: Icons.close_rounded,
+              label: 'N. Conforme',
+              color: _kError,
+              selected: item.status == ItemStatus.naoConforme,
+              onTap: () => onStatusChanged(ItemStatus.naoConforme),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // — N/A
+          Expanded(
+            child: _QBtn(
+              icon: Icons.remove_rounded,
+              label: 'N/A',
+              color: _kNaoAplica,
+              selected: item.status == ItemStatus.naoAplica,
+              onTap: () => onStatusChanged(ItemStatus.naoAplica),
+            ),
+          ),
+        ],
+      );
 }
+
+// ─── _QBtn — botão individual com ícone + texto ───────────────────────────────
 
 class _QBtn extends StatelessWidget {
   final IconData icon;
+  final String label;
   final Color color;
   final bool selected;
   final VoidCallback onTap;
-  const _QBtn({required this.icon, required this.color, required this.selected, required this.onTap});
+
+  const _QBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: selected ? color : color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: selected ? color : color.withOpacity(0.25)),
-      ),
-      child: Icon(icon, color: selected ? Colors.white : color, size: 16),
-    ),
-  );
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          decoration: BoxDecoration(
+            color: selected ? color : color.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: selected ? color : color.withOpacity(0.3),
+                width: selected ? 1.5 : 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: selected ? Colors.white : color,
+                size: 18,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : color,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
 }
