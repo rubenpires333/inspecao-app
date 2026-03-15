@@ -206,7 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _getSelectedScreen() {
     if (_currentUser == null) {
-      return const InspectionsScreen(); // Para inspetores, mostrar tela de inspeções
+      // Enquanto os dados do utilizador ainda não foram carregados,
+      // mostramos um pequeno indicador de carregamento em vez de
+      // forçar a navegação direta para a tela de inspeções.
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
     final menuItems = _getMenuItemsForUser(_currentUser!);
     

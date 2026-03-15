@@ -9,6 +9,8 @@ import 'package:inspecao/widgets/item_evidence_widget.dart';
 import 'package:inspecao/widgets/action_plan_widget.dart';
 import 'package:inspecao/widgets/non_conformity_action_dialog.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/utils/app_logger.dart';
+import 'package:inspecao/widgets/inspection_checklist_tab.dart';
 
 // ─── Paleta ──────────────────────────────────────────────────────────────────
 const _kPrimary      = Color(0xFF18778A);
@@ -57,6 +59,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     _inspection = widget.inspection;
     _tabController = TabController(length: 3, vsync: this);
     _commentsController.text = _inspection.observacoes ?? '';
+    AppLogger.log('🔎 [InspectionDetail] init inspectionId=${_inspection.id} '
+        'status=${_inspection.status} checklistId=${_inspection.checklistId}');
     _loadEstablishment();
     _loadChecklistItens();
   }
@@ -77,44 +81,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   /// Carrega os itens do checklist associado à inspeção.
   Future<void> _loadChecklistItens() async {
-    if (_inspection.itens.isNotEmpty) return;
+    // Mantido apenas para compatibilidade antiga; o carregamento real
+    // do checklist agora é feito em `InspectionChecklistTab` via API.
     if (_inspection.checklistId == null) return;
-
-    if (mounted) setState(() => _loadingItens = true);
-
-    try {
-      final dbService = DatabaseService();
-      await dbService.initialize();
-
-      final secoes = await dbService.getSecoesByChecklist(_inspection.checklistId!);
-      final itens = <InspectionItem>[];
-
-      for (final secao in secoes) {
-        final itensSecao = await dbService.getItensAtivosBySecao(secao.id);
-        for (final item in itensSecao) {
-          itens.add(InspectionItem(
-            id: item.id,
-            descricao: item.rotulo,
-            categoria: secao.titulo,
-            status: ItemStatus.pendente,
-            obrigatorio: item.obrigatorio,
-            ordem: item.ordem,
-          ));
-        }
-      }
-
-      itens.sort((a, b) => a.ordem.compareTo(b.ordem));
-
-      if (mounted && itens.isNotEmpty) {
-        final updated = _inspection.copyWith(itens: itens);
-        setState(() => _inspection = updated);
-        await _dataService.updateInspection(updated);
-      }
-    } catch (e) {
-      print('Erro ao carregar itens do checklist: $e');
-    } finally {
-      if (mounted) setState(() => _loadingItens = false);
-    }
+    AppLogger.log('ℹ️ [InspectionDetail] _loadChecklistItens delegado para InspectionChecklistTab '
+        'checklistId=${_inspection.checklistId}');
   }
 
   Future<void> _updateInspectionStatus(InspectionStatus newStatus) async {
@@ -151,6 +122,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       }
     }
 
+    AppLogger.log('📝 [InspectionDetail] atualizar status inspectionId=${_inspection.id} '
+        'de=${_inspection.status} para=$newStatus pendentes=$_pendentes');
+
     setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
 
@@ -171,6 +145,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       await _dataService.updateInspection(updated);
       if (mounted) {
         setState(() => _inspection = updated);
+        AppLogger.log('✅ [InspectionDetail] status atualizado inspectionId=${_inspection.id} '
+            'novoStatus=${updated.status} dataInicio=${updated.dataInicio} dataConclusao=${updated.dataConclusao}');
         HapticFeedback.heavyImpact();
         _showSnack(
           newStatus == InspectionStatus.emAndamento ? 'Inspeção iniciada!' : 'Inspeção concluída!',
@@ -182,6 +158,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       }
     } catch (e) {
       if (mounted) _showSnack('Erro ao atualizar status.', _kError, Icons.error_rounded);
+      AppLogger.log('❌ [InspectionDetail] erro ao atualizar status inspectionId=${_inspection.id}: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -189,6 +166,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   Future<void> _saveComments() async {
     setState(() => _isLoading = true);
+    AppLogger.log('📝 [InspectionDetail] guardar observacoes inspectionId=${_inspection.id}');
     try {
       final updated = _inspection.copyWith(
         observacoes: _commentsController.text.trim(),
@@ -198,9 +176,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       if (mounted) {
         setState(() => _inspection = updated);
         _showSnack('Observações guardadas!', _kSuccess, Icons.check_rounded);
+        AppLogger.log('✅ [InspectionDetail] observacoes guardadas inspectionId=${_inspection.id}');
       }
     } catch (e) {
       if (mounted) _showSnack('Erro ao guardar.', _kError, Icons.error_rounded);
+      AppLogger.log('❌ [InspectionDetail] erro ao guardar observacoes inspectionId=${_inspection.id}: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -224,6 +204,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     setState(() => _inspection = updated);
     _dataService.updateInspection(updated);
     HapticFeedback.selectionClick();
+    AppLogger.log('📝 [InspectionDetail] item status alterado inspectionId=${_inspection.id} '
+        'itemId=${item.id} novoStatus=$newStatus');
   }
 
   Future<void> _showNonConformityDialog(InspectionItem item) async {
@@ -243,6 +225,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       );
       _applyItemStatus(item, ItemStatus.naoConforme);
       if (mounted) _showSnack('Não conformidade registada!', _kWarning, Icons.warning_rounded);
+      AppLogger.log('✅ [InspectionDetail] nao conformidade registada inspectionId=${_inspection.id} '
+          'itemId=${item.id} responsaveis=${responsibles.join(',')} dueDate=$dueDate');
     }
   }
 
@@ -349,7 +333,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   Widget _buildSliverHeader() {
     return SliverAppBar(
-      expandedHeight: 220,
+      expandedHeight: 160,
       pinned: true,
       backgroundColor: _kPrimary,
       foregroundColor: Colors.white,
@@ -416,36 +400,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        _establishment?.nome ?? _inspection.endereco,
+                        _establishment!.endereco ?? _inspection.endereco,
                         style: const TextStyle(color: Colors.white70, fontSize: 13),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 14),
-                  // Barra de progresso
-                  Row(children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _progresso,
-                          backgroundColor: Colors.white24,
-                          valueColor: const AlwaysStoppedAnimation(Colors.white),
-                          minHeight: 5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${(_progresso * 100).round()}%',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ]),
+                 
                 ],
               ),
             ),
@@ -610,125 +572,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   // ─── Tab: Checklist ───────────────────────────────────────────────────────
 
   Widget _buildTabChecklist(bool canEdit) {
-    if (_loadingItens) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: _kPrimary, strokeWidth: 2.5),
-            SizedBox(height: 16),
-            Text('A carregar checklist...',
-                style: TextStyle(color: _kTextSecondary, fontSize: 14)),
-          ],
-        ),
-      );
-    }
-
-    if (_inspection.checklistId == null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                  color: _kBorder.withOpacity(0.4), shape: BoxShape.circle),
-              child: const Icon(Icons.assignment_late_outlined,
-                  size: 40, color: _kTextSecondary),
-            ),
-            const SizedBox(height: 16),
-            const Text('Sem checklist associado',
-                style: TextStyle(
-                    color: _kTextPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            const Text('Esta inspeção não tem checklist configurado.',
-                style: TextStyle(color: _kTextSecondary, fontSize: 13)),
-          ],
-        ),
-      );
-    }
-
-    if (_inspection.itens.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration:
-                  BoxDecoration(color: _kPrimaryLight, shape: BoxShape.circle),
-              child: const Icon(Icons.cloud_download_outlined,
-                  size: 40, color: _kPrimary),
-            ),
-            const SizedBox(height: 16),
-            const Text('Checklist sem itens locais',
-                style: TextStyle(
-                    color: _kTextPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            const Text(
-                'Os itens do checklist não foram sincronizados para este dispositivo.',
-                style: TextStyle(color: _kTextSecondary, fontSize: 13),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _loadChecklistItens,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Tentar novamente'),
-              style: FilledButton.styleFrom(
-                  backgroundColor: _kPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Agrupar por categoria
-    final Map<String, List<InspectionItem>> grouped = {};
-    for (final item in _inspection.itens) {
-      grouped.putIfAbsent(item.categoria, () => []).add(item);
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-      children: [
-        // Resumo visual inline
-        _buildChecklistSummary(),
-        const SizedBox(height: 16),
-        // Grupos por categoria
-        for (final entry in grouped.entries) ...[
-          _CategoryHeader(label: entry.key),
-          const SizedBox(height: 6),
-          ...entry.value.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _InspectionItemCard(
-                  item: item,
-                  enabled: canEdit,
-                  inspectionId: _inspection.id,
-                  inspectionStatus: _inspection.status,
-                  onStatusChanged: (s) => _updateItemStatus(item, s),
-                ),
-              )),
-          const SizedBox(height: 8),
-        ],
-        // Plano de ação (abaixo do checklist, sempre visível quando relevante)
-        if (_inspection.status == InspectionStatus.emAndamento ||
-            _inspection.status == InspectionStatus.concluida) ...[
-          const SizedBox(height: 8),
-          _cardTitle('Plano de Ação', Icons.assignment_late_rounded),
-          const SizedBox(height: 8),
-          ActionPlanWidget(
-            inspectionId: _inspection.id,
-            availableResponsibles: const ['Inspetor', 'Supervisor', 'Gestor'],
-            inspectionItems: _inspection.itens,
-          ),
-        ],
-      ],
+    return InspectionChecklistTab(
+      inspection: _inspection,
+      canEdit: canEdit,
     );
   }
 
