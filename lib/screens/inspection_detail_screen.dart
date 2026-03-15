@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/widgets/item_evidence_widget.dart';
 import 'package:inspecao/widgets/action_plan_widget.dart';
@@ -45,13 +49,37 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   Establishment? _establishment;
   late TabController _tabController;
 
-  // Estatísticas
-  int get _totalItens   => _inspection.itens.length;
-  int get _conformes    => _inspection.itens.where((i) => i.status == ItemStatus.conforme).length;
-  int get _naoConformes => _inspection.itens.where((i) => i.status == ItemStatus.naoConforme).length;
-  int get _naoAplica    => _inspection.itens.where((i) => i.status == ItemStatus.naoAplica).length;
-  int get _pendentes    => _inspection.itens.where((i) => i.status == ItemStatus.pendente).length;
-  double get _progresso => _totalItens > 0 ? (_totalItens - _pendentes) / _totalItens : 0;
+  // Progresso do checklist — actualizado pelo InspectionChecklistTab via callback
+  int _checklistTotal       = 0;
+  int _checklistRespondidos = 0;
+
+  // Equipa da inspeção
+  Map<String, dynamic>? _equipe;
+  List<Map<String, dynamic>> _membros = [];
+  bool _loadingEquipe = false;
+  int get _pendentes => (_checklistTotal - _checklistRespondidos).clamp(0, _checklistTotal);
+
+  /// Chamado pelo ChecklistTab sempre que o progresso muda
+  void _onProgressoAtualizado(int total, int respondidos) {
+    if (!mounted) return;
+    setState(() {
+      _checklistTotal       = total;
+      _checklistRespondidos = respondidos;
+    });
+  }
+
+  /// Chamado pelo ChecklistTab quando a inspeção é concluída com sucesso
+  void _onInspecaoFinalizada() {
+    if (!mounted) return;
+    setState(() {
+      _inspection = _inspection.copyWith(
+        status: InspectionStatus.concluida,
+        dataConclusao: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    });
+    _showSnack('Inspeção concluída com sucesso!', _kPrimary, Icons.check_circle_rounded);
+  }
 
   @override
   void initState() {
@@ -63,6 +91,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         'status=${_inspection.status} checklistId=${_inspection.checklistId}');
     _loadEstablishment();
     _loadChecklistItens();
+    _loadEquipe();
   }
 
   @override
@@ -76,6 +105,42 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     if (_inspection.establishmentId != null) {
       final est = await _dataService.getEstablishmentById(_inspection.establishmentId!);
       if (mounted) setState(() => _establishment = est);
+    }
+  }
+
+  Future<void> _loadEquipe() async {
+    final equipeId = _inspection.equipeId;
+    AppLogger.log('👥 [InspectionDetail._loadEquipe] equipeId=$equipeId ');
+    if (equipeId == null || equipeId.isEmpty) {
+      AppLogger.log('⚠️ [InspectionDetail._loadEquipe] equipeId nulo/vazio — a usar inspection.equipe (${_inspection.equipe.length} membros)');
+      return;
+    }
+
+    if (mounted) setState(() => _loadingEquipe = true);
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final authService = AuthService(apiService, prefs);
+      final token = await authService.getAccessToken();
+      if (token != null) apiService.setAuthToken(token);
+
+      final data = await apiService.getEquipeCompleta(equipeId);
+      final membros = (data['membros'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [];
+      if (mounted) {
+        setState(() {
+          _equipe  = data;
+          _membros = membros;
+          _loadingEquipe = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.log('⚠️ [InspectionDetail] equipe não carregada: $e');
+      if (mounted) setState(() => _loadingEquipe = false);
     }
   }
 
@@ -98,28 +163,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         icon: Icons.play_circle_fill_rounded,
       );
       if (!ok) return;
-    } else if (newStatus == InspectionStatus.concluida) {
-      if (_pendentes > 0) {
-        final ok = await _showConfirmDialog(
-          title: 'Finalizar com itens pendentes?',
-          message:
-              '$_pendentes ${_pendentes == 1 ? 'item ainda não foi avaliado' : 'itens ainda não foram avaliados'}. Deseja finalizar mesmo assim?',
-          confirmLabel: 'Finalizar',
-          confirmColor: _kWarning,
-          icon: Icons.warning_amber_rounded,
-          isDanger: true,
-        );
-        if (!ok) return;
-      } else {
-        final ok = await _showConfirmDialog(
-          title: 'Concluir Inspeção',
-          message: 'Todos os itens foram avaliados. Confirma a conclusão?',
-          confirmLabel: 'Concluir',
-          confirmColor: _kPrimary,
-          icon: Icons.check_circle_rounded,
-        );
-        if (!ok) return;
-      }
     }
 
     AppLogger.log('📝 [InspectionDetail] atualizar status inspectionId=${_inspection.id} '
@@ -394,19 +437,20 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                   ),
                   const SizedBox(height: 6),
                   // Local
-                  Row(children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: Colors.white60, size: 14),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _establishment!.endereco ?? _inspection.endereco,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                  if (_establishment != null || _inspection.endereco.isNotEmpty)
+                    Row(children: [
+                      const Icon(Icons.location_on_rounded,
+                          color: Colors.white60, size: 14),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _establishment?.endereco ?? _inspection.endereco,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ]),
+                    ]),
                  
                 ],
               ),
@@ -469,50 +513,18 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatsRow(),
-          const SizedBox(height: 16),
           _buildInfoCard(),
           const SizedBox(height: 16),
           _buildDatesCard(),
+          const SizedBox(height: 16),
+          _buildEquipeCard(),
           const SizedBox(height: 80),
         ],
       ),
     );
   }
 
-  Widget _buildStatsRow() {
-    return Row(
-      children: [
-        Expanded(
-            child: _StatCard(
-                value: '$_conformes',
-                label: 'Conforme',
-                color: _kSuccess,
-                icon: Icons.check_circle_rounded)),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _StatCard(
-                value: '$_naoConformes',
-                label: 'N. Conforme',
-                color: _kError,
-                icon: Icons.cancel_rounded)),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _StatCard(
-                value: '$_naoAplica',
-                label: 'N/A',
-                color: _kNaoAplica,
-                icon: Icons.remove_circle_rounded)),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _StatCard(
-                value: '$_pendentes',
-                label: 'Pendente',
-                color: _kTextSecondary,
-                icon: Icons.schedule_rounded)),
-      ],
-    );
-  }
+  // _buildStatsRow removido — estatísticas agora no ChecklistTab
 
   Widget _buildInfoCard() {
     return _Card(
@@ -524,7 +536,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           if (_establishment != null) ...[
             _infoRow(Icons.business_rounded, 'Estabelecimento', _establishment!.nome),
             _infoRow(Icons.category_rounded, 'Tipo', _establishment!.tipoText),
-            _infoRow(Icons.location_on_rounded, 'Endereço', _establishment!.endereco),
+            if (_establishment!.endereco.isNotEmpty)
+              _infoRow(Icons.location_on_rounded, 'Endereço', _establishment!.endereco),
             const _Divider(),
           ],
           _infoRow(Icons.calendar_today_rounded, 'Data Agendada',
@@ -569,51 +582,115 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     );
   }
 
+  Widget _buildEquipeCard() {
+    final temEquipeId = _inspection.equipeId != null && _inspection.equipeId!.isNotEmpty;
+
+    // Se não tem equipeId e não tem membros na inspeção, não mostra o card
+    if (!temEquipeId && _inspection.equipe.isEmpty && !_loadingEquipe) {
+      return const SizedBox.shrink();
+    }
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _cardTitle('Equipa', Icons.group_rounded),
+            const Spacer(),
+            if (_loadingEquipe)
+              const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: _kPrimary)),
+          ]),
+          const SizedBox(height: 12),
+
+          // Nome da equipa
+          if (_equipe != null) ...[
+            _infoRow(
+              Icons.groups_rounded,
+              'Nome',
+              _equipe!['nome']?.toString() ?? '—',
+            ),
+            if ((_equipe!['codigo'] ?? '').toString().isNotEmpty)
+              _infoRow(
+                Icons.tag_rounded,
+                'Código',
+                _equipe!['codigo'].toString(),
+              ),
+          ] else if (!_loadingEquipe) ...[
+            _infoRow(Icons.tag_rounded, 'ID', _inspection.equipeId!),
+          ],
+
+          // Membros
+          if (_membros.isNotEmpty) ...[
+            const _Divider(),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [
+                const Icon(Icons.person_outline_rounded,
+                    size: 14, color: _kPrimary),
+                const SizedBox(width: 6),
+                Text(
+                  'Membros (${_membros.length})',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _kTextPrimary),
+                ),
+              ]),
+            ),
+            ..._membros.map((m) => _MembroCard(membro: m)),
+          ] else if (!_loadingEquipe) ...[
+            // Fallback: membros vindos do modelo local (inspection.equipe)
+            if (_inspection.equipe.isNotEmpty) ...[
+              const _Divider(),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  const Icon(Icons.person_outline_rounded,
+                      size: 14, color: _kPrimary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Membros (${_inspection.equipe.length})',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kTextPrimary),
+                  ),
+                ]),
+              ),
+              ..._inspection.equipe.map((inspector) {
+                  // Usar toJson() para acesso seguro a todos os campos
+                  final m = inspector.toJson();
+                  return _MembroCard(membro: m);
+                }),
+            ] else if (_equipe != null) ...[
+              const _Divider(),
+              const Text(
+                'Sem membros registados.',
+                style: TextStyle(fontSize: 12, color: _kTextSecondary),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   // ─── Tab: Checklist ───────────────────────────────────────────────────────
 
   Widget _buildTabChecklist(bool canEdit) {
     return InspectionChecklistTab(
       inspection: _inspection,
       canEdit: canEdit,
+      onFinalizado: _onInspecaoFinalizada,
+      onProgressoAtualizado: _onProgressoAtualizado,
     );
   }
 
-  Widget _buildChecklistSummary() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-              child: _MiniStat(
-                  value: '$_conformes', label: 'Conf.', color: _kSuccess)),
-          _verticalDivider(),
-          Expanded(
-              child: _MiniStat(
-                  value: '$_naoConformes',
-                  label: 'N.Conf.',
-                  color: _kError)),
-          _verticalDivider(),
-          Expanded(
-              child: _MiniStat(
-                  value: '$_naoAplica', label: 'N/A', color: _kNaoAplica)),
-          _verticalDivider(),
-          Expanded(
-              child: _MiniStat(
-                  value: '$_pendentes',
-                  label: 'Pend.',
-                  color: _kTextSecondary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _verticalDivider() =>
-      Container(width: 1, height: 32, color: _kBorder);
+  // _buildChecklistSummary e _verticalDivider removidos
 
   // ─── Tab: Comentários ─────────────────────────────────────────────────────
 
@@ -679,12 +756,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   // ─── Bottom Bar ───────────────────────────────────────────────────────────
 
+  /// Bottom bar: só aparece quando status == rascunho (botão Iniciar).
+  /// O botão Concluir está no InspectionChecklistTab para ter validação GPS
+  /// e sincronização com o servidor.
   Widget? _buildBottomBar() {
-    final status = _inspection.status;
-    if (status != InspectionStatus.rascunho &&
-        status != InspectionStatus.emAndamento) {
-      return null;
-    }
+    if (_inspection.status != InspectionStatus.rascunho) return null;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
@@ -698,29 +774,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         ],
       ),
       child: SafeArea(
-        child: status == InspectionStatus.rascunho
-            ? _ActionButton(
-                label: 'Iniciar Inspeção',
-                icon: Icons.play_circle_fill_rounded,
-                color: _kSuccess,
-                loading: _isLoading,
-                onPressed: () =>
-                    _updateInspectionStatus(InspectionStatus.emAndamento),
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Concluir',
-                      icon: Icons.check_circle_rounded,
-                      color: _kPrimary,
-                      loading: _isLoading,
-                      onPressed: () =>
-                          _updateInspectionStatus(InspectionStatus.concluida),
-                    ),
-                  ),
-                ],
-              ),
+        child: _ActionButton(
+          label: 'Iniciar Inspeção',
+          icon: Icons.play_circle_fill_rounded,
+          color: _kSuccess,
+          loading: _isLoading,
+          onPressed: () =>
+              _updateInspectionStatus(InspectionStatus.emAndamento),
+        ),
       ),
     );
   }
@@ -1222,6 +1283,120 @@ class _QuickActions extends StatelessWidget {
           ),
         ],
       );
+}
+
+// ─── _MembroCard — card de membro da equipa ──────────────────────────────────
+
+class _MembroCard extends StatelessWidget {
+  final Map<String, dynamic> membro;
+  const _MembroCard({required this.membro});
+
+  String _val(String key) => membro[key]?.toString() ?? '';
+
+  @override
+  Widget build(BuildContext context) {
+    final nome     = _val('nome').isNotEmpty ? _val('nome') : _val('nomeCompleto');
+    final email    = _val('email');
+    final telefone = _val('telefone').isNotEmpty ? _val('telefone') : _val('telemovel');
+    final cargo    = _val('cargo').isNotEmpty ? _val('cargo') : _val('funcao');
+    final role     = _val('role').isNotEmpty ? _val('role') : _val('perfil');
+
+    // Iniciais para avatar
+    final partes = nome.trim().split(' ');
+    final iniciais = partes.length >= 2
+        ? '${partes.first[0]}${partes.last[0]}'.toUpperCase()
+        : nome.isNotEmpty ? nome[0].toUpperCase() : '?';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar com iniciais
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: _kPrimaryLight,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              iniciais,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _kPrimary),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Nome
+                Text(
+                  nome.isNotEmpty ? nome : 'Sem nome',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _kTextPrimary),
+                ),
+                // Cargo / Role
+                if (cargo.isNotEmpty || role.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    cargo.isNotEmpty ? cargo : role,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: _kPrimary,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
+                // Email
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.email_outlined,
+                        size: 12, color: _kTextSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        email,
+                        style: const TextStyle(
+                            fontSize: 12, color: _kTextSecondary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                ],
+                // Telefone
+                if (telefone.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    const Icon(Icons.phone_outlined,
+                        size: 12, color: _kTextSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      telefone,
+                      style: const TextStyle(
+                          fontSize: 12, color: _kTextSecondary),
+                    ),
+                  ]),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── _QBtn — botão individual com ícone + texto ───────────────────────────────

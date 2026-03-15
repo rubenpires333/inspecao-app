@@ -234,6 +234,90 @@ class InspecaoService {
     }
   }
 
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Validação e Finalização
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// GET /api/v1/inspecoes/{id}/validar
+  Future<Map<String, dynamic>> validar(String inspecaoId) async {
+    AppLogger.log('🔍 [InspecaoService.validar] → GET /api/v1/inspecoes/$inspecaoId/validar');
+    final dio = await _buildDio();
+    try {
+      final response = await dio.get('/api/v1/inspecoes/$inspecaoId/validar');
+      AppLogger.log('✅ [InspecaoService.validar] status=${response.statusCode}');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError('validar', e);
+    }
+  }
+
+  /// POST /api/v1/inspecoes/{id}/finalizar
+  /// payload: { latitude?, longitude?, precisaoGps? }
+  Future<Map<String, dynamic>> finalizar(
+      String inspecaoId, Map<String, dynamic> payload) async {
+    AppLogger.log('🏁 [InspecaoService.finalizar] → POST /api/v1/inspecoes/$inspecaoId/finalizar payload=$payload');
+    final dio = await _buildDio();
+    try {
+      final response = await dio.post(
+        '/api/v1/inspecoes/$inspecaoId/finalizar',
+        data: payload,
+      );
+      AppLogger.log('✅ [InspecaoService.finalizar] status=${response.statusCode}');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError('finalizar', e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GPS — Rastreamento em tempo real
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// POST /api/v1/inspecoes/{id}/rastreamento
+  /// Regista um ponto de localização GPS durante a inspeção
+  Future<void> registarPontoRastreamento(
+      String inspecaoId, double lat, double lng, double accuracy) async {
+    final dio = await _buildDio();
+    try {
+      await dio.post('/api/v1/inspecoes/$inspecaoId/rastreamento', data: {
+        'latitude': lat,
+        'longitude': lng,
+        'precisao': accuracy,
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+      });
+      AppLogger.log('📍 [InspecaoService.registarPontoRastreamento] lat=$lat lng=$lng acc=${accuracy.toStringAsFixed(1)}m');
+    } on DioException catch (e) {
+      // Rastreamento é best-effort — não lançar erro para não perturbar o fluxo
+      AppLogger.log('⚠️ [InspecaoService.registarPontoRastreamento] falhou: ${e.response?.statusCode}');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GPS — Validação de localização
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// POST /api/v1/inspecoes/{id}/validar-localizacao
+  /// Valida se o inspetor está dentro do raio do estabelecimento
+  Future<Map<String, dynamic>> validarLocalizacao(
+      String inspecaoId, double lat, double lng, double accuracy) async {
+    AppLogger.log('📍 [InspecaoService.validarLocalizacao] → POST lat=$lat lng=$lng');
+    final dio = await _buildDio();
+    try {
+      final response = await dio.post(
+        '/api/v1/inspecoes/$inspecaoId/validar-localizacao',
+        data: {
+          'latitude': lat,
+          'longitude': lng,
+          'precisao': accuracy,
+        },
+      );
+      AppLogger.log('✅ [InspecaoService.validarLocalizacao] status=${response.statusCode}');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError('validarLocalizacao', e);
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
