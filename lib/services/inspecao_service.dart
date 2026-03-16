@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/models/checklist_secao.dart';
@@ -11,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///  - Itens por seção      → GET /api/v1/itens-checklist/secao/{id}
 ///  - Respostas            → GET /api/v1/inspecoes/{id}/respostas
 ///  - Salvar resposta      → POST /api/v1/inspecoes/{id}/respostas
+///  - Plano de ação        → GET/POST/PUT /api/v1/planos-acao/...
 ///
 /// NOTA: NÃO faz cache do Dio – o token é obtido de fresco em cada chamada
 /// para evitar 401 após expiração silenciosa.
@@ -234,7 +236,6 @@ class InspecaoService {
     }
   }
 
-
   // ─────────────────────────────────────────────────────────────────────────
   // Validação e Finalização
   // ─────────────────────────────────────────────────────────────────────────
@@ -280,12 +281,15 @@ class InspecaoService {
       String inspecaoId, double lat, double lng, double accuracy) async {
     final dio = await _buildDio();
     try {
-      await dio.post('/api/v1/inspecoes/$inspecaoId/rastreamento', data: {
-        'latitude': lat,
-        'longitude': lng,
-        'precisao': accuracy,
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-      });
+      await dio.post('/api/v1/inspecoes/$inspecaoId/rastreamento',
+          data: {
+            'latitude': lat,
+            'longitude': lng,
+            'precisao': accuracy,
+            'timestamp': DateTime.now().toUtc().toIso8601String(),
+            'tipoCaptura': "PERIODICA",
+            'inspecaoId': inspecaoId
+          });
       AppLogger.log('📍 [InspecaoService.registarPontoRastreamento] lat=$lat lng=$lng acc=${accuracy.toStringAsFixed(1)}m');
     } on DioException catch (e) {
       // Rastreamento é best-effort — não lançar erro para não perturbar o fluxo
@@ -318,6 +322,81 @@ class InspecaoService {
       throw _handleError('validarLocalizacao', e);
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Plano de Ação
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// GET /api/v1/planos-acao/por-resposta/{respostaId}
+  ///
+  /// Busca o plano de ação associado a uma resposta de inspeção.
+  /// Retorna null se não existir plano para a resposta (404 tratado como null).
+  Future<Map<String, dynamic>?> buscarPlanoAcaoPorResposta(String respostaId) async {
+    AppLogger.log('🌐 [InspecaoService.buscarPlanoAcaoPorResposta] → GET respostaId=$respostaId');
+    final dio = await _buildDio();
+    try {
+      final response = await dio.get('/api/v1/planos-acao/por-resposta/$respostaId');
+      AppLogger.log('✅ [InspecaoService.buscarPlanoAcaoPorResposta] status=${response.statusCode}');
+      return response.data as Map<String, dynamic>?;
+    } on DioException catch (e) {
+      // 404 = plano ainda não existe — não é erro
+      if (e.response?.statusCode == 404) return null;
+      // Outros erros: logar mas não propagar (best-effort)
+      AppLogger.log('⚠️ [InspecaoService.buscarPlanoAcaoPorResposta] falhou: ${e.response?.statusCode}');
+      return null;
+    }
+  }
+
+  /// PATCH /api/v1/itens-plano-acao/{itemId}
+  ///
+  /// Atualiza as observações de um item do plano de ação.
+  Future<void> atualizarItemPlanoAcao(
+      String itemPlanoAcaoId, String observacoes) async {
+    AppLogger.log('📝 [InspecaoService.atualizarItemPlanoAcao] → PATCH itemId=$itemPlanoAcaoId');
+    final dio = await _buildDio();
+    try {
+      await dio.patch(
+        '/api/v1/itens-plano-acao/$itemPlanoAcaoId',
+        data: {'observacoes': observacoes},
+      );
+      AppLogger.log('✅ [InspecaoService.atualizarItemPlanoAcao] OK');
+    } on DioException catch (e) {
+      AppLogger.log('⚠️ [InspecaoService.atualizarItemPlanoAcao] falhou: ${e.response?.statusCode}');
+      // Não propagar — a resposta já foi guardada, o plano é secundário
+    }
+  }
+
+  /// POST /api/v1/itens-plano-acao/{itemId}/anexos  (multipart)
+  ///
+  /// Faz upload de uma imagem de evidência para um item do plano de ação.
+  Future<void> adicionarAnexoItemPlanoAcao(
+      String itemPlanoAcaoId, File arquivo, {String descricao = 'Evidência mobile'}) async {
+    AppLogger.log('📎 [InspecaoService.adicionarAnexoItemPlanoAcao] → POST itemId=$itemPlanoAcaoId '
+        'arquivo=${arquivo.path.split('/').last}');
+    // Construir Dio com Content-Type multipart
+    final dio = await _buildDio();
+    dio.options.headers.remove('Content-Type'); // Dio define automaticamente para multipart
+
+    try {
+      final formData = FormData.fromMap({
+        'arquivo': await MultipartFile.fromFile(
+          arquivo.path,
+          filename: arquivo.path.split('/').last,
+        ),
+        'descricao': descricao,
+        'criadoPorFrontoffice': 'true',
+      });
+      await dio.post(
+        '/api/v1/itens-plano-acao/$itemPlanoAcaoId/anexos',
+        data: formData,
+      );
+      AppLogger.log('✅ [InspecaoService.adicionarAnexoItemPlanoAcao] upload OK');
+    } on DioException catch (e) {
+      AppLogger.log('⚠️ [InspecaoService.adicionarAnexoItemPlanoAcao] falhou: ${e.response?.statusCode}');
+      // Best-effort: não bloquear o fluxo principal se o upload falhar
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
@@ -342,4 +421,6 @@ class InspecaoService {
     if (status == 404) return Exception('Recurso não encontrado ($method).');
     return Exception('Erro em $method [HTTP $status]: $msg');
   }
+
+  
 }

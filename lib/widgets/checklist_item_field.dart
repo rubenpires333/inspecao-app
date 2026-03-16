@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:inspecao/models/checklist_secao.dart';
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
@@ -16,10 +18,15 @@ const _kErrorLight     = Color(0xFFFEF2F2);
 const _kNaoAplica      = Color(0xFF6B7FD7);
 const _kNaoAplicaLight = Color(0xFFEEF0FB);
 const _kWarning        = Color(0xFFF59E0B);
+const _kWarningLight   = Color(0xFFFFFBEB);
 const _kNaoObservavel  = Color(0xFF9CA3AF);
 
 /// Widget que renderiza um item do checklist conforme o seu tipo,
 /// com o visual da app mobile (botões grandes, ícone de relógio, evidências).
+///
+/// Quando a opção selecionada tem ação `tornar_obrigatorio` com
+/// `plano_acao: true`, exibe automaticamente o painel de
+/// "Plano de Ação Obrigatório" com campo de observações e evidências.
 class ChecklistItemField extends StatefulWidget {
   final ItemChecklistCompleto item;
   final RespostaInspecaoCompleta? resposta;
@@ -41,6 +48,7 @@ class ChecklistItemField extends StatefulWidget {
 class _ChecklistItemFieldState extends State<ChecklistItemField> {
   late TextEditingController _textCtrl;
   late TextEditingController _numCtrl;
+  late TextEditingController _obsPlanoAcaoCtrl;
   String? _selectedOpcaoId;
   Set<String> _selectedMulti = {};
   int? _rating;
@@ -53,14 +61,23 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   /// Controla se a secção "Evidências e observações" está expandida
   bool _evidenciasExpanded = false;
 
+  /// Controla se o painel de plano de ação está expandido
+  bool _planoAcaoExpanded = true;
+
+  /// Evidências (imagens) adicionadas localmente para o plano de ação
+  List<XFile> _evidenciasPlanoAcao = [];
+
   /// Flag: já foi inicializado com resposta existente (evita reset em re-renders)
   bool _initialized = false;
+
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _textCtrl = TextEditingController();
-    _numCtrl  = TextEditingController();
+    _textCtrl         = TextEditingController();
+    _numCtrl          = TextEditingController();
+    _obsPlanoAcaoCtrl = TextEditingController();
     _syncFromResposta(widget.resposta);
     _initialized = true;
   }
@@ -68,147 +85,180 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   @override
   void didUpdateWidget(ChecklistItemField old) {
     super.didUpdateWidget(old);
-    // Só sincroniza se chegou uma NOVA resposta do servidor (salvo com sucesso)
-    // Nunca reverte o estado local se a resposta for null (erro no save)
-    if (widget.resposta != null && old.resposta != widget.resposta) {
-      _syncFromResposta(widget.resposta);
-    }
-  }
 
-  void _syncFromResposta(RespostaInspecaoCompleta? r) {
-    if (r == null) return;
-    _textCtrl.text = r.valorTexto ?? '';
-    _numCtrl.text  = r.valorNumero != null ? r.valorNumero.toString() : '';
-    _selectedOpcaoId = r.opcaoId;
-    _rating   = r.valorRating;
-    _selectedData    = r.valorData;
-    _selectedDataHora = r.valorDataHora;
-    if (r.valorTexto == 'SIM') _simNao = true;
-    if (r.valorTexto == 'NAO' || r.valorTexto == 'NÃO') _simNao = false;
+    final novaResposta = widget.resposta;
+    final antigaResposta = old.resposta;
+
+    // Sem resposta nova → nada a fazer
+    if (novaResposta == null) return;
+
+    // Primeira vez que chega uma resposta (antes era null) → sincronizar tudo
+    if (antigaResposta == null) {
+      _syncFromResposta(novaResposta);
+      return;
+    }
+
+    // A resposta mudou de ID (item diferente) → sincronizar tudo
+    if (novaResposta.id != antigaResposta.id) {
+      _syncFromResposta(novaResposta);
+      return;
+    }
+
+    // Mesma resposta mas opcaoId mudou no servidor
+    // Só aceitar se o valor do servidor é DIFERENTE do estado local
+    // (evitar reverter uma selecção que o utilizador acabou de fazer
+    //  mas cuja confirmação do servidor ainda não chegou)
+    if (novaResposta.opcaoId != antigaResposta.opcaoId &&
+        novaResposta.opcaoId != _selectedOpcaoId) {
+      _selectedOpcaoId = novaResposta.opcaoId;
+    }
+
+    // Sincronizar campos de texto/número apenas se mudaram no servidor
+    // e o campo local estiver vazio (evitar sobrescrever texto que o
+    // utilizador está a digitar)
+    if (novaResposta.valorTexto != antigaResposta.valorTexto) {
+      if (_textCtrl.text.isEmpty) {
+        _textCtrl.text = novaResposta.valorTexto ?? '';
+      }
+    }
+    if (novaResposta.valorNumero != antigaResposta.valorNumero) {
+      if (_numCtrl.text.isEmpty) {
+        _numCtrl.text = novaResposta.valorNumero != null
+            ? novaResposta.valorNumero!.toStringAsFixed(
+                novaResposta.valorNumero! ==
+                        novaResposta.valorNumero!.truncateToDouble()
+                    ? 0
+                    : 2)
+            : '';
+      }
+    }
+
+    // Data/hora: aceitar sempre (não tem digitação manual)
+    if (novaResposta.valorData != antigaResposta.valorData) {
+      _selectedData = novaResposta.valorData;
+    }
+    if (novaResposta.valorDataHora != antigaResposta.valorDataHora) {
+      _selectedDataHora = novaResposta.valorDataHora;
+    }
+
+    // Rating: aceitar se mudou no servidor e não foi alterado localmente
+    if (novaResposta.valorRating != antigaResposta.valorRating &&
+        novaResposta.valorRating != null) {
+      _rating = novaResposta.valorRating;
+    }
+
+    // Observações do plano de ação: só preencher se campo local estiver vazio
+    if (novaResposta.observacoes != null &&
+        novaResposta.observacoes!.isNotEmpty &&
+        _obsPlanoAcaoCtrl.text.isEmpty) {
+      _obsPlanoAcaoCtrl.text = novaResposta.observacoes!;
+    }
   }
 
   @override
   void dispose() {
     _textCtrl.dispose();
     _numCtrl.dispose();
+    _obsPlanoAcaoCtrl.dispose();
     super.dispose();
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  Color _colorFromHex(String? hex, Color fallback) {
-    if (hex == null || hex.isEmpty) return fallback;
-    try {
-      final c = hex.replaceAll('#', '');
-      return Color(int.parse('FF$c', radix: 16));
-    } catch (_) {
-      return fallback;
+  void _syncFromResposta(RespostaInspecaoCompleta? r) {
+    if (r == null) return;
+    _textCtrl.text = r.valorTexto ?? '';
+    _numCtrl.text  = r.valorNumero != null
+        ? r.valorNumero!.toStringAsFixed(
+            r.valorNumero! == r.valorNumero!.truncateToDouble() ? 0 : 2)
+        : '';
+    _selectedOpcaoId = r.opcaoId;
+    _selectedData    = r.valorData;
+    _selectedDataHora = r.valorDataHora;
+    if (r.valorRating != null) _rating = r.valorRating;
+    // Observações do plano de ação (vindas do servidor)
+    if (r.observacoes != null && r.observacoes!.isNotEmpty) {
+      _obsPlanoAcaoCtrl.text = r.observacoes!;
     }
   }
 
-  String _labelForOpcao(String? id) {
-    if (id == null) return '';
+  // ─── Detecção de plano de ação ────────────────────────────────────────────
+
+  /// Retorna a opção actualmente selecionada que requer plano de ação,
+  /// ou null se não houver nenhuma.
+  OpcaoItemChecklist? get _opcaoComPlanoAcao {
+    if (_selectedOpcaoId == null) return null;
     try {
-      return widget.item.opcoes.firstWhere((o) => o.id == id).texto;
+      final opcao = widget.item.opcoes
+          .firstWhere((o) => o.id == _selectedOpcaoId);
+      return opcao.requerPlanoAcao ? opcao : null;
     } catch (_) {
-      return '';
+      return null;
     }
   }
 
-  bool get _respondido {
-    if (_selectedOpcaoId != null && _selectedOpcaoId!.isNotEmpty) return true;
-    if (_textCtrl.text.isNotEmpty) return true;
-    if (_numCtrl.text.isNotEmpty) return true;
-    if (_rating != null) return true;
-    if (_simNao != null) return true;
-    if (_selectedMulti.isNotEmpty) return true;
-    return false;
-  }
+  bool get _mostrarPlanoAcao => _opcaoComPlanoAcao != null;
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _mostrarPlanoAcao ? _kWarning.withOpacity(0.4) : _kBorder,
+          width: _mostrarPlanoAcao ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 4,
-              offset: const Offset(0, 2)),
+              offset: const Offset(0, 1)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Cabeçalho: ícone + rótulo ──────────────────────────────────
+          // ── Cabeçalho ─────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Ícone de relógio (pendente) ou check (respondido)
-                Container(
-                  width: 36,
-                  height: 36,
-                  margin: const EdgeInsets.only(right: 12, top: 1),
-                  decoration: BoxDecoration(
-                    color: _respondido ? _kPrimaryLight : _kSurface,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _kBorder),
-                  ),
-                  child: Icon(
-                    _respondido
-                        ? Icons.check_rounded
-                        : Icons.access_time_rounded,
-                    size: 18,
-                    color: _respondido ? _kPrimary : _kTextSecondary,
-                  ),
-                ),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.item.rotulo,
-                        style: const TextStyle(
-                          color: _kTextPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
-                        ),
-                      ),
-                      if (widget.item.ajuda != null &&
-                          widget.item.ajuda!.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          widget.item.ajuda!,
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: _kTextSecondary,
-                              fontStyle: FontStyle.italic),
-                        ),
-                      ],
-                      if (widget.item.obrigatorio) ...[
-                        const SizedBox(height: 2),
-                        const Text('* Obrigatório',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: _kError,
-                                fontWeight: FontWeight.w500)),
-                      ],
-                    ],
+                  child: Text(
+                    widget.item.rotulo,
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: _kTextPrimary),
                   ),
                 ),
+                if (widget.item.obrigatorio)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, top: 1),
+                    child: Text('*',
+                        style: TextStyle(
+                            color: _kError,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                  ),
               ],
             ),
           ),
 
-          // ── Campo de resposta ───────────────────────────────────────────
+          // ── Descrição (se existir) ─────────────────────────────────────
+          if (widget.item.descricao != null &&
+              widget.item.descricao!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+              child: Text(widget.item.descricao!,
+                  style: const TextStyle(
+                      fontSize: 12, color: _kTextSecondary)),
+            ),
+
+          // ── Campo de resposta ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
             child: _buildField(),
@@ -216,7 +266,13 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
 
           const SizedBox(height: 10),
 
-          // ── Divisor + "Evidências e observações" (colapsável) ───────────
+          // ── Painel de Plano de Ação (quando aplicável) ─────────────────
+          if (_mostrarPlanoAcao) ...[
+            const Divider(height: 1, color: _kWarning, thickness: 0.5),
+            _buildPlanoAcaoPanel(),
+          ],
+
+          // ── Divisor + "Evidências e observações" (colapsável) ──────────
           const Divider(height: 1, color: _kBorder),
           _EvidenciasSection(
             resposta: widget.resposta,
@@ -227,6 +283,529 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
         ],
       ),
     );
+  }
+
+  // ─── Painel de Plano de Ação ──────────────────────────────────────────────
+
+  Widget _buildPlanoAcaoPanel() {
+    final opcao = _opcaoComPlanoAcao;
+    if (opcao == null) return const SizedBox.shrink();
+
+    return Container(
+      color: _kWarningLight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cabeçalho colapsável
+          GestureDetector(
+            onTap: () => setState(
+                () => _planoAcaoExpanded = !_planoAcaoExpanded),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: _kWarning),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Plano de Ação Obrigatório',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _kWarning),
+                        ),
+                        Text(
+                          'A opção "${opcao.texto}" requer um plano de ação',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: _kTextSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _planoAcaoExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: _kTextSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Conteúdo expandido
+          if (_planoAcaoExpanded) ...[
+            const Divider(height: 1, color: _kBorder),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Campo de Observações
+                  const Text(
+                    'Observações *',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _kTextPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _obsPlanoAcaoCtrl,
+                    enabled: widget.enabled,
+                    maxLines: 4,
+                    minLines: 3,
+                    style: const TextStyle(
+                        fontSize: 13, color: _kTextPrimary),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Descreva o problema ou não conformidade identificado...',
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: _kNaoObservavel),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: _kBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: _kBorder)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                              color: _kWarning, width: 1.5)),
+                      disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: _kBorder)),
+                    ),
+                    onChanged: (_) => _emitPlanoAcaoPayload(),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Secção de evidências (fotos) do plano de ação
+                  Row(
+                    children: [
+                      const Text(
+                        'Evidências',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _kTextPrimary),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(opcional)',
+                        style: const TextStyle(
+                            fontSize: 11, color: _kTextSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Grid de imagens adicionadas
+                  if (_evidenciasPlanoAcao.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ..._evidenciasPlanoAcao
+                            .asMap()
+                            .entries
+                            .map((e) => _buildEvidenciaThumbnail(
+                                e.key, e.value)),
+                        if (widget.enabled)
+                          _buildAdicionarEvidenciaBtn(compact: true),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // Botões de adicionar (quando lista vazia)
+                  if (_evidenciasPlanoAcao.isEmpty && widget.enabled)
+                    _buildBotoesEvidencia(),
+
+                  // Aviso quando desabilitado e sem evidências
+                  if (!widget.enabled &&
+                      _evidenciasPlanoAcao.isEmpty &&
+                      (widget.resposta?.observacoes == null ||
+                          widget.resposta!.observacoes!.isEmpty))
+                    const Text(
+                      'Nenhuma evidência registada.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: _kNaoObservavel,
+                          fontStyle: FontStyle.italic),
+                    ),
+
+                  // Botão Salvar Plano de Ação
+                  if (widget.enabled) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _onSalvarPlanoAcao,
+                        icon: const Icon(Icons.save_outlined, size: 16),
+                        label: const Text('Salvar Plano de Ação',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _kPrimary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEvidenciaThumbnail(int index, XFile file) {
+    return Stack(
+      children: [
+        // Thumbnail clicável → abre visualização ampliada
+        GestureDetector(
+          onTap: () => _abrirImagemAmpliada(file, index),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(file.path),
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 72,
+                height: 72,
+                color: _kSurface,
+                child: const Icon(Icons.broken_image_outlined,
+                    color: _kTextSecondary, size: 28),
+              ),
+            ),
+          ),
+        ),
+        // Botão de remover (só quando editável)
+        if (widget.enabled)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _evidenciasPlanoAcao.removeAt(index));
+                _emitPlanoAcaoPayload();
+              },
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: _kError,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(2),
+                child: const Icon(Icons.close,
+                    color: Colors.white, size: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Abre um diálogo fullscreen para visualizar a imagem ampliada.
+  /// Permite zoom com pinch, fechar com tap fora ou botão X,
+  /// e remover a evidência directamente do popup.
+  void _abrirImagemAmpliada(XFile file, int index) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            // Fundo clicável para fechar
+            GestureDetector(
+              onTap: () => Navigator.pop(ctx),
+              child: const SizedBox.expand(
+                child: ColoredBox(color: Colors.transparent),
+              ),
+            ),
+            // Imagem com zoom interactivo
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(file.path),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 200,
+                        height: 200,
+                        color: _kSurface,
+                        child: const Icon(Icons.broken_image_outlined,
+                            color: _kTextSecondary, size: 48),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Botão fechar (canto superior direito)
+            Positioned(
+              top: 40,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+            // Botão remover (canto inferior direito) — só quando editável
+            if (widget.enabled)
+              Positioned(
+                bottom: 40,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _evidenciasPlanoAcao.removeAt(index));
+                    _emitPlanoAcaoPayload();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _kError,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delete_outline_rounded,
+                            color: Colors.white, size: 18),
+                        SizedBox(width: 6),
+                        Text('Remover evidência',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // Contador de evidências (canto inferior esquerdo)
+            Positioned(
+              bottom: 40,
+              left: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 6),
+                child: Text(
+                  '${index + 1} / ${_evidenciasPlanoAcao.length}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdicionarEvidenciaBtn({bool compact = false}) {
+    return GestureDetector(
+      onTap: _mostrarOpcoesImagem,
+      child: Container(
+        width: compact ? 72 : null,
+        height: compact ? 72 : null,
+        padding: compact
+            ? null
+            : const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: _kPrimary.withOpacity(0.4), style: BorderStyle.solid),
+        ),
+        child: compact
+            ? const Center(
+                child: Icon(Icons.add_a_photo_outlined,
+                    size: 28, color: _kPrimary),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.add_a_photo_outlined,
+                      size: 18, color: _kPrimary),
+                  SizedBox(width: 6),
+                  Text('Adicionar evidência',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: _kPrimary,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildBotoesEvidencia() {
+    return Row(
+      children: [
+        Expanded(
+          child: _EvidenciaBtn(
+            icon: Icons.camera_alt_outlined,
+            label: 'Câmera',
+            onTap: () => _selecionarImagem(ImageSource.camera),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _EvidenciaBtn(
+            icon: Icons.photo_library_outlined,
+            label: 'Galeria',
+            onTap: () => _selecionarImagem(ImageSource.gallery),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _mostrarOpcoesImagem() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: _kBorder,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined,
+                  color: _kPrimary),
+              title: const Text('Tirar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarImagem(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: _kPrimary),
+              title: const Text('Escolher da galeria'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarImagem(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selecionarImagem(ImageSource source) async {
+    try {
+      final file = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (file != null) {
+        setState(() => _evidenciasPlanoAcao.add(file));
+        _emitPlanoAcaoPayload();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível selecionar a imagem: $e'),
+            backgroundColor: _kError,
+          ),
+        );
+      }
+    }
+  }
+
+  void _emitPlanoAcaoPayload() {
+    // Incluir dados do plano de ação no payload ao emitir
+    _emitPayloadWith({
+      if (_selectedOpcaoId != null) 'opcaoId': _selectedOpcaoId,
+      'observacoesPlanoAcao': _obsPlanoAcaoCtrl.text,
+      'evidenciasPlanoAcao':
+          _evidenciasPlanoAcao.map((f) => f.path).toList(),
+    });
+  }
+
+  void _onSalvarPlanoAcao() {
+    final obs = _obsPlanoAcaoCtrl.text.trim();
+    if (obs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Preencha as observações do plano de ação antes de guardar.'),
+          backgroundColor: _kWarning,
+        ),
+      );
+      return;
+    }
+    // Emitir payload com flag explícita de guardar plano de ação
+    widget.onSave?.call({
+      'itemChecklistId': widget.item.id,
+      if (_selectedOpcaoId != null) 'opcaoId': _selectedOpcaoId,
+      'observacoesPlanoAcao': obs,
+      'evidenciasPlanoAcao':
+          _evidenciasPlanoAcao.map((f) => f.path).toList(),
+      'salvarPlanoAcao': true,
+    });
   }
 
   // ─── Roteador de tipo ─────────────────────────────────────────────────────
@@ -264,138 +843,118 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     }
   }
 
-  // ─── Tipos de campo ───────────────────────────────────────────────────────
+  // ─── Campos por tipo ──────────────────────────────────────────────────────
 
-  Widget _buildTexto() {
-    return TextField(
-      controller: _textCtrl,
-      enabled: widget.enabled,
-      // Expande automaticamente para mostrar todo o texto guardado
-      minLines: 1,
-      maxLines: null,
-      keyboardType: TextInputType.multiline,
-      style: const TextStyle(fontSize: 14, color: _kTextPrimary),
-      decoration: _inputDeco('Digite aqui...'),
-      onChanged: (_) => _emitPayload(),
-    );
-  }
+  Widget _buildTexto() => TextField(
+        controller: _textCtrl,
+        enabled: widget.enabled,
+        style:
+            const TextStyle(fontSize: 13, color: _kTextPrimary),
+        decoration: _inputDeco('Escreva aqui...'),
+        onChanged: (_) => _emitPayload(),
+      );
 
-  Widget _buildTextarea() {
-    return TextField(
-      controller: _textCtrl,
-      enabled: widget.enabled,
-      // Mínimo 3 linhas, expande para mostrar todo o conteúdo
-      minLines: 3,
-      maxLines: null,
-      keyboardType: TextInputType.multiline,
-      style: const TextStyle(fontSize: 14, color: _kTextPrimary),
-      decoration: _inputDeco('Digite aqui...'),
-      onChanged: (_) => _emitPayload(),
-    );
-  }
+  Widget _buildTextarea() => TextField(
+        controller: _textCtrl,
+        enabled: widget.enabled,
+        maxLines: 4,
+        minLines: 3,
+        style: const TextStyle(fontSize: 13, color: _kTextPrimary),
+        decoration: _inputDeco('Escreva aqui...'),
+        onChanged: (_) => _emitPayload(),
+      );
 
-  Widget _buildNumero() {
-    return TextField(
-      controller: _numCtrl,
-      enabled: widget.enabled,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-      style: const TextStyle(fontSize: 14, color: _kTextPrimary),
-      decoration: _inputDeco('Valor numérico'),
-      onChanged: (_) => _emitPayload(),
-    );
-  }
+  Widget _buildNumero() => TextField(
+        controller: _numCtrl,
+        enabled: widget.enabled,
+        keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))
+        ],
+        style: const TextStyle(fontSize: 13, color: _kTextPrimary),
+        decoration: _inputDeco('0'),
+        onChanged: (_) => _emitPayload(),
+      );
 
   Widget _buildData() {
-    final display = _selectedData ?? widget.resposta?.valorData ?? '';
+    final display = _selectedData != null
+        ? _formatDate(_selectedData!)
+        : (widget.resposta?.valorData != null
+            ? _formatDate(widget.resposta!.valorData!)
+            : 'Selecionar data');
+
     return _DateTimeButton(
       icon: Icons.calendar_today_outlined,
-      label: display.isNotEmpty ? display : 'Selecionar data',
+      label: display,
       enabled: widget.enabled,
       onTap: () async {
-        DateTime initial = DateTime.now();
-        if (_selectedData != null) {
-          try { initial = DateTime.parse(_selectedData!); } catch (_) {}
-        }
-        final picked = await showDatePicker(
+        final now = DateTime.now();
+        final date = await showDatePicker(
           context: context,
-          initialDate: initial,
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
+          initialDate: now,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2030),
           builder: (c, child) => Theme(
-              data: Theme.of(c).copyWith(
-                  colorScheme: const ColorScheme.light(primary: _kPrimary)),
-              child: child!),
+            data: Theme.of(c).copyWith(
+                colorScheme:
+                    const ColorScheme.light(primary: _kPrimary)),
+            child: child!,
+          ),
         );
-        if (picked != null) {
-          final str =
-              '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-          setState(() => _selectedData = str);
-          _emitPayloadWith({'valorData': str});
-        }
+        if (date == null || !mounted) return;
+        final iso =
+            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        setState(() => _selectedData = iso);
+        _emitPayloadWith({'valorData': iso});
       },
     );
   }
 
   Widget _buildDataHora() {
-    // Mostrar label formatado se já foi seleccionado
-    String display = '';
-    if (_selectedDataHora != null && _selectedDataHora!.isNotEmpty) {
-      try {
-        final dt = DateTime.parse(_selectedDataHora!).toLocal();
-        display = '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year} '
-                  '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
-      } catch (_) {
-        display = _selectedDataHora!;
-      }
-    } else if (widget.resposta?.valorDataHora != null) {
-      try {
-        final dt = DateTime.parse(widget.resposta!.valorDataHora!).toLocal();
-        display = '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year} '
-                  '${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
-      } catch (_) {
-        display = widget.resposta!.valorDataHora!;
-      }
-    }
+    final display = _selectedDataHora != null
+        ? _formatDateTime(_selectedDataHora!)
+        : (widget.resposta?.valorDataHora != null
+            ? _formatDateTime(widget.resposta!.valorDataHora!)
+            : 'Selecionar data e hora');
 
     return _DateTimeButton(
-      icon: Icons.access_time_outlined,
-      label: display.isNotEmpty ? display : 'Selecionar data e hora',
+      icon: Icons.access_time_rounded,
+      label: display,
       enabled: widget.enabled,
       onTap: () async {
-        DateTime initial = DateTime.now();
-        if (_selectedDataHora != null) {
-          try { initial = DateTime.parse(_selectedDataHora!).toLocal(); } catch (_) {}
-        }
+        final now = DateTime.now();
+        final initial = DateTime.tryParse(_selectedDataHora ?? '') ?? now;
         final date = await showDatePicker(
           context: context,
           initialDate: initial,
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2030),
           builder: (c, child) => Theme(
               data: Theme.of(c).copyWith(
-                  colorScheme: const ColorScheme.light(primary: _kPrimary)),
+                  colorScheme:
+                      const ColorScheme.light(primary: _kPrimary)),
               child: child!),
         );
         if (date == null || !mounted) return;
         final time = await showTimePicker(
           context: context,
-          initialTime: TimeOfDay(hour: initial.hour, minute: initial.minute),
+          initialTime:
+              TimeOfDay(hour: initial.hour, minute: initial.minute),
           builder: (c, child) => Theme(
               data: Theme.of(c).copyWith(
-                  colorScheme: const ColorScheme.light(primary: _kPrimary)),
+                  colorScheme:
+                      const ColorScheme.light(primary: _kPrimary)),
               child: child!),
         );
         if (time == null) return;
-        final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        final dt = DateTime(
+            date.year, date.month, date.day, time.hour, time.minute);
 
         // Formatar como OffsetDateTime com timezone UTC (+00:00) — exigido pelo Spring
         final utc = dt.toUtc();
-        final iso = '${utc.year.toString().padLeft(4,'0')}-'
-                    '${utc.month.toString().padLeft(2,'0')}-'
-                    '${utc.day.toString().padLeft(2,'0')}T'
-                    '${utc.hour.toString().padLeft(2,'0')}:'
-                    '${utc.minute.toString().padLeft(2,'0')}:00+00:00';
+        final iso =
+            '${utc.year.toString().padLeft(4, '0')}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}T${utc.hour.toString().padLeft(2, '0')}:${utc.minute.toString().padLeft(2, '0')}:00+00:00';
 
         setState(() => _selectedDataHora = dt.toIso8601String());
         _emitPayloadWith({'valorDataHora': iso});
@@ -524,9 +1083,11 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
               : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: isSelected ? cor.withOpacity(0.10) : _kSurface,
+              color:
+                  isSelected ? cor.withOpacity(0.10) : _kSurface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                   color: isSelected ? cor : _kBorder,
@@ -536,8 +1097,8 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
               children: [
                 Icon(
                   isSelected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
                   size: 18,
                   color: isSelected ? cor : _kTextSecondary,
                 ),
@@ -574,14 +1135,17 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                       _selectedMulti.add(opcao.id);
                     }
                   });
-                  _emitPayloadWith({'opcaoIds': _selectedMulti.toList()});
+                  _emitPayloadWith(
+                      {'opcoesSelecionadas': _selectedMulti.toList()});
                 }
               : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: isSelected ? cor.withOpacity(0.10) : _kSurface,
+              color:
+                  isSelected ? cor.withOpacity(0.10) : _kSurface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                   color: isSelected ? cor : _kBorder,
@@ -628,7 +1192,9 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
           child: Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Icon(
-              star <= current ? Icons.star_rounded : Icons.star_border_rounded,
+              star <= current
+                  ? Icons.star_rounded
+                  : Icons.star_border_rounded,
               size: 34,
               color: star <= current ? _kWarning : _kBorder,
             ),
@@ -641,24 +1207,32 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   Widget _buildAnexo() {
     final has = widget.resposta != null;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: has ? _kPrimaryLight : _kSurface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: has ? _kPrimary.withOpacity(0.3) : _kBorder),
+        border: Border.all(
+            color: has ? _kPrimary.withOpacity(0.3) : _kBorder),
       ),
       child: Row(
         children: [
-          Icon(has ? Icons.check_circle_outline_rounded : Icons.attach_file_rounded,
-              size: 20, color: has ? _kPrimary : _kTextSecondary),
+          Icon(
+              has
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.attach_file_rounded,
+              size: 20,
+              color: has ? _kPrimary : _kTextSecondary),
           const SizedBox(width: 10),
           Expanded(
-              child: Text(has ? 'Anexo(s) carregado(s)' : 'Sem anexo',
+              child: Text(
+                  has ? 'Anexo(s) carregado(s)' : 'Sem anexo',
                   style: TextStyle(
                       fontSize: 13,
                       color: has ? _kPrimary : _kTextSecondary))),
           if (widget.enabled && !has)
-            const Icon(Icons.upload_outlined, size: 18, color: _kPrimary),
+            const Icon(Icons.upload_outlined,
+                size: 18, color: _kPrimary),
         ],
       ),
     );
@@ -669,16 +1243,19 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     final lng = widget.resposta?.longitude;
     final has = lat != null && lng != null;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: has ? _kPrimaryLight : _kSurface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: has ? _kPrimary.withOpacity(0.3) : _kBorder),
+        border: Border.all(
+            color: has ? _kPrimary.withOpacity(0.3) : _kBorder),
       ),
       child: Row(
         children: [
           Icon(Icons.location_on_outlined,
-              size: 20, color: has ? _kPrimary : _kTextSecondary),
+              size: 20,
+              color: has ? _kPrimary : _kTextSecondary),
           const SizedBox(width: 10),
           Expanded(
               child: Text(
@@ -702,16 +1279,18 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: _kBorder)),
         child: const Text('Sem opções configuradas',
-            style: TextStyle(fontSize: 13, color: _kTextSecondary)),
+            style: TextStyle(
+                fontSize: 13, color: _kTextSecondary)),
       );
 
   InputDecoration _inputDeco(String hint) => InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: _kTextSecondary, fontSize: 13),
+        hintStyle:
+            const TextStyle(color: _kTextSecondary, fontSize: 13),
         filled: true,
         fillColor: _kSurface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: _kBorder)),
@@ -720,17 +1299,38 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
             borderSide: const BorderSide(color: _kBorder)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _kPrimary, width: 1.5)),
+            borderSide:
+                const BorderSide(color: _kPrimary, width: 1.5)),
         disabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: _kBorder)),
       );
 
+  String _formatDate(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  String _formatDateTime(String iso) {
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
+          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
   // ─── Emit ─────────────────────────────────────────────────────────────────
 
   void _emitPayload() {
     _emitPayloadWith({
-      'valorTexto': _textCtrl.text.isNotEmpty ? _textCtrl.text : null,
+      'valorTexto':
+          _textCtrl.text.isNotEmpty ? _textCtrl.text : null,
       'valorNumero': _numCtrl.text.isNotEmpty
           ? double.tryParse(_numCtrl.text.replaceAll(',', '.'))
           : null,
@@ -738,7 +1338,49 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   }
 
   void _emitPayloadWith(Map<String, dynamic> extra) {
-    widget.onSave?.call({'itemChecklistId': widget.item.id, ...extra});
+    widget.onSave
+        ?.call({'itemChecklistId': widget.item.id, ...extra});
+  }
+}
+
+// ─── _EvidenciaBtn ────────────────────────────────────────────────────────────
+/// Botão de ação para selecionar evidências (câmera ou galeria)
+class _EvidenciaBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _EvidenciaBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _kPrimary.withOpacity(0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: _kPrimary),
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: _kPrimary,
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -760,50 +1402,49 @@ class _BigButtonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: opcoes.asMap().entries.map((e) {
-        final btn = e.value;
+      children: opcoes.map((btn) {
         final isSelected = selectedId == btn.id;
         return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: e.key == 0 ? 0 : 5,
-              right: e.key == opcoes.length - 1 ? 0 : 5,
-            ),
-            child: GestureDetector(
-              onTap: enabled ? () => onSelect(btn.id) : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: isSelected ? btn.activeBg : const Color(0xFFF7FAFB),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: isSelected ? btn.activeColor : const Color(0xFFE2ECF0),
-                      width: isSelected ? 1.5 : 1),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      btn.icon,
-                      size: 22,
-                      color: isSelected ? btn.activeColor : const Color(0xFFAFB4BB),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      btn.label,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? btn.activeColor
-                              : const Color(0xFF5A7A83)),
-                    ),
-                  ],
-                ),
+          child: GestureDetector(
+            onTap: enabled ? () => onSelect(btn.id) : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: EdgeInsets.only(
+                  right: btn == opcoes.last ? 0 : 6),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? btn.activeBg : _kSurface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: isSelected
+                        ? btn.activeColor
+                        : _kBorder,
+                    width: isSelected ? 1.5 : 1),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    btn.icon,
+                    size: 24,
+                    color: isSelected
+                        ? btn.activeColor
+                        : const Color(0xFFAFB4BB),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    btn.label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? btn.activeColor
+                            : const Color(0xFF5A7A83)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -849,7 +1490,8 @@ class _DateTimeButton extends StatelessWidget {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: const Color(0xFFF7FAFB),
           borderRadius: BorderRadius.circular(8),
@@ -898,10 +1540,12 @@ class _EvidenciasSection extends StatelessWidget {
         GestureDetector(
           onTap: onToggle,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 10),
             child: Row(
               children: [
-                const Icon(Icons.image_outlined, size: 15, color: Color(0xFF5A7A83)),
+                const Icon(Icons.image_outlined,
+                    size: 15, color: Color(0xFF5A7A83)),
                 const SizedBox(width: 6),
                 const Expanded(
                   child: Text(
@@ -939,13 +1583,15 @@ class _EvidenciasSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7FAFB),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE2ECF0)),
+                      border: Border.all(
+                          color: const Color(0xFFE2ECF0)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(Icons.comment_outlined,
-                            size: 13, color: Color(0xFF5A7A83)),
+                            size: 13,
+                            color: Color(0xFF5A7A83)),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -978,4 +1624,16 @@ class _EvidenciasSection extends StatelessWidget {
       ],
     );
   }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+Color _colorFromHex(String? hex, Color fallback) {
+  if (hex == null || hex.isEmpty) return fallback;
+  try {
+    final h = hex.replaceAll('#', '');
+    if (h.length == 6) return Color(int.parse('FF$h', radix: 16));
+    if (h.length == 8) return Color(int.parse(h, radix: 16));
+  } catch (_) {}
+  return fallback;
 }

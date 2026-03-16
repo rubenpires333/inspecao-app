@@ -43,6 +43,37 @@ TipoItemChecklist tipoFromString(String? s) {
   }
 }
 
+// ─── Ação de opção de item ────────────────────────────────────────────────────
+
+/// Representa uma ação configurada numa opção do checklist.
+/// Ex: { "tipo": "tornar_obrigatorio", "parametros": { "plano_acao": true } }
+class AcaoOpcaoChecklist {
+  final String tipo;
+  final Map<String, dynamic> parametros;
+
+  const AcaoOpcaoChecklist({
+    required this.tipo,
+    required this.parametros,
+  });
+
+  factory AcaoOpcaoChecklist.fromJson(Map<String, dynamic> json) {
+    return AcaoOpcaoChecklist(
+      tipo: json['tipo']?.toString() ?? '',
+      parametros: (json['parametros'] as Map<String, dynamic>?) ?? {},
+    );
+  }
+
+  /// Retorna true se esta ação indica que é obrigatório criar um plano de ação
+  bool get requerPlanoAcao {
+    final tipo = this.tipo.toLowerCase();
+    if (tipo != 'tornar_obrigatorio') return false;
+    final planoAcao   = parametros['plano_acao'];
+    final obrigatorio = parametros['obrigatorio'];
+    return (planoAcao is bool && planoAcao) ||
+           (obrigatorio is bool && obrigatorio);
+  }
+}
+
 // ─── Opção de item ────────────────────────────────────────────────────────────
 
 class OpcaoItemChecklist {
@@ -53,6 +84,8 @@ class OpcaoItemChecklist {
   final int ordem;
   final String? cor;
   final double? pontuacao;
+  /// Ações configuradas para esta opção (ex: criar plano de ação obrigatório)
+  final List<AcaoOpcaoChecklist> acoes;
 
   const OpcaoItemChecklist({
     required this.id,
@@ -62,17 +95,33 @@ class OpcaoItemChecklist {
     required this.ordem,
     this.cor,
     this.pontuacao,
+    this.acoes = const [],
   });
 
+  /// Retorna true se alguma ação desta opção requer criação de plano de ação
+  bool get requerPlanoAcao =>
+      acoes.any((a) => a.requerPlanoAcao);
+
   factory OpcaoItemChecklist.fromJson(Map<String, dynamic> json) {
+    // Desserializar ações (pode vir como List ou ser null)
+    final acoesRaw = json['acoes'];
+    List<AcaoOpcaoChecklist> acoes = [];
+    if (acoesRaw is List) {
+      acoes = acoesRaw
+          .whereType<Map<String, dynamic>>()
+          .map(AcaoOpcaoChecklist.fromJson)
+          .toList();
+    }
+
     return OpcaoItemChecklist(
-      id:        json['id']?.toString()    ?? '',
+      id:        json['id']?.toString()     ?? '',
       itemId:    json['itemId']?.toString() ?? '',
       texto:     json['texto']?.toString()  ?? '',
       valor:     json['valor']?.toString(),
       ordem:     (json['ordem'] as num?)?.toInt() ?? 0,
       cor:       json['cor']?.toString(),
       pontuacao: (json['pontuacao'] as num?)?.toDouble(),
+      acoes:     acoes,
     );
   }
 }
@@ -252,20 +301,9 @@ class RespostaInspecaoCompleta {
       valorData:        json['valorData']?.toString(),
       valorDataHora:    json['valorDataHora']?.toString(),
       valorRating:      (json['valorRating'] as num?)?.toInt(),
-      latitude:         (json['latitude']  as num?)?.toDouble(),
+      latitude:         (json['latitude'] as num?)?.toDouble(),
       longitude:        (json['longitude'] as num?)?.toDouble(),
       observacoes:      json['observacoes']?.toString(),
     );
-  }
-
-  String get displayValue {
-    if (opcaoId != null && opcaoId!.isNotEmpty) return '(opção seleccionada)';
-    if (valorTexto  != null && valorTexto!.isNotEmpty) return valorTexto!;
-    if (valorNumero != null) return valorNumero.toString();
-    if (valorRating != null) return '$valorRating ⭐';
-    if (valorData   != null) return valorData!;
-    if (valorDataHora != null) return valorDataHora!;
-    if (latitude != null && longitude != null) return '$latitude, $longitude';
-    return '';
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:inspecao/models/checklist_secao.dart';
@@ -30,7 +31,6 @@ class InspectionChecklistTab extends StatefulWidget {
   final VoidCallback? onFinalizado;
 
   /// Callback chamado sempre que o progresso muda (total, respondidos)
-  /// Permite ao pai (InspectionDetailScreen) actualizar o badge da tab
   final void Function(int total, int respondidos)? onProgressoAtualizado;
 
   const InspectionChecklistTab({
@@ -72,6 +72,10 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
   // ── Concluir ─────────────────────────────────────────────────────────────
   bool _finalizando = false;
+
+  // ── Plano de ação em curso ───────────────────────────────────────────────
+  /// Itens com plano de ação a guardar (itemChecklistId → a processar)
+  final Set<String> _salvandoPlanoAcao = {};
 
   // ─── Contadores ──────────────────────────────────────────────────────────
 
@@ -152,12 +156,6 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   }
 
   // ─── Sync background ─────────────────────────────────────────────────────
-  //
-  // Corre a cada 30s. Faz merge silencioso das respostas:
-  //  · se o servidor tem uma versão mais recente (atualizadoEm posterior),
-  //    actualiza o mapa local — cobre o caso web + app simultâneos.
-  //  · não apaga respostas locais que ainda não chegaram ao servidor.
-  //  · nunca bloqueia a UI (sem setState durante operação, só no final).
 
   void _iniciarSync() {
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _syncRespostas());
@@ -165,97 +163,97 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
   Future<void> _syncRespostas() async {
     if (_syncing || !mounted) return;
-    _syncing = true;
-    if (mounted) setState(() {});   // mostra indicador de sync
-
+    setState(() => _syncing = true);
     try {
       final respostas = await _inspecaoService.getRespostas(widget.inspection.id);
       if (!mounted) return;
-
-      bool mudou = false;
-      final novo = Map<String, RespostaInspecaoCompleta>.from(_respostasMap);
-
-      for (final r in respostas) {
-        // Adiciona se ainda não existe localmente (adicionado via web por outro utilizador)
-        if (!novo.containsKey(r.itemChecklistId)) {
-          novo[r.itemChecklistId] = r;
-          mudou = true;
-        }
-        // Se já existe, mantém a versão local (pode estar mais recente — acabou de ser guardada)
-      }
-
-      if (mounted) {
+      final map = <String, RespostaInspecaoCompleta>{};
+      for (final r in respostas) map[r.itemChecklistId] = r;
       setState(() {
-        if (mudou) _respostasMap = novo;
-        _lastSync = DateTime.now();
+        _respostasMap = map;
         _syncing  = false;
+        _lastSync = DateTime.now();
       });
-      if (mudou) {
-        widget.onProgressoAtualizado?.call(_todosItens.length, _respostasMap.length);
-      }
-    }
+      widget.onProgressoAtualizado?.call(_todosItens.length, map.length);
     } catch (_) {
       if (mounted) setState(() => _syncing = false);
     }
   }
 
-  // ─── GPS / Rastreamento ───────────────────────────────────────────────────
+  // ─── GPS ──────────────────────────────────────────────────────────────────
 
-  Future<void> _iniciarGps() async {
-    final ok = await _gpsService.ensurePermissions();
-    if (!ok || !mounted) return;
-    if (mounted) setState(() => _gpsActivo = true);
-
-    await _gpsService.startTracking();
-
-    // Enviar ponto de rastreamento ao servidor a cada 30s
-    _trackingTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
-      final pos = _gpsService.lastPosition;
-      if (pos == null) return;
-      await _inspecaoService.registarPontoRastreamento(
-        widget.inspection.id,
-        pos.latitude, pos.longitude, pos.accuracy,
-      );
+  void _iniciarGps() {
+    _gpsService.startTracking();
+    _verificarLocalizacao();
+    _trackingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _enviarPontoRastreamento();
     });
-
-    // Ouvir posições localmente para UI
-    _gpsSub = _gpsService.positionStream.listen((_) {
-      if (!mounted) return;
-      setState(() {});
-    });
-
-    // Validação inicial
-    await _verificarLocalizacao();
   }
 
   Future<void> _verificarLocalizacao() async {
-    final lat = widget.inspection.latitude;
-    final lng = widget.inspection.longitude;
-    // latitude/longitude são double não-nullable; 0.0 significa não definido
-    if (lat == 0.0 || lng == 0.0) return;
-
+    final estLat = widget.inspection.latitude;
+    final estLng = widget.inspection.longitude;
+    if (estLat == 0.0 && estLng == 0.0) return;
     try {
-      final result = await _gpsService.validarLocalizacao(
-          estLat: lat, estLng: lng, raioMetros: 10);
+      final r = await _gpsService.validarLocalizacao(
+          estLat: estLat, estLng: estLng, raioMetros: 10);
       if (!mounted) return;
       setState(() {
-        _distanciaEstabelecimento = result.distanciaMetros;
-        _locationState = result.temLocalizacao
-            ? (result.dentroDoRaio ? _LocationState.dentro : _LocationState.fora)
+        _distanciaEstabelecimento = r.distanciaMetros;
+        _locationState = r.temLocalizacao
+            ? (r.dentroDoRaio ? _LocationState.dentro : _LocationState.fora)
             : _LocationState.desconhecido;
       });
     } catch (_) {}
   }
 
+  Future<void> _enviarPontoRastreamento() async {
+    final pos = _gpsService.lastPosition;
+    if (pos == null) return;
+    try {
+      await _inspecaoService.registarPontoRastreamento(
+          widget.inspection.id, pos.latitude, pos.longitude, pos.accuracy);
+    } catch (_) {}
+  }
+
   // ─── Guardar resposta ─────────────────────────────────────────────────────
 
+  /// Recebe o payload do [ChecklistItemField].
+  ///
+  /// Se o payload contiver `salvarPlanoAcao: true`, executa o fluxo completo:
+  ///   1. Guarda a resposta normal (se ainda não guardada)
+  ///   2. Aguarda o backend criar o item do plano de ação
+  ///   3. Actualiza as observações do item do plano de ação
+  ///   4. Faz upload das evidências (imagens)
+  ///
+  /// Caso contrário, apenas guarda a resposta.
   Future<void> _salvarResposta(Map<String, dynamic> payload) async {
+    final salvarPlanoAcao = payload['salvarPlanoAcao'] == true;
+    final itemChecklistId = payload['itemChecklistId']?.toString() ?? '';
+
+    // Remover campos específicos do plano antes de enviar ao backend de resposta
+    final payloadResposta = Map<String, dynamic>.from(payload)
+      ..remove('salvarPlanoAcao')
+      ..remove('observacoesPlanoAcao')
+      ..remove('evidenciasPlanoAcao');
+
     try {
       final r = await _inspecaoService.salvarResposta(
-          widget.inspection.id, payload);
+          widget.inspection.id, payloadResposta);
       if (mounted) {
         setState(() => _respostasMap[r.itemChecklistId] = r);
         widget.onProgressoAtualizado?.call(_todosItens.length, _respostasMap.length);
+      }
+
+      // Processar plano de ação se necessário
+      if (salvarPlanoAcao && r.id.isNotEmpty) {
+        await _processarPlanoAcao(
+          respostaId:          r.id,
+          itemChecklistId:     itemChecklistId,
+          observacoes:         payload['observacoesPlanoAcao']?.toString() ?? '',
+          evidenciasPaths:     (payload['evidenciasPlanoAcao'] as List?)
+                                   ?.cast<String>() ?? [],
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -267,6 +265,127 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         ));
       }
     }
+  }
+
+  // ─── Processamento do Plano de Ação ──────────────────────────────────────
+
+  /// Após guardar a resposta, busca o plano de ação criado pelo backend
+  /// (o backend cria automaticamente via ChecklistAcaoProcessadorService),
+  /// atualiza as observações e faz upload das evidências.
+  Future<void> _processarPlanoAcao({
+    required String respostaId,
+    required String itemChecklistId,
+    required String observacoes,
+    required List<String> evidenciasPaths,
+  }) async {
+    if (_salvandoPlanoAcao.contains(itemChecklistId)) return;
+    _salvandoPlanoAcao.add(itemChecklistId);
+
+    try {
+      // Mostrar indicador de progresso ao utilizador
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Row(children: [
+            SizedBox(
+              width: 16, height: 16,
+              child: CircularProgressIndicator(
+                  color: Colors.white, strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text('A guardar plano de ação...'),
+          ]),
+          duration: Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+
+      // Aguardar o backend processar o plano de ação (assíncrono no backend)
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      // Buscar o plano de ação criado para esta resposta
+      final plano = await _inspecaoService.buscarPlanoAcaoPorResposta(respostaId);
+
+      if (plano == null) {
+        AppLogger.log('⚠️ [ChecklistTab] plano de ação não encontrado para resposta $respostaId');
+        _mostrarSucessoPlanoAcao(somenteFeedback: true);
+        return;
+      }
+
+      // Encontrar o item do plano de ação que corresponde a esta resposta
+      final itens = (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final itemPlanoAcao = itens.firstWhere(
+        (i) => i['respostaInspecaoId']?.toString() == respostaId,
+        orElse: () => itens.isNotEmpty ? itens.first : <String, dynamic>{},
+      );
+
+      final itemPlanoAcaoId = itemPlanoAcao['id']?.toString() ?? '';
+      if (itemPlanoAcaoId.isEmpty) {
+        AppLogger.log('⚠️ [ChecklistTab] itemPlanoAcaoId não encontrado no plano');
+        _mostrarSucessoPlanoAcao(somenteFeedback: true);
+        return;
+      }
+
+      // 1. Atualizar observações do item do plano de ação
+      if (observacoes.isNotEmpty) {
+        await _inspecaoService.atualizarItemPlanoAcao(
+            itemPlanoAcaoId, observacoes);
+      }
+
+      // 2. Fazer upload das evidências (best-effort: não bloqueia se falhar)
+      for (final path in evidenciasPaths) {
+        try {
+          final file = File(path);
+          if (await file.exists()) {
+            await _inspecaoService.adicionarAnexoItemPlanoAcao(
+              itemPlanoAcaoId,
+              file,
+              descricao: 'Evidência capturada no mobile',
+            );
+          }
+        } catch (e) {
+          AppLogger.log('⚠️ [ChecklistTab] erro ao enviar evidência $path: $e');
+        }
+      }
+
+      _mostrarSucessoPlanoAcao(
+        totalEvidencias: evidenciasPaths.length,
+      );
+    } catch (e) {
+      AppLogger.log('⚠️ [ChecklistTab] erro ao processar plano de ação: $e');
+      // Não bloquear o utilizador — a resposta já foi guardada com sucesso
+      _mostrarSucessoPlanoAcao(somenteFeedback: true);
+    } finally {
+      _salvandoPlanoAcao.remove(itemChecklistId);
+    }
+  }
+
+  void _mostrarSucessoPlanoAcao({
+    int totalEvidencias = 0,
+    bool somenteFeedback = false,
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        const Icon(Icons.check_circle_rounded,
+            color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            somenteFeedback
+                ? 'Plano de ação registado com sucesso.'
+                : totalEvidencias > 0
+                    ? 'Plano de ação guardado com $totalEvidencias evidência(s).'
+                    : 'Plano de ação guardado com sucesso.',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      ]),
+      backgroundColor: _kSuccess,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
   // ─── Concluir ─────────────────────────────────────────────────────────────
@@ -412,7 +531,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
             const SizedBox(height: 8),
             Text(
-              '$pendentes ${pendentes == 1 ? "item ainda não foi respondido" : "itens ainda não foram respondidos"}.Deseja concluir mesmo assim?',
+              '$pendentes ${pendentes == 1 ? "item ainda não foi respondido" : "itens ainda não foram respondidos"}.\nDeseja concluir mesmo assim?',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: _kTextSecondary),
             ),
@@ -507,7 +626,6 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       );
     }
 
-    // Rascunho: mostrar checklist em preview + banner a pedir para iniciar
     final isRascunho = widget.inspection.status == InspectionStatus.rascunho;
 
     return Stack(
@@ -518,13 +636,11 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
             _ProgressBar(total: _totalItens, respondidos: _respondidos),
             const SizedBox(height: 8),
 
-            // Banner "Inicie a inspeção" quando em rascunho
             if (isRascunho) ...[
               _RascunhoBanner(),
               const SizedBox(height: 8),
             ],
 
-            // Barra GPS + sync (só quando pode editar)
             if (widget.canEdit) ...[
               _GpsStatusBar(
                 locationState: _locationState,
@@ -538,7 +654,6 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
               const SizedBox(height: 8),
             ],
 
-            // Seções (sempre visíveis, mas disabled em rascunho/concluída)
             for (final secao in _secoes) ...[
               _buildSecao(secao),
               const SizedBox(height: 8),
@@ -546,7 +661,6 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
           ],
         ),
 
-        // Botão Concluir fixo em baixo (só quando emAndamento E todos respondidos)
         if (widget.canEdit)
           Positioned(
             bottom: 0, left: 0, right: 0,
@@ -648,101 +762,74 @@ class _GpsStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gpsColor = locationState == _LocationState.dentro
+        ? _kSuccess
+        : locationState == _LocationState.fora
+            ? _kError
+            : _kTextSecondary;
+
+    final gpsIcon = locationState == _LocationState.dentro
+        ? Icons.location_on_rounded
+        : locationState == _LocationState.fora
+            ? Icons.location_off_rounded
+            : Icons.location_searching_rounded;
+
+    final gpsText = locationState == _LocationState.dentro
+        ? 'Dentro do raio'
+        : locationState == _LocationState.fora
+            ? 'Fora do raio${distancia != null ? ' (${distancia!.round()}m)' : ''}'
+            : temEstabelecimento
+                ? 'A verificar localização...'
+                : 'Sem coordenadas';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kBorder),
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder)),
       child: Row(
         children: [
-          _icon(),
-          const SizedBox(width: 8),
-          Expanded(child: _label()),
-          // Indicador de sync
+          Icon(gpsIcon, size: 16, color: gpsColor),
+          const SizedBox(width: 6),
+          Expanded(
+              child: Text(gpsText,
+                  style: TextStyle(
+                      fontSize: 11, color: gpsColor, fontWeight: FontWeight.w500))),
           if (syncing)
             const SizedBox(
-              width: 13, height: 13,
-              child: CircularProgressIndicator(strokeWidth: 1.5, color: _kPrimary),
-            )
-          else if (lastSync != null) ...[
-            Icon(Icons.sync_rounded, size: 12,
-                color: _kTextSecondary.withOpacity(0.6)),
-            const SizedBox(width: 2),
-            Text(_ago(lastSync!),
-                style: TextStyle(fontSize: 10,
-                    color: _kTextSecondary.withOpacity(0.6))),
-          ],
-          // Botão refresh localização
-          if (temEstabelecimento) ...[
-            const SizedBox(width: 6),
-            GestureDetector(
-              onTap: onRefresh,
-              child: Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                    color: _kPrimaryLight,
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.my_location_rounded,
-                    size: 14, color: _kPrimary),
-              ),
+                width: 14, height: 14,
+                child: CircularProgressIndicator(color: _kPrimary, strokeWidth: 1.5))
+          else if (lastSync != null)
+            Text(
+              'sync ${_hhmm(lastSync!)}',
+              style: const TextStyle(fontSize: 10, color: _kTextSecondary),
             ),
-          ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: onRefresh,
+            child: const Icon(Icons.refresh_rounded, size: 16, color: _kTextSecondary),
+          ),
         ],
       ),
     );
   }
 
-  Widget _icon() {
-    switch (locationState) {
-      case _LocationState.dentro:
-        return const Icon(Icons.location_on_rounded, size: 15, color: _kSuccess);
-      case _LocationState.fora:
-        return const Icon(Icons.location_off_rounded, size: 15, color: _kWarning);
-      case _LocationState.desconhecido:
-        return const Icon(Icons.location_searching_rounded,
-            size: 15, color: _kTextSecondary);
-    }
-  }
-
-  Widget _label() {
-    switch (locationState) {
-      case _LocationState.dentro:
-        return Text('No local (${distancia?.toStringAsFixed(0) ?? '~'}m)',
-            style: const TextStyle(
-                fontSize: 11, color: _kSuccess, fontWeight: FontWeight.w600));
-      case _LocationState.fora:
-        return Text(
-            'Fora do raio — ${distancia?.toStringAsFixed(0) ?? '?'}m (máx 10m)',
-            style: const TextStyle(
-                fontSize: 11, color: _kWarning, fontWeight: FontWeight.w600));
-      case _LocationState.desconhecido:
-        return const Text('A verificar localização...',
-            style: TextStyle(fontSize: 11, color: _kTextSecondary));
-    }
-  }
-
-  String _ago(DateTime dt) {
-    final d = DateTime.now().difference(dt);
-    if (d.inSeconds < 60) return 'agora';
-    if (d.inMinutes < 60) return '${d.inMinutes}m';
-    return '${d.inHours}h';
+  static String _hhmm(DateTime dt) {
+    final l = dt.toLocal();
+    return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
   }
 }
 
 // ─── _ConcluirBar ─────────────────────────────────────────────────────────────
 class _ConcluirBar extends StatelessWidget {
   final int respondidos, total;
-  final bool finalizando;
-  final bool todosRespondidos;
+  final bool finalizando, todosRespondidos;
   final VoidCallback onConcluir;
 
   const _ConcluirBar({
-    required this.respondidos,
-    required this.total,
-    required this.finalizando,
-    required this.todosRespondidos,
+    required this.respondidos, required this.total,
+    required this.finalizando, required this.todosRespondidos,
     required this.onConcluir,
   });
 
@@ -752,22 +839,16 @@ class _ConcluirBar extends StatelessWidget {
     final bloqueado  = finalizando;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: _kBorder)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06),
-              blurRadius: 8, offset: const Offset(0, -3)),
-        ],
-      ),
+          color: Colors.white,
+          border: Border(top: BorderSide(color: _kBorder))),
       child: SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Aviso visual quando há pendentes (não bloqueia, apenas informa)
-            if (!todosRespondidos && !finalizando && total > 0) ...[
+            if (!todosRespondidos && pendentes > 0) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -822,7 +903,6 @@ class _ConcluirBar extends StatelessWidget {
 }
 
 // ─── _RascunhoBanner ─────────────────────────────────────────────────────────
-/// Banner informativo que aparece na tab Checklist quando a inspeção está em rascunho
 class _RascunhoBanner extends StatelessWidget {
   const _RascunhoBanner();
 
@@ -935,8 +1015,10 @@ class _SecaoHeader extends StatelessWidget {
                   color: _kTextPrimary, letterSpacing: 0.3)),
         ),
         Icon(
-          isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-          size: 20, color: _kTextSecondary,
+          isExpanded
+              ? Icons.keyboard_arrow_up_rounded
+              : Icons.keyboard_arrow_down_rounded,
+          size: 18, color: _kTextSecondary,
         ),
       ]),
     ),
@@ -954,29 +1036,37 @@ class _SubsecaoHeader extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-          color: _kPrimaryLight.withOpacity(0.55),
+          color: _kPrimaryLight,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _kPrimary.withOpacity(0.25))),
+          border: Border.all(color: _kPrimary.withOpacity(0.2))),
       child: Row(children: [
+        Container(
+          width: 2, height: 14,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+              color: _kPrimary.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(2)),
+        ),
         Expanded(
           child: Text(titulo,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: _kTextPrimary)),
+                  fontSize: 11.5, fontWeight: FontWeight.w600,
+                  color: _kPrimary)),
         ),
         Icon(
-          isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-          size: 18, color: _kPrimary,
+          isExpanded
+              ? Icons.keyboard_arrow_up_rounded
+              : Icons.keyboard_arrow_down_rounded,
+          size: 16, color: _kPrimary,
         ),
       ]),
     ),
   );
 }
 
-// ─── Diálogos ─────────────────────────────────────────────────────────────────
-
+// ─── _AlertDlg ────────────────────────────────────────────────────────────────
 class _AlertDlg extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -992,34 +1082,50 @@ class _AlertDlg extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+    contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
     content: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 48, color: iconColor),
-      const SizedBox(height: 12),
-      Text(titulo, textAlign: TextAlign.center,
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
+        child: Icon(icon, size: 36, color: iconColor),
+      ),
+      const SizedBox(height: 16),
+      Text(titulo,
+          textAlign: TextAlign.center,
           style: const TextStyle(
               fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
       const SizedBox(height: 8),
-      Text(mensagem, textAlign: TextAlign.center,
+      Text(mensagem,
+          textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: _kTextSecondary)),
       const SizedBox(height: 20),
     ]),
     actions: [
       SizedBox(
         width: double.infinity,
-        child: TextButton(
-          onPressed: () { Navigator.pop(context); onConfirm?.call(); },
-          style: TextButton.styleFrom(
-              foregroundColor: _kPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 12)),
-          child: Text(confirmLabel,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onConfirm?.call();
+            },
+            style: FilledButton.styleFrom(
+                backgroundColor: iconColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            child: Text(confirmLabel,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 14)),
+          ),
         ),
       ),
     ],
   );
 }
 
+// ─── _LocationWarningDlg ──────────────────────────────────────────────────────
 class _LocationWarningDlg extends StatelessWidget {
   final double distancia;
   const _LocationWarningDlg({required this.distancia});
@@ -1027,17 +1133,22 @@ class _LocationWarningDlg extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+    contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
     content: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.location_off_rounded, size: 48, color: _kWarning),
-      const SizedBox(height: 12),
-      const Text('Fora do raio do estabelecimento',
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: _kError.withOpacity(0.1), shape: BoxShape.circle),
+        child: const Icon(Icons.location_off_rounded, size: 36, color: _kError),
+      ),
+      const SizedBox(height: 16),
+      const Text('Fora do local de inspeção',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
       const SizedBox(height: 8),
       Text(
-        'Está a ${distancia.toStringAsFixed(0)}m do estabelecimento '
-        '(raio permitido: 10m).\n\nDeseja continuar mesmo assim?',
+        'Está a ${distancia.round()}m do estabelecimento (raio permitido: 10m).\nDeseja concluir mesmo assim?',
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 13, color: _kTextSecondary),
       ),
@@ -1046,17 +1157,24 @@ class _LocationWarningDlg extends StatelessWidget {
     actions: [
       Row(children: [
         Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: _kTextSecondary)),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 16),
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continuar',
-                style: TextStyle(color: _kWarning, fontWeight: FontWeight.w700)),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16, bottom: 16),
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(backgroundColor: _kError),
+              child: const Text('Concluir mesmo assim',
+                  style: TextStyle(fontSize: 12)),
+            ),
           ),
         ),
       ]),
@@ -1064,44 +1182,54 @@ class _LocationWarningDlg extends StatelessWidget {
   );
 }
 
+// ─── _ConfirmDlg ──────────────────────────────────────────────────────────────
 class _ConfirmDlg extends StatelessWidget {
   const _ConfirmDlg();
 
   @override
   Widget build(BuildContext context) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+    contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
     content: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
-        padding: const EdgeInsets.all(14),
-        decoration: const BoxDecoration(color: _kSuccessLight, shape: BoxShape.circle),
-        child: const Icon(Icons.check_circle_outline_rounded,
-            size: 36, color: _kSuccess),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: _kPrimary.withOpacity(0.1), shape: BoxShape.circle),
+        child: const Icon(Icons.help_outline_rounded, size: 36, color: _kPrimary),
       ),
-      const SizedBox(height: 12),
-      const Text('Concluir Inspeção?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
-      const SizedBox(height: 8),
-      const Text('Após concluir não será possível editar as respostas.',
+      const SizedBox(height: 16),
+      const Text('Concluir inspeção?',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: _kTextSecondary)),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
+      const SizedBox(height: 8),
+      const Text(
+        'Após concluir não poderá alterar as respostas. Tem a certeza?',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 13, color: _kTextSecondary),
+      ),
       const SizedBox(height: 20),
     ]),
     actions: [
       Row(children: [
         Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: _kTextSecondary)),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 16),
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: _kSuccess),
-            child: const Text('Sim, concluir',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16, bottom: 16),
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(backgroundColor: _kPrimary),
+              child: const Text('Concluir'),
+            ),
           ),
         ),
       ]),
