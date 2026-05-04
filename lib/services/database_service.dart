@@ -263,6 +263,20 @@ class DatabaseService {
     }
   }
 
+  /// Quando o servidor devolve lista vazia de inspeções ativas, remove o espelho antigo
+  /// (evita mostrar inspeções de outra sessão). Preserva rascunhos offline (`serverId` nulo).
+  Future<int> softDeleteServerMirroredInspections() async {
+    try {
+      final n = await _database.softDeleteInspecoesEspelhadasDoServidor();
+      print(
+          '🗑️ Espelho servidor: $n inspeção(ões) com server_id foram marcadas como removidas');
+      return n;
+    } catch (e) {
+      print('Erro ao limpar espelho de inspeções do servidor: $e');
+      rethrow;
+    }
+  }
+
   /// Atualiza inspeção no banco local
   Future<void> updateInspection(Inspection inspection) async {
     try {

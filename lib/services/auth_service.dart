@@ -232,10 +232,12 @@ class AuthService {
       role = UserRole.gestor;
     } else if (rolesString.contains('ROLE_SUPERVISOR')) {
       role = UserRole.supervisor;
-    } else if (rolesString.contains('ROLE_INSPETOR') || rolesString.contains('INSPETOR')) {
+    } else if (rolesString.contains('ROLE_INSPETOR') ||
+        rolesString.contains('INSPETOR') ||
+        rolesString.contains('ROLE_TECNICO') ||
+        rolesString.contains('TECNICO')) {
       role = UserRole.inspetor;
     }
-    // ROLE_TECNICO não é suportado nesta aplicação
 
     return User(
       id: userData['id']?.toString() ?? '',

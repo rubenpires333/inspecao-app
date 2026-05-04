@@ -777,7 +777,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         child: _ActionButton(
           label: 'Iniciar Inspeção',
           icon: Icons.play_circle_fill_rounded,
-          color: _kSuccess,
+          color: _kPrimary,
           loading: _isLoading,
           onPressed: () =>
               _updateInspectionStatus(InspectionStatus.emAndamento),

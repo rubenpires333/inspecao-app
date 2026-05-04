@@ -121,6 +121,17 @@ class AppDatabase extends _$AppDatabase {
   Future<int> deleteInspecaoPermanente(String id) => 
       (delete(inspecoes)..where((t) => t.id.equals(id))).go();
 
+  /// Inspeções criadas offline mantêm `server_id` nulo até sincronizar — não são afetadas.
+  Future<int> softDeleteInspecoesEspelhadasDoServidor() =>
+      (update(inspecoes)
+            ..where((t) => t.serverId.isNotNull() & t.isDeleted.equals(false)))
+          .write(
+        InspecoesCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
   /// DAO para Respostas de Inspeção
   Future<List<RespostasInspecaoData>> getRespostasByInspecao(String inspecaoId) => 
       (select(respostasInspecao)..where((t) => t.inspecaoId.equals(inspecaoId))..orderBy([(t) => OrderingTerm(expression: t.ordem)])).get();

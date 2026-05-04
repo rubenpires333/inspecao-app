@@ -83,9 +83,9 @@ class DataService {
         apiService.setAuthToken(token);
       }
       
-      // Buscar inspeções da API
+      // Buscar inspeções da API (mesmo critério que /minhas — ver MobileInspecaoController)
       final data = await apiService.getInspecoesAtivas();
-      
+
       if (data.isNotEmpty) {
         // Converter resposta da API para formato do modelo
         final apiInspections = data.map((json) {
@@ -101,6 +101,18 @@ class DataService {
         // Retornar dados atualizados do banco local
         return await _dbService.getInspections();
       }
+
+      // Lista vazia com sucesso: alinhar SQLite ao servidor (senão ficam linhas de outro utilizador)
+      final removed = await _dbService.softDeleteServerMirroredInspections();
+      print(
+          '📭 GET /api/v1/mobile/inspecoes/ativas retornou []; espelho limpo ($removed removidas).');
+      final refreshed = await _dbService.getInspections();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _inspectionsKey,
+        json.encode(refreshed.map((i) => i.toJson()).toList()),
+      );
+      return refreshed;
     } on DioException catch (e) {
       // Se erro de rede, retornar dados locais (modo offline)
       print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
@@ -118,9 +130,6 @@ class DataService {
       }
       throw Exception('Erro ao buscar inspeções: $e');
     }
-    
-    // Se não houver dados nem locais nem da API, retornar vazio
-    return localInspections;
   }
   
   // Mapear resposta da API para formato do modelo
@@ -261,6 +270,11 @@ class DataService {
     
     // Salvar no banco local primeiro (offline-first)
     await _dbService.saveInspection(inspection);
+    
+    // Já criada no servidor (ex.: fluxo online em create_inspection_screen)
+    if (inspection.isSynced && inspection.serverId != null && inspection.serverId!.isNotEmpty) {
+      return;
+    }
     
     // Tentar sincronizar com servidor em background (se online)
     _syncInspectionToServer(inspection).catchError((e) {
@@ -632,7 +646,9 @@ class DataService {
   }
 
   // Método para obter inspeções filtradas por role do usuário - OFFLINE-FIRST
-  // Para home screen - retorna apenas inspeções do inspetor logado (status ativos)
+  /// Lista inspeções visíveis para o utilizador (equipa / supervisor / inspetor designado).
+  /// O filtro é aplicado no servidor em `/api/v1/mobile/inspecoes/ativas` — não filtrar aqui por
+  /// `inspectorId` (o perfil usa UUID da BD; a API usa inspetorKeycloakId / equipas).
   Future<List<Inspection>> getInspectionsForUser(User user) async {
     await _ensureDbInitialized();
     
@@ -640,11 +656,6 @@ class DataService {
     List<Inspection> localInspections = [];
     try {
       localInspections = await _dbService.getInspections();
-      
-      // Filtrar por inspetor se necessário
-      if (user.role == UserRole.inspetor) {
-        localInspections = localInspections.where((i) => i.inspectorId == user.id).toList();
-      }
     } catch (e) {
       print('Erro ao buscar inspeções do banco local: $e');
     }
@@ -662,16 +673,9 @@ class DataService {
         apiService.setAuthToken(token);
       }
       
-      List<Map<String, dynamic>> data;
-      
-      // Para inspetores, usar endpoint mobile específico
-      if (user.role == UserRole.inspetor) {
-        data = await apiService.getMinhasInspecoesAtivas();
-      } else {
-        // Para outros roles, usar endpoint de todas as ativas
-        data = await apiService.getInspecoesAtivas();
-      }
-      
+      // Mesmo critério para todos os perfis mobile (equivalente a /minhas)
+      final data = await apiService.getInspecoesAtivas();
+
       if (data.isNotEmpty) {
         // Converter resposta da API
         final apiInspections = data.map((json) {
@@ -686,13 +690,19 @@ class DataService {
           await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
         }
         
-        // Retornar dados atualizados do banco local (filtrados se necessário)
-        final allInspections = await _dbService.getInspections();
-        if (user.role == UserRole.inspetor) {
-          return allInspections.where((i) => i.inspectorId == user.id).toList();
-        }
-        return allInspections;
+        return await _dbService.getInspections();
       }
+
+      final removed = await _dbService.softDeleteServerMirroredInspections();
+      print(
+          '📭 GET /api/v1/mobile/inspecoes/ativas retornou []; espelho limpo ($removed removidas).');
+      final refreshed = await _dbService.getInspections();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _inspectionsKey,
+        json.encode(refreshed.map((i) => i.toJson()).toList()),
+      );
+      return refreshed;
     } on DioException catch (e) {
       // Se erro de rede, retornar dados locais (modo offline)
       print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
@@ -710,9 +720,6 @@ class DataService {
       }
       throw Exception('Erro ao buscar inspeções: $e');
     }
-    
-    // Retornar dados locais (modo offline)
-    return localInspections;
   }
 
   // Método para verificar se usuário pode criar inspeção

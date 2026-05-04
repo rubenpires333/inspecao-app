@@ -314,13 +314,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDashboard() {
     // Filtrar inspeções do inspetor se necessário e excluir Finalizadas e Concluídas
-    final filteredInspections = (_currentUser?.role == UserRole.inspetor
-        ? _inspections.where((i) => i.inspectorId == _currentUser!.id).toList()
-        : _inspections)
-        .where((i) => 
-            i.status != InspectionStatus.finalizada && 
-            i.status != InspectionStatus.concluida
-        ).toList();
+    // Visibilidade já vem filtrada da API (equipa / supervisor / inspetor designado)
+    final filteredInspections = _inspections
+        .where((i) =>
+            i.status != InspectionStatus.finalizada &&
+            i.status != InspectionStatus.concluida)
+        .toList();
     
     // Calcular contadores usando os novos status do backend
 

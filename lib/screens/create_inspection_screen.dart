@@ -333,25 +333,22 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
       final horaInicio =
           '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
 
+      // Mesmos campos que o backoffice web (inspecao-nova): o backend preenche localização a partir do estabelecimento.
       final requestData = <String, dynamic>{
         'checklistId': _selectedChecklist!.id,
         'estabelecimentoId': _selectedEstablishment!.id,
         'equipeId': _selectedEquipe!.id,
         'dataInspecao': dataInspecao,
         'horaInicio': horaInicio,
-        if (_selectedEstablishment!.latitude != 0)
-          'latitude': _selectedEstablishment!.latitude,
-        if (_selectedEstablishment!.longitude != 0)
-          'longitude': _selectedEstablishment!.longitude,
-        if (_selectedEstablishment!.endereco.isNotEmpty)
-          'enderecoCompleto': _selectedEstablishment!.endereco,
       };
 
       final response = await _apiService.createInspectionMobile(requestData);
       final serverId = response['id']?.toString();
 
-      // Guardar localmente com serverId já preenchido (sincronizado)
+      // Usar o ID do servidor como chave local evita duplicar a inspeção quando a lista é
+      // atualizada a partir da API (antes ficava uma linha com id temporário e outra com UUID).
       final syncedInspection = inspection.copyWith(
+        id: serverId ?? inspection.id,
         serverId: serverId,
         isSynced: true,
       );

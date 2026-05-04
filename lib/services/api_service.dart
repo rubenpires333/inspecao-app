@@ -69,8 +69,7 @@ class ApiService {
   }
 
 
-  /// Busca minhas inspeções ativas (do inspetor logado) - para home screen
-  /// Retorna apenas inspeções com status RASCUNHO, EM_ANDAMENTO ou POR_VERIFICAR
+  /// Alias de [getInspecoesAtivas] (`GET .../minhas` — mesmo critério no servidor).
   Future<List<Map<String, dynamic>>> getMinhasInspecoesAtivas() async {
     final response = await _dio.get('/api/v1/mobile/inspecoes/minhas');
     if (response.data is List) {
@@ -79,8 +78,7 @@ class ApiService {
     return [];
   }
 
-  /// Busca todas as inspeções ativas - para tela "Ver Todas Inspeções"
-  /// Retorna todas as inspeções com status RASCUNHO, EM_ANDAMENTO ou POR_VERIFICAR
+  /// Inspeções em curso visíveis para o utilizador (equipa / supervisor / inspetor designado).
   Future<List<Map<String, dynamic>>> getInspecoesAtivas() async {
     final response = await _dio.get('/api/v1/mobile/inspecoes/ativas');
     if (response.data is List) {

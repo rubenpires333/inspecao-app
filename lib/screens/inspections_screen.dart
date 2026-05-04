@@ -82,11 +82,6 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
           await _dbService.initialize();
           inspections = await _dbService.getInspections();
           
-          // Filtrar por inspetor se necessário
-          if (user.role == UserRole.inspetor) {
-            inspections = inspections.where((i) => i.inspectorId == user.id).toList();
-          }
-          
           // Carregar estabelecimentos do banco local
           try {
             final establishments = await _dbService.getEstablishments();
