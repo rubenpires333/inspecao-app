@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inspecao/models/checklist_secao.dart';
+import 'package:inspecao/services/inspecao_service.dart';
+import 'package:inspecao/utils/app_logger.dart';
+import 'package:open_file/open_file.dart';
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const _kPrimary        = Color(0xFF18778A);
@@ -21,6 +24,15 @@ const _kWarning        = Color(0xFFF59E0B);
 const _kWarningLight   = Color(0xFFFFFBEB);
 const _kNaoObservavel  = Color(0xFF9CA3AF);
 
+class _AnexoPlanoServidor {
+  const _AnexoPlanoServidor({
+    required this.id,
+    required this.nome,
+  });
+  final String id;
+  final String nome;
+}
+
 /// Widget que renderiza um item do checklist conforme o seu tipo,
 /// com o visual da app mobile (botões grandes, ícone de relógio, evidências).
 ///
@@ -33,12 +45,17 @@ class ChecklistItemField extends StatefulWidget {
   final bool enabled;
   final void Function(Map<String, dynamic> payload)? onSave;
 
+  /// Muda quando o utilizador volta ao separador Checklist (repõe dados do plano a partir da API).
+  /// Não deve mudar em cada sincronização em fundo — só sobrescreveria o texto em edição.
+  final String planoHydrateKey;
+
   const ChecklistItemField({
     super.key,
     required this.item,
     this.resposta,
     this.enabled = false,
     this.onSave,
+    this.planoHydrateKey = '',
   });
 
   @override
@@ -64,11 +81,23 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   /// Controla se o painel de plano de ação está expandido
   bool _planoAcaoExpanded = true;
 
-  /// Evidências (imagens) adicionadas localmente para o plano de ação
-  List<XFile> _evidenciasPlanoAcao = [];
+  /// Evidências (ficheiros locais) a enviar no próximo «Salvar Plano de Ação».
+  List<XFile> _evidenciasPlanoLocais = [];
+
+  /// Anexos já guardados no servidor (mostrados com link «Ver»).
+  List<_AnexoPlanoServidor> _anexosPlanoServidor = [];
+
+  /// IDs de anexos do servidor que o utilizador removeu da lista (DELETE no guardar).
+  final Set<String> _anexosServidorRemovidosIds = {};
 
   /// Flag: já foi inicializado com resposta existente (evita reset em re-renders)
   bool _initialized = false;
+
+  /// Evita hidratar por cima do texto que o inspetor está a escrever.
+  final FocusNode _focusObsPlano = FocusNode();
+
+  /// Evita pedidos repetidos ao servidor para o mesmo par (resposta + versão dos dados).
+  String? _planoHidroCacheKey;
 
   final _imagePicker = ImagePicker();
 
@@ -80,6 +109,8 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     _obsPlanoAcaoCtrl = TextEditingController();
     _syncFromResposta(widget.resposta);
     _initialized = true;
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _hidroPlanoDoServidorIfNeeded());
   }
 
   @override
@@ -95,12 +126,17 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     // Primeira vez que chega uma resposta (antes era null) → sincronizar tudo
     if (antigaResposta == null) {
       _syncFromResposta(novaResposta);
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _hidroPlanoDoServidorIfNeeded());
       return;
     }
 
     // A resposta mudou de ID (item diferente) → sincronizar tudo
     if (novaResposta.id != antigaResposta.id) {
       _syncFromResposta(novaResposta);
+      _planoHidroCacheKey = null;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _hidroPlanoDoServidorIfNeeded());
       return;
     }
 
@@ -153,10 +189,17 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
         _obsPlanoAcaoCtrl.text.isEmpty) {
       _obsPlanoAcaoCtrl.text = novaResposta.observacoes!;
     }
+
+    if (widget.planoHydrateKey != old.planoHydrateKey &&
+        !_focusObsPlano.hasFocus) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _hidroPlanoDoServidorIfNeeded());
+    }
   }
 
   @override
   void dispose() {
+    _focusObsPlano.dispose();
     _textCtrl.dispose();
     _numCtrl.dispose();
     _obsPlanoAcaoCtrl.dispose();
@@ -180,6 +223,73 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     }
   }
 
+  /// Observações e anexos do plano vivem no item do plano (API), não só em `RespostaInspecao`.
+  Future<void> _hidroPlanoDoServidorIfNeeded() async {
+    final r = widget.resposta;
+    if (r == null || r.id.isEmpty) return;
+    if (!_mostrarPlanoAcao) return;
+    if (_focusObsPlano.hasFocus) return;
+
+    final cacheKey = '${r.id}@${widget.planoHydrateKey}';
+    if (_planoHidroCacheKey == cacheKey) return;
+
+    try {
+      final svc = InspecaoService();
+      final plano = await svc.buscarPlanoAcaoPorResposta(r.id);
+      if (!mounted || _focusObsPlano.hasFocus) return;
+
+      if (plano == null) {
+        setState(() => _planoHidroCacheKey = cacheKey);
+        return;
+      }
+
+      final itens =
+          (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      Map<String, dynamic>? itemMap;
+      for (final i in itens) {
+        if (i['respostaInspecaoId']?.toString() == r.id) {
+          itemMap = i;
+          break;
+        }
+      }
+      itemMap ??= itens.isNotEmpty ? itens.first : null;
+      final itemId = itemMap?['id']?.toString();
+      if (itemId == null || itemId.isEmpty) {
+        if (mounted) setState(() => _planoHidroCacheKey = cacheKey);
+        return;
+      }
+
+      final item = await svc.buscarItemPlanoAcao(itemId);
+      if (!mounted || _focusObsPlano.hasFocus) return;
+
+      final obs = item['observacoes']?.toString();
+      if (obs != null && obs.isNotEmpty) {
+        _obsPlanoAcaoCtrl.text = obs;
+      }
+
+      final anexos = (item['anexos'] as List?) ?? [];
+      final servidor = <_AnexoPlanoServidor>[];
+      for (final a in anexos) {
+        if (a is! Map<String, dynamic>) continue;
+        final id = a['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+        final nome = a['nomeArquivo']?.toString() ?? 'evidência';
+        servidor.add(_AnexoPlanoServidor(id: id, nome: nome));
+      }
+
+      if (!mounted || _focusObsPlano.hasFocus) return;
+      setState(() {
+        _anexosPlanoServidor = servidor;
+        _anexosServidorRemovidosIds.clear();
+        _evidenciasPlanoLocais = [];
+        _planoHidroCacheKey = cacheKey;
+      });
+    } catch (e, st) {
+      AppLogger.error('[ChecklistItemField] hidratar plano', e, st);
+      if (mounted) setState(() => _planoHidroCacheKey = cacheKey);
+    }
+  }
+
   // ─── Detecção de plano de ação ────────────────────────────────────────────
 
   /// Retorna a opção actualmente selecionada que requer plano de ação,
@@ -196,6 +306,13 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   }
 
   bool get _mostrarPlanoAcao => _opcaoComPlanoAcao != null;
+
+  int get _anexosServidorVisiveis => _anexosPlanoServidor
+      .where((a) => !_anexosServidorRemovidosIds.contains(a.id))
+      .length;
+
+  int get _totalEvidenciasPlanoVisiveis =>
+      _evidenciasPlanoLocais.length + _anexosServidorVisiveis;
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
@@ -359,6 +476,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: _obsPlanoAcaoCtrl,
+                    focusNode: _focusObsPlano,
                     enabled: widget.enabled,
                     maxLines: 4,
                     minLines: 3,
@@ -390,7 +508,8 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                           borderSide:
                               const BorderSide(color: _kBorder)),
                     ),
-                    onChanged: (_) => _emitPlanoAcaoPayload(),
+                    // Não chamar onSave aqui: cada tecla gerava POST à API e bloqueava o servidor.
+                    onChanged: (_) => setState(() {}),
                   ),
 
                   const SizedBox(height: 12),
@@ -415,13 +534,24 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                   ),
                   const SizedBox(height: 6),
 
-                  // Grid de imagens adicionadas
-                  if (_evidenciasPlanoAcao.isNotEmpty) ...[
+                  // Anexos já no servidor (evitar download; abrir com «Ver»)
+                  if (_anexosServidorVisiveis > 0) ...[
+                    ..._anexosPlanoServidor
+                        .where((x) =>
+                            !_anexosServidorRemovidosIds.contains(x.id))
+                        .map((a) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: _buildAnexoServidorRow(a),
+                            )),
+                  ],
+
+                  // Miniaturas de ficheiros locais (ainda não enviados)
+                  if (_evidenciasPlanoLocais.isNotEmpty) ...[
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        ..._evidenciasPlanoAcao
+                        ..._evidenciasPlanoLocais
                             .asMap()
                             .entries
                             .map((e) => _buildEvidenciaThumbnail(
@@ -433,13 +563,13 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                     const SizedBox(height: 10),
                   ],
 
-                  // Botões de adicionar (quando lista vazia)
-                  if (_evidenciasPlanoAcao.isEmpty && widget.enabled)
+                  // Botões de adicionar (quando lista local vazia)
+                  if (_evidenciasPlanoLocais.isEmpty && widget.enabled)
                     _buildBotoesEvidencia(),
 
                   // Aviso quando desabilitado e sem evidências
                   if (!widget.enabled &&
-                      _evidenciasPlanoAcao.isEmpty &&
+                      _totalEvidenciasPlanoVisiveis == 0 &&
                       (widget.resposta?.observacoes == null ||
                           widget.resposta!.observacoes!.isEmpty))
                     const Text(
@@ -482,6 +612,197 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     );
   }
 
+  Widget _buildAnexoServidorRow(_AnexoPlanoServidor a) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.attach_file_rounded,
+              size: 18, color: _kPrimary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              a.nome,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: _kTextPrimary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _verAnexoServidorComPreview(a),
+            child: const Text('Ver'),
+          ),
+          if (widget.enabled)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: _kError,
+              onPressed: () => setState(
+                  () => _anexosServidorRemovidosIds.add(a.id)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// GET `/api/v1/itens-plano-acao/anexos/{id}/download` e pré-visualização em ecrã completo
+  /// (igual às evidências locais: zoom + fechar).
+  Future<void> _verAnexoServidorComPreview(_AnexoPlanoServidor a) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'A carregar evidência…',
+                  style: TextStyle(color: _kTextPrimary, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final svc = InspecaoService();
+      final file = await svc.downloadAnexoPlanoAcao(
+        a.id,
+        filename: a.nome,
+      );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      _abrirPreviewFicheiroPlanoDescarregado(file, titulo: a.nome);
+    } catch (e, st) {
+      AppLogger.error('[ChecklistItemField] Ver anexo plano (download)', e, st);
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível carregar a evidência: $e'),
+            backgroundColor: _kError,
+          ),
+        );
+      }
+    }
+  }
+
+  void _abrirPreviewFicheiroPlanoDescarregado(File file, {required String titulo}) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(ctx),
+              child: const SizedBox.expand(
+                child: ColoredBox(color: Colors.transparent),
+              ),
+            ),
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      file,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        constraints: const BoxConstraints(maxWidth: 320),
+                        padding: const EdgeInsets.all(24),
+                        color: _kSurface,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.insert_drive_file_rounded,
+                                size: 56, color: _kTextSecondary),
+                            const SizedBox(height: 12),
+                            Text(
+                              titulo,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: _kTextPrimary, fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                await OpenFile.open(file.path);
+                              },
+                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                              label: const Text('Abrir ficheiro'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 40,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  titulo,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEvidenciaThumbnail(int index, XFile file) {
     return Stack(
       children: [
@@ -512,8 +833,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
             right: 2,
             child: GestureDetector(
               onTap: () {
-                setState(() => _evidenciasPlanoAcao.removeAt(index));
-                _emitPlanoAcaoPayload();
+                setState(() => _evidenciasPlanoLocais.removeAt(index));
               },
               child: Container(
                 decoration: const BoxDecoration(
@@ -598,8 +918,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                 child: GestureDetector(
                   onTap: () {
                     Navigator.pop(ctx);
-                    setState(() => _evidenciasPlanoAcao.removeAt(index));
-                    _emitPlanoAcaoPayload();
+                    setState(() => _evidenciasPlanoLocais.removeAt(index));
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -636,7 +955,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 6),
                 child: Text(
-                  '${index + 1} / ${_evidenciasPlanoAcao.length}',
+                  '${index + 1} / ${_evidenciasPlanoLocais.length}',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -760,8 +1079,8 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
         maxHeight: 1920,
       );
       if (file != null) {
-        setState(() => _evidenciasPlanoAcao.add(file));
-        _emitPlanoAcaoPayload();
+        // Apenas estado local; envio ao servidor só em «Salvar Plano de Ação».
+        setState(() => _evidenciasPlanoLocais.add(file));
       }
     } catch (e) {
       if (mounted) {
@@ -775,35 +1094,27 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     }
   }
 
-  void _emitPlanoAcaoPayload() {
-    // Incluir dados do plano de ação no payload ao emitir
-    _emitPayloadWith({
-      if (_selectedOpcaoId != null) 'opcaoId': _selectedOpcaoId,
-      'observacoesPlanoAcao': _obsPlanoAcaoCtrl.text,
-      'evidenciasPlanoAcao':
-          _evidenciasPlanoAcao.map((f) => f.path).toList(),
-    });
-  }
-
   void _onSalvarPlanoAcao() {
     final obs = _obsPlanoAcaoCtrl.text.trim();
-    if (obs.isEmpty) {
+    final temAlgumaEvidencia = _totalEvidenciasPlanoVisiveis > 0;
+    if (obs.isEmpty && !temAlgumaEvidencia) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Preencha as observações do plano de ação antes de guardar.'),
+              'Preencha as observações ou associe pelo menos uma evidência.'),
           backgroundColor: _kWarning,
         ),
       );
       return;
     }
-    // Emitir payload com flag explícita de guardar plano de ação
     widget.onSave?.call({
       'itemChecklistId': widget.item.id,
       if (_selectedOpcaoId != null) 'opcaoId': _selectedOpcaoId,
       'observacoesPlanoAcao': obs,
       'evidenciasPlanoAcao':
-          _evidenciasPlanoAcao.map((f) => f.path).toList(),
+          _evidenciasPlanoLocais.map((f) => f.path).toList(),
+      'anexosPlanoServidorRemovidosIds':
+          _anexosServidorRemovidosIds.toList(),
       'salvarPlanoAcao': true,
     });
   }

@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/models/checklist_secao.dart';
 import 'package:inspecao/models/inspection.dart';
+import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/services/gps_service.dart';
 import 'package:inspecao/services/inspecao_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
 import 'package:inspecao/widgets/checklist_item_field.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const _kPrimary       = Color(0xFF18778A);
@@ -27,6 +31,13 @@ class InspectionChecklistTab extends StatefulWidget {
   final Inspection inspection;
   final bool canEdit;
 
+  /// Incrementado no ecrã pai sempre que o utilizador abre o separador Checklist
+  /// (força repovoar observações/evidências do plano a partir do servidor).
+  final int checklistTabVisitToken;
+
+  /// Quando falso, o separador Checklist não está visível — pára GPS/rastreamento API.
+  final bool isChecklistTabActive;
+
   /// Callback chamado após finalizar com sucesso (para o pai actualizar)
   final VoidCallback? onFinalizado;
 
@@ -37,6 +48,8 @@ class InspectionChecklistTab extends StatefulWidget {
     super.key,
     required this.inspection,
     required this.canEdit,
+    this.checklistTabVisitToken = 0,
+    this.isChecklistTabActive = true,
     this.onFinalizado,
     this.onProgressoAtualizado,
   });
@@ -69,6 +82,12 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   bool      _gpsActivo = false;
   _LocationState _locationState   = _LocationState.desconhecido;
   double?   _distanciaEstabelecimento;
+
+  /// Sessão `/api/v1/rastreamento/iniciar` já chamada nesta visita ao separador.
+  bool _rastreamentoApiIniciadoNestaVisita = false;
+
+  /// Erro ao iniciar rastreamento (ex.: inspetor em falta).
+  String? _rastreamentoErro;
 
   // ── Concluir ─────────────────────────────────────────────────────────────
   bool _finalizando = false;
@@ -103,7 +122,19 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     _loadChecklistItens();
     if (widget.canEdit) {
       _iniciarSync();
-      _iniciarGps();
+    }
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _ajustarRastreamentoAoSeparador());
+  }
+
+  @override
+  void didUpdateWidget(covariant InspectionChecklistTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isChecklistTabActive != widget.isChecklistTabActive ||
+        oldWidget.canEdit != widget.canEdit ||
+        oldWidget.inspection.id != widget.inspection.id) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _ajustarRastreamentoAoSeparador());
     }
   }
 
@@ -112,7 +143,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     _syncTimer?.cancel();
     _trackingTimer?.cancel();
     _gpsSub?.cancel();
-    _gpsService.stopTracking();
+    _pararFluxoRastreamentoChecklist();
     super.dispose();
   }
 
@@ -180,14 +211,94 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     }
   }
 
-  // ─── GPS ──────────────────────────────────────────────────────────────────
+  // ─── GPS / Rastreamento API (como backoffice: iniciar → registos periódicos → finalizar) ───
 
-  void _iniciarGps() {
+  void _ajustarRastreamentoAoSeparador() {
+    if (!mounted) return;
+    if (!widget.canEdit || !widget.isChecklistTabActive) {
+      _pararFluxoRastreamentoChecklist();
+      return;
+    }
+    unawaited(_iniciarFluxoRastreamentoChecklist());
+  }
+
+  Future<String?> _resolverInspetorUuid() async {
+    final fromInspection = widget.inspection.inspectorId;
+    if (fromInspection != null && fromInspection.isNotEmpty) {
+      return fromInspection;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final api = ApiService();
+    if (api.baseUrl == null) {
+      api.initialize(baseUrl: AppConfig.apiBaseUrl);
+    }
+    final auth = AuthService(api, prefs);
+    final u = await auth.getCurrentUser();
+    return u?.id;
+  }
+
+  Future<void> _garantirIniciarRastreamentoApi() async {
+    if (_rastreamentoApiIniciadoNestaVisita) return;
+    final inspetor = await _resolverInspetorUuid();
+    if (inspetor == null) {
+      if (mounted) {
+        setState(() => _rastreamentoErro =
+            'Rastreamento em tempo real indisponível: inspetor não identificado.');
+      }
+      return;
+    }
+    try {
+      await _inspecaoService.iniciarRastreamentoSessao(
+        inspecaoId: widget.inspection.id,
+        inspetorId: inspetor,
+      );
+      if (mounted) {
+        setState(() {
+          _rastreamentoApiIniciadoNestaVisita = true;
+          _rastreamentoErro = null;
+        });
+      }
+    } catch (e) {
+      AppLogger.log('⚠️ [ChecklistTab] iniciar rastreamento API: $e');
+      if (mounted) {
+        setState(() => _rastreamentoErro =
+            'Não foi possível iniciar o rastreamento no servidor.');
+      }
+    }
+  }
+
+  Future<void> _iniciarFluxoRastreamentoChecklist() async {
+    if (!widget.canEdit || !widget.isChecklistTabActive || !mounted) return;
+
+    final ok = await _gpsService.ensurePermissions();
+    if (!ok) {
+      if (mounted) {
+        setState(() => _rastreamentoErro =
+            'Permissão de localização necessária para o rastreamento.');
+      }
+      return;
+    }
+
     _gpsService.startTracking();
-    _verificarLocalizacao();
+    await _verificarLocalizacao();
+    await _garantirIniciarRastreamentoApi();
+    if (!_rastreamentoApiIniciadoNestaVisita) {
+      return;
+    }
+
+    _trackingTimer?.cancel();
     _trackingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) _enviarPontoRastreamento();
+      if (mounted) unawaited(_enviarPontoRastreamento());
     });
+    await _enviarPontoRastreamento();
+  }
+
+  void _pararFluxoRastreamentoChecklist() {
+    _trackingTimer?.cancel();
+    _trackingTimer = null;
+    unawaited(_inspecaoService.finalizarRastreamentoSessao(widget.inspection.id));
+    _gpsService.stopTracking();
+    _rastreamentoApiIniciadoNestaVisita = false;
   }
 
   Future<void> _verificarLocalizacao() async {
@@ -210,10 +321,15 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   Future<void> _enviarPontoRastreamento() async {
     final pos = _gpsService.lastPosition;
     if (pos == null) return;
-    try {
-      await _inspecaoService.registarPontoRastreamento(
-          widget.inspection.id, pos.latitude, pos.longitude, pos.accuracy);
-    } catch (_) {}
+    await _inspecaoService.registrarLocalizacaoRastreamento(
+      inspecaoId: widget.inspection.id,
+      latitude: pos.latitude,
+      longitude: pos.longitude,
+      precisaoMetros: pos.accuracy,
+      velocidade: pos.speed,
+      direcao: pos.heading.isFinite ? pos.heading : null,
+      altitude: pos.altitude.isFinite ? pos.altitude : null,
+    );
   }
 
   // ─── Guardar resposta ─────────────────────────────────────────────────────
@@ -235,24 +351,62 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     final payloadResposta = Map<String, dynamic>.from(payload)
       ..remove('salvarPlanoAcao')
       ..remove('observacoesPlanoAcao')
-      ..remove('evidenciasPlanoAcao');
+      ..remove('evidenciasPlanoAcao')
+      ..remove('anexosPlanoServidorRemovidosIds');
+
+    var loadingShown = false;
+    if (salvarPlanoAcao && mounted) {
+      loadingShown = true;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'A guardar resposta e plano de ação…',
+                    style: const TextStyle(
+                        fontSize: 14, color: _kTextPrimary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     try {
       final r = await _inspecaoService.salvarResposta(
           widget.inspection.id, payloadResposta);
       if (mounted) {
-        setState(() => _respostasMap[r.itemChecklistId] = r);
+        setState(() {
+          _respostasMap[r.itemChecklistId] = r;
+        });
         widget.onProgressoAtualizado?.call(_todosItens.length, _respostasMap.length);
       }
 
-      // Processar plano de ação se necessário
       if (salvarPlanoAcao && r.id.isNotEmpty) {
         await _processarPlanoAcao(
-          respostaId:          r.id,
-          itemChecklistId:     itemChecklistId,
-          observacoes:         payload['observacoesPlanoAcao']?.toString() ?? '',
-          evidenciasPaths:     (payload['evidenciasPlanoAcao'] as List?)
-                                   ?.cast<String>() ?? [],
+          respostaId: r.id,
+          itemChecklistId: itemChecklistId,
+          observacoes: payload['observacoesPlanoAcao']?.toString() ?? '',
+          evidenciasPaths: (payload['evidenciasPlanoAcao'] as List?)
+                  ?.cast<String>() ??
+              [],
+          anexosServidorRemovidosIds:
+              (payload['anexosPlanoServidorRemovidosIds'] as List?)
+                      ?.cast<String>() ??
+                  [],
         );
       }
     } catch (e) {
@@ -264,6 +418,10 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
       }
+    } finally {
+      if (loadingShown && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     }
   }
 
@@ -272,47 +430,65 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   /// Após guardar a resposta, busca o plano de ação criado pelo backend
   /// (o backend cria automaticamente via ChecklistAcaoProcessadorService),
   /// atualiza as observações e faz upload das evidências.
+  /// Aguarda o backend criar o plano e o item associados à resposta (processamento pode demorar).
+  Future<Map<String, dynamic>?> _pollPlanoAteTerItem(String respostaId) async {
+    const maxAttempts = 36;
+    const step = Duration(milliseconds: 500);
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) await Future.delayed(step);
+      final plano =
+          await _inspecaoService.buscarPlanoAcaoPorResposta(respostaId);
+      if (plano == null) continue;
+      final itens =
+          (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      Map<String, dynamic>? itemPlano;
+      for (final i in itens) {
+        if (i['respostaInspecaoId']?.toString() == respostaId) {
+          itemPlano = i;
+          break;
+        }
+      }
+      itemPlano ??= itens.isNotEmpty ? itens.first : null;
+      final itemId = itemPlano?['id']?.toString() ?? '';
+      if (itemId.isNotEmpty) return plano;
+    }
+    return null;
+  }
+
   Future<void> _processarPlanoAcao({
     required String respostaId,
     required String itemChecklistId,
     required String observacoes,
     required List<String> evidenciasPaths,
+    required List<String> anexosServidorRemovidosIds,
   }) async {
     if (_salvandoPlanoAcao.contains(itemChecklistId)) return;
     _salvandoPlanoAcao.add(itemChecklistId);
 
     try {
-      // Mostrar indicador de progresso ao utilizador
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Row(children: [
-            SizedBox(
-              width: 16, height: 16,
-              child: CircularProgressIndicator(
-                  color: Colors.white, strokeWidth: 2),
-            ),
-            SizedBox(width: 10),
-            Text('A guardar plano de ação...'),
-          ]),
-          duration: Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-
-      // Aguardar o backend processar o plano de ação (assíncrono no backend)
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      // Buscar o plano de ação criado para esta resposta
-      final plano = await _inspecaoService.buscarPlanoAcaoPorResposta(respostaId);
+      final plano = await _pollPlanoAteTerItem(respostaId);
 
       if (plano == null) {
-        AppLogger.log('⚠️ [ChecklistTab] plano de ação não encontrado para resposta $respostaId');
-        _mostrarSucessoPlanoAcao(somenteFeedback: true);
+        AppLogger.log(
+            '⚠️ [ChecklistTab] plano de ação não disponível após espera (resposta $respostaId)');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text(
+              'A resposta foi guardada, mas o plano de ação ainda não apareceu no servidor. '
+              'Aguarde alguns segundos e abra o item novamente, ou sincronize.',
+            ),
+            backgroundColor: _kWarning,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ));
+        }
         return;
       }
 
-      // Encontrar o item do plano de ação que corresponde a esta resposta
-      final itens = (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final itens =
+          (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       final itemPlanoAcao = itens.firstWhere(
         (i) => i['respostaInspecaoId']?.toString() == respostaId,
         orElse: () => itens.isNotEmpty ? itens.first : <String, dynamic>{},
@@ -321,17 +497,30 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       final itemPlanoAcaoId = itemPlanoAcao['id']?.toString() ?? '';
       if (itemPlanoAcaoId.isEmpty) {
         AppLogger.log('⚠️ [ChecklistTab] itemPlanoAcaoId não encontrado no plano');
-        _mostrarSucessoPlanoAcao(somenteFeedback: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text(
+                'Plano encontrado, mas sem item associado a esta resposta.'),
+            backgroundColor: _kWarning,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
         return;
       }
 
-      // 1. Atualizar observações do item do plano de ação
-      if (observacoes.isNotEmpty) {
-        await _inspecaoService.atualizarItemPlanoAcao(
-            itemPlanoAcaoId, observacoes);
+      await _inspecaoService.atualizarItemPlanoAcao(itemPlanoAcaoId, observacoes);
+
+      for (final anexoId in anexosServidorRemovidosIds) {
+        if (anexoId.isEmpty) continue;
+        try {
+          await _inspecaoService.removerAnexoItemPlanoAcao(anexoId);
+        } catch (e) {
+          AppLogger.log('⚠️ [ChecklistTab] remover anexo plano $anexoId: $e');
+        }
       }
 
-      // 2. Fazer upload das evidências (best-effort: não bloqueia se falhar)
+      var uploadsOk = 0;
+      var uploadsFail = 0;
       for (final path in evidenciasPaths) {
         try {
           final file = File(path);
@@ -341,19 +530,49 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
               file,
               descricao: 'Evidência capturada no mobile',
             );
+            uploadsOk++;
+          } else {
+            uploadsFail++;
+            AppLogger.log('⚠️ [ChecklistTab] ficheiro inexistente: $path');
           }
         } catch (e) {
+          uploadsFail++;
           AppLogger.log('⚠️ [ChecklistTab] erro ao enviar evidência $path: $e');
         }
       }
 
-      _mostrarSucessoPlanoAcao(
-        totalEvidencias: evidenciasPaths.length,
-      );
+      if (mounted) {
+        if (evidenciasPaths.isNotEmpty && uploadsFail > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+              uploadsOk > 0
+                  ? 'Plano guardado. $uploadsOk anexo(s) enviado(s); $uploadsFail falharam.'
+                  : 'Observações guardadas, mas $uploadsFail anexo(s) falharam (rede ou permissões).',
+            ),
+            backgroundColor: uploadsOk > 0 ? _kWarning : _kError,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ));
+        } else {
+          _mostrarSucessoPlanoAcao(
+            totalEvidencias: uploadsOk,
+          );
+        }
+      }
     } catch (e) {
       AppLogger.log('⚠️ [ChecklistTab] erro ao processar plano de ação: $e');
-      // Não bloquear o utilizador — a resposta já foi guardada com sucesso
-      _mostrarSucessoPlanoAcao(somenteFeedback: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Plano de ação: $e'),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
     } finally {
       _salvandoPlanoAcao.remove(itemChecklistId);
     }
@@ -652,6 +871,12 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
                 onRefresh: _verificarLocalizacao,
               ),
               const SizedBox(height: 8),
+              if (widget.isChecklistTabActive)
+                _RastreamentoTempoRealBanner(
+                  ativo: _rastreamentoApiIniciadoNestaVisita && _rastreamentoErro == null,
+                  mensagemErro: _rastreamentoErro,
+                ),
+              if (widget.isChecklistTabActive) const SizedBox(height: 8),
             ],
 
             for (final secao in _secoes) ...[
@@ -718,13 +943,17 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     );
   }
 
-  Widget _itemField(ItemChecklistCompleto item) => ChecklistItemField(
-    key: ValueKey('item-${item.id}'),
-    item: item,
-    resposta: _respostasMap[item.id],
-    enabled: widget.canEdit,
-    onSave: widget.canEdit ? _salvarResposta : null,
-  );
+  Widget _itemField(ItemChecklistCompleto item) {
+    final hydrateKey = '${widget.checklistTabVisitToken}';
+    return ChecklistItemField(
+      key: ValueKey('item-${item.id}'),
+      item: item,
+      resposta: _respostasMap[item.id],
+      enabled: widget.canEdit,
+      onSave: widget.canEdit ? _salvarResposta : null,
+      planoHydrateKey: hydrateKey,
+    );
+  }
 
   Widget _emptyState(IconData icon, String t, String s) => Center(
     child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -737,6 +966,58 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       Text(s, style: const TextStyle(color: _kTextSecondary, fontSize: 13), textAlign: TextAlign.center),
     ]),
   );
+}
+
+class _RastreamentoTempoRealBanner extends StatelessWidget {
+  final bool ativo;
+  final String? mensagemErro;
+
+  const _RastreamentoTempoRealBanner({
+    required this.ativo,
+    this.mensagemErro,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final erro = mensagemErro != null && mensagemErro!.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: erro ? _kError.withValues(alpha: 0.08) : _kSuccessLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: erro ? _kError.withValues(alpha: 0.35) : _kSuccess.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            erro ? Icons.warning_amber_rounded : Icons.podcasts_rounded,
+            size: 20,
+            color: erro ? _kError : _kSuccess,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              erro
+                  ? mensagemErro!
+                  : ativo
+                      ? 'Rastreamento em tempo real activo. A sua posição é enviada ao servidor '
+                          '(como no backoffice) enquanto este separador está aberto.'
+                      : 'A iniciar rastreamento em tempo real…',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: erro ? _kError : _kTextPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Estado GPS ───────────────────────────────────────────────────────────────

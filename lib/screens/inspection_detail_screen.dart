@@ -53,6 +53,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   String? _checklistNome;
   late TabController _tabController;
 
+  /// Incrementado ao abrir o separador Checklist — repõe observações/evidências do plano na API.
+  int _checklistTabVisitToken = 0;
+
   // Progresso do checklist — actualizado pelo InspectionChecklistTab via callback
   int _checklistTotal       = 0;
   int _checklistRespondidos = 0;
@@ -93,6 +96,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     super.initState();
     _inspection = widget.inspection;
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _commentsController.text = _inspection.observacoes ?? '';
     AppLogger.log('🔎 [InspectionDetail] init inspectionId=${_inspection.id} '
         'status=${_inspection.status} checklistId=${_inspection.checklistId}');
@@ -103,8 +107,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     _loadInspetorDesignado();
   }
 
+  void _onTabChanged() {
+    if (!mounted || _tabController.indexIsChanging) return;
+    setState(() {
+      if (_tabController.index == 1) _checklistTabVisitToken++;
+    });
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _commentsController.dispose();
     super.dispose();
@@ -810,6 +822,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     return InspectionChecklistTab(
       inspection: _inspection,
       canEdit: canEdit,
+      checklistTabVisitToken: _checklistTabVisitToken,
+      isChecklistTabActive: _tabController.index == 1,
       onFinalizado: _onInspecaoFinalizada,
       onProgressoAtualizado: _onProgressoAtualizado,
     );

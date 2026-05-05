@@ -1,6 +1,9 @@
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:inspecao/config/app_config.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:inspecao/models/checklist_secao.dart';
 import 'package:inspecao/services/api_service.dart';
 import 'package:inspecao/services/auth_service.dart';
@@ -12,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///  - Itens por seção      → GET /api/v1/itens-checklist/secao/{id}
 ///  - Respostas            → GET /api/v1/inspecoes/{id}/respostas
 ///  - Salvar resposta      → POST /api/v1/inspecoes/{id}/respostas
-///  - Plano de ação        → GET/POST/PUT /api/v1/planos-acao/...
+///  - Plano de ação        → GET planos-acao/resposta/{id}, PUT itens-plano-acao/{id}, POST …/anexos
 ///
 /// NOTA: NÃO faz cache do Dio – o token é obtido de fresco em cada chamada
 /// para evitar 401 após expiração silenciosa.
@@ -22,8 +25,9 @@ class InspecaoService {
   Future<Dio> _buildDio() async {
     final dio = Dio(BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 45),
+      sendTimeout: const Duration(seconds: 120),
+      receiveTimeout: const Duration(seconds: 120),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -272,28 +276,91 @@ class InspecaoService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // GPS — Rastreamento em tempo real
+  // GPS — Rastreamento em tempo real (mesmo contrato que o backoffice Angular)
+  // POST /api/v1/rastreamento/iniciar | /registrar | /{id}/finalizar
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// POST /api/v1/inspecoes/{id}/rastreamento
-  /// Regista um ponto de localização GPS durante a inspeção
-  Future<void> registarPontoRastreamento(
-      String inspecaoId, double lat, double lng, double accuracy) async {
+  /// Converte URL relativa da API ou absoluta (Alfresco, etc.) para visualização.
+  Future<String> absolutizarUrlArmazenamento(String url) async {
+    final trimmed = url.trim();
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed != null &&
+        parsed.hasScheme &&
+        (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+      return trimmed;
+    }
+    final dio = await _buildDio();
+    final base = dio.options.baseUrl;
+    final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    return Uri.parse(base).resolve(path).toString();
+  }
+
+  /// Inicia a sessão de rastreamento (cria o 1.º ponto no servidor).
+  Future<void> iniciarRastreamentoSessao({
+    required String inspecaoId,
+    required String inspetorId,
+  }) async {
+    final dio = await _buildDio();
+    AppLogger.log(
+        '📍 [InspecaoService.iniciarRastreamentoSessao] inspecao=$inspecaoId inspetor=$inspetorId');
+    try {
+      await dio.post(
+        '/api/v1/rastreamento/iniciar',
+        data: {
+          'inspecaoId': inspecaoId,
+          'inspetorId': inspetorId,
+        },
+      );
+      AppLogger.log('✅ [InspecaoService.iniciarRastreamentoSessao] OK');
+    } on DioException catch (e) {
+      AppLogger.log(
+          '⚠️ [InspecaoService.iniciarRastreamentoSessao] ${e.response?.statusCode} ${e.response?.data}');
+      rethrow;
+    }
+  }
+
+  /// Regista um ponto periódico (equivalente ao [RastreamentoService.registrarLocalizacao] na web).
+  Future<void> registrarLocalizacaoRastreamento({
+    required String inspecaoId,
+    required double latitude,
+    required double longitude,
+    required double precisaoMetros,
+    double? velocidade,
+    double? direcao,
+    double? altitude,
+  }) async {
     final dio = await _buildDio();
     try {
-      await dio.post('/api/v1/inspecoes/$inspecaoId/rastreamento',
-          data: {
-            'latitude': lat,
-            'longitude': lng,
-            'precisao': accuracy,
-            'timestamp': DateTime.now().toUtc().toIso8601String(),
-            'tipoCaptura': "PERIODICA",
-            'inspecaoId': inspecaoId
-          });
-      AppLogger.log('📍 [InspecaoService.registarPontoRastreamento] lat=$lat lng=$lng acc=${accuracy.toStringAsFixed(1)}m');
+      await dio.post(
+        '/api/v1/rastreamento/registrar',
+        data: {
+          'inspecaoId': inspecaoId,
+          'latitude': latitude,
+          'longitude': longitude,
+          'precisao': precisaoMetros,
+          if (velocidade != null) 'velocidade': velocidade,
+          if (direcao != null) 'direcao': direcao,
+          if (altitude != null) 'altitude': altitude,
+          'tipoCaptura': 'PERIODICA',
+        },
+      );
+      AppLogger.log(
+          '📍 [InspecaoService.registrarLocalizacaoRastreamento] lat=$latitude lng=$longitude');
     } on DioException catch (e) {
-      // Rastreamento é best-effort — não lançar erro para não perturbar o fluxo
-      AppLogger.log('⚠️ [InspecaoService.registarPontoRastreamento] falhou: ${e.response?.statusCode}');
+      AppLogger.log(
+          '⚠️ [InspecaoService.registrarLocalizacaoRastreamento] falhou: ${e.response?.statusCode}');
+    }
+  }
+
+  /// Finaliza o rastreamento da inspeção (marca pontos inactivos).
+  Future<void> finalizarRastreamentoSessao(String inspecaoId) async {
+    final dio = await _buildDio();
+    try {
+      await dio.post('/api/v1/rastreamento/$inspecaoId/finalizar');
+      AppLogger.log('✅ [InspecaoService.finalizarRastreamentoSessao] inspecao=$inspecaoId');
+    } on DioException catch (e) {
+      AppLogger.log(
+          '⚠️ [InspecaoService.finalizarRastreamentoSessao] falhou: ${e.response?.statusCode}');
     }
   }
 
@@ -327,7 +394,7 @@ class InspecaoService {
   // Plano de Ação
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/v1/planos-acao/por-resposta/{respostaId}
+  /// GET /api/v1/planos-acao/resposta/{respostaId}
   ///
   /// Busca o plano de ação associado a uma resposta de inspeção.
   /// Retorna null se não existir plano para a resposta (404 tratado como null).
@@ -335,7 +402,7 @@ class InspecaoService {
     AppLogger.log('🌐 [InspecaoService.buscarPlanoAcaoPorResposta] → GET respostaId=$respostaId');
     final dio = await _buildDio();
     try {
-      final response = await dio.get('/api/v1/planos-acao/por-resposta/$respostaId');
+      final response = await dio.get('/api/v1/planos-acao/resposta/$respostaId');
       AppLogger.log('✅ [InspecaoService.buscarPlanoAcaoPorResposta] status=${response.statusCode}');
       return response.data as Map<String, dynamic>?;
     } on DioException catch (e) {
@@ -347,22 +414,153 @@ class InspecaoService {
     }
   }
 
-  /// PATCH /api/v1/itens-plano-acao/{itemId}
-  ///
-  /// Atualiza as observações de um item do plano de ação.
-  Future<void> atualizarItemPlanoAcao(
-      String itemPlanoAcaoId, String observacoes) async {
-    AppLogger.log('📝 [InspecaoService.atualizarItemPlanoAcao] → PATCH itemId=$itemPlanoAcaoId');
+  /// GET /api/v1/itens-plano-acao/{itemId}
+  Future<Map<String, dynamic>> buscarItemPlanoAcao(String itemPlanoAcaoId) async {
+    AppLogger.log('🌐 [InspecaoService.buscarItemPlanoAcao] → GET itemId=$itemPlanoAcaoId');
     final dio = await _buildDio();
     try {
-      await dio.patch(
+      final response = await dio.get('/api/v1/itens-plano-acao/$itemPlanoAcaoId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError('buscarItemPlanoAcao', e);
+    }
+  }
+
+  /// GET /api/v1/itens-plano-acao/anexos/{anexoId}/download
+  ///
+  /// Mesmo endpoint que o backoffice; devolve os bytes com JWT (Alfresco via backend).
+  Future<File> downloadAnexoPlanoAcao(
+    String anexoId, {
+    String filename = 'evidencia',
+  }) async {
+    final dio = await _buildDio();
+    AppLogger.log('⬇️ [InspecaoService.downloadAnexoPlanoAcao] anexoId=$anexoId');
+    try {
+      final response = await dio.get<List<int>>(
+        '/api/v1/itens-plano-acao/anexos/$anexoId/download',
+        options: Options(
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Ficheiro vazio no servidor');
+      }
+      final dir = await getTemporaryDirectory();
+      final safe = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
+      final path = p.join(
+        dir.path,
+        'plano_anexo_${anexoId}_$safe',
+      );
+      final file = File(path);
+      await file.writeAsBytes(bytes);
+      return file;
+    } on DioException catch (e) {
+      throw _handleError('downloadAnexoPlanoAcao', e);
+    }
+  }
+
+  /// DELETE /api/v1/itens-plano-acao/anexos/{anexoId}?isFrontoffice=true
+  Future<void> removerAnexoItemPlanoAcao(String anexoId) async {
+    final dio = await _buildDio();
+    AppLogger.log('🗑️ [InspecaoService.removerAnexoItemPlanoAcao] anexo=$anexoId');
+    await dio.delete(
+      '/api/v1/itens-plano-acao/anexos/$anexoId',
+      queryParameters: {'isFrontoffice': 'true'},
+    );
+  }
+
+  /// Remove todos os anexos do item no servidor para reflectir apenas o conjunto
+  /// seleccionado na app após «Salvar» (substituição, não acumulação).
+  ///
+  /// DELETE /api/v1/itens-plano-acao/anexos/{anexoId}?isFrontoffice=true
+  Future<void> removerTodosAnexosDoItemPlanoAcao(String itemPlanoAcaoId) async {
+    AppLogger.log('🗑️ [InspecaoService.removerTodosAnexosDoItemPlanoAcao] item=$itemPlanoAcaoId');
+    final dio = await _buildDio();
+    final item = await buscarItemPlanoAcao(itemPlanoAcaoId);
+    final raw = item['anexos'];
+    if (raw is! List || raw.isEmpty) {
+      AppLogger.log('   (nenhum anexo no servidor)');
+      return;
+    }
+    for (final a in raw) {
+      if (a is! Map<String, dynamic>) continue;
+      final id = a['id']?.toString();
+      if (id == null || id.isEmpty) continue;
+      AppLogger.log('   → DELETE anexo $id');
+      try {
+        await dio.delete(
+          '/api/v1/itens-plano-acao/anexos/$id',
+          queryParameters: {'isFrontoffice': 'true'},
+        );
+      } on DioException catch (e) {
+        AppLogger.log('⚠️ [InspecaoService] falha ao remover anexo $id: ${e.response?.statusCode}');
+        rethrow;
+      }
+    }
+    AppLogger.log('✅ [InspecaoService.removerTodosAnexosDoItemPlanoAcao] concluído');
+  }
+
+  /// Descarrega um ficheiro (URL absoluta ou relativa à API) com o mesmo token JWT.
+  /// Usado para repovoar evidências do plano ao reabrir o checklist.
+  Future<File> descarregarUrlParaFicheiroTemporario(
+    String url, {
+    String filename = 'evidencia.bin',
+  }) async {
+    final dio = await _buildDio();
+    final trimmed = url.trim();
+    final Uri uri;
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed != null &&
+        parsed.hasScheme &&
+        (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+      uri = parsed;
+    } else {
+      final base = dio.options.baseUrl;
+      final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+      uri = Uri.parse(base).resolve(path);
+    }
+
+    AppLogger.log('⬇️ [InspecaoService.descarregarUrlParaFicheiroTemporario] $uri');
+    final resp = await dio.getUri<List<int>>(
+      uri,
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(seconds: 120),
+      ),
+    );
+    final bytes = resp.data;
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('Ficheiro vazio ao descarregar evidência');
+    }
+    final dir = await getTemporaryDirectory();
+    final safe = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
+    final path = p.join(
+      dir.path,
+      'plano_${DateTime.now().millisecondsSinceEpoch}_$safe',
+    );
+    final file = File(path);
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  /// PUT /api/v1/itens-plano-acao/{itemId}
+  ///
+  /// Atualiza as observações de um item do plano de ação (contrato igual ao backoffice).
+  Future<void> atualizarItemPlanoAcao(
+      String itemPlanoAcaoId, String observacoes) async {
+    AppLogger.log('📝 [InspecaoService.atualizarItemPlanoAcao] → PUT itemId=$itemPlanoAcaoId');
+    final dio = await _buildDio();
+    try {
+      await dio.put(
         '/api/v1/itens-plano-acao/$itemPlanoAcaoId',
         data: {'observacoes': observacoes},
       );
       AppLogger.log('✅ [InspecaoService.atualizarItemPlanoAcao] OK');
     } on DioException catch (e) {
       AppLogger.log('⚠️ [InspecaoService.atualizarItemPlanoAcao] falhou: ${e.response?.statusCode}');
-      // Não propagar — a resposta já foi guardada, o plano é secundário
+      rethrow;
     }
   }
 
@@ -371,17 +569,17 @@ class InspecaoService {
   /// Faz upload de uma imagem de evidência para um item do plano de ação.
   Future<void> adicionarAnexoItemPlanoAcao(
       String itemPlanoAcaoId, File arquivo, {String descricao = 'Evidência mobile'}) async {
+    final baseName = arquivo.path.replaceAll(r'\', '/').split('/').last;
     AppLogger.log('📎 [InspecaoService.adicionarAnexoItemPlanoAcao] → POST itemId=$itemPlanoAcaoId '
-        'arquivo=${arquivo.path.split('/').last}');
-    // Construir Dio com Content-Type multipart
+        'arquivo=$baseName');
     final dio = await _buildDio();
-    dio.options.headers.remove('Content-Type'); // Dio define automaticamente para multipart
+    dio.options.headers.remove('Content-Type'); // boundary definido pelo multipart
 
     try {
       final formData = FormData.fromMap({
         'arquivo': await MultipartFile.fromFile(
           arquivo.path,
-          filename: arquivo.path.split('/').last,
+          filename: baseName,
         ),
         'descricao': descricao,
         'criadoPorFrontoffice': 'true',
@@ -389,11 +587,15 @@ class InspecaoService {
       await dio.post(
         '/api/v1/itens-plano-acao/$itemPlanoAcaoId/anexos',
         data: formData,
+        options: Options(
+          sendTimeout: const Duration(seconds: 180),
+          receiveTimeout: const Duration(seconds: 180),
+        ),
       );
       AppLogger.log('✅ [InspecaoService.adicionarAnexoItemPlanoAcao] upload OK');
     } on DioException catch (e) {
       AppLogger.log('⚠️ [InspecaoService.adicionarAnexoItemPlanoAcao] falhou: ${e.response?.statusCode}');
-      // Best-effort: não bloquear o fluxo principal se o upload falhar
+      rethrow;
     }
   }
 
