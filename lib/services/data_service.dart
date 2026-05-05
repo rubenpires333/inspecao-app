@@ -132,6 +132,12 @@ class DataService {
     }
   }
   
+  /// Constrói [Inspection] a partir do JSON devolvido pela API ao criar ou detalhar inspeção
+  /// (mesmo formato que [getInspections] usa para `/ativas`).
+  Inspection inspectionFromApiData(Map<String, dynamic> apiData) {
+    return Inspection.fromJson(_mapApiResponseToInspection(apiData));
+  }
+
   // Mapear resposta da API para formato do modelo
   Map<String, dynamic> _mapApiResponseToInspection(Map<String, dynamic> apiData) {
     // O backend retorna campos em camelCase (Jackson serializa assim)
@@ -266,21 +272,24 @@ class DataService {
     await prefs.setString(_inspectionsKey, inspectionsJson);
   }
 
-  Future<void> addInspection(Inspection inspection) async {
+  /// [persistOnly]: apenas espelha no SQLite (ex.: inspeção já criada via POST como na web).
+  /// Nunca dispara segundo POST de criação em background.
+  Future<void> addInspection(Inspection inspection, {bool persistOnly = false}) async {
     await _ensureDbInitialized();
-    
-    // Salvar no banco local primeiro (offline-first)
+
     await _dbService.saveInspection(inspection);
-    
-    // Já criada no servidor (ex.: fluxo online em create_inspection_screen)
-    if (inspection.isSynced && inspection.serverId != null && inspection.serverId!.isNotEmpty) {
+
+    if (persistOnly) {
       return;
     }
-    
-    // Tentar sincronizar com servidor em background (se online)
+
+    final sid = inspection.serverId?.trim();
+    if (sid != null && sid.isNotEmpty) {
+      return;
+    }
+
     _syncInspectionToServer(inspection).catchError((e) {
       print('Erro ao sincronizar inspeção com servidor: $e');
-      // Continuar mesmo se falhar - dados estão salvos localmente
     });
   }
 

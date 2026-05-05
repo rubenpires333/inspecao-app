@@ -310,7 +310,9 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
   }
 
   Future<void> _createInspection() async {
+    if (_isLoading) return;
     if (!_isFormValid) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -325,9 +327,22 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
       _selectedTime.minute,
     );
 
-    final localId = DateTime.now().millisecondsSinceEpoch.toString();
+    final dataInspecao =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    final horaInicio =
+        '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
 
-    final inspection = Inspection(
+    /// Mesmo contrato que o backoffice (`inspecao-nova`): POST `/api/v1/inspecoes`.
+    final requestData = <String, dynamic>{
+      'checklistId': _selectedChecklist!.id,
+      'estabelecimentoId': _selectedEstablishment!.id,
+      'equipeId': _selectedEquipe!.id,
+      'dataInspecao': dataInspecao,
+      'horaInicio': horaInicio,
+    };
+
+    final localId = DateTime.now().millisecondsSinceEpoch.toString();
+    final draftOffline = Inspection(
       id: localId,
       titulo: _selectedEstablishment!.nome,
       descricao: 'Inspeção - ${_selectedChecklist!.nome}',
@@ -347,32 +362,20 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
     );
 
     try {
-      // ── Tentar criar directamente no servidor (API) ──────────────────────
-      final dataInspecao =
-          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
-      final horaInicio =
-          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+      await _ensureApiReady();
 
-      // Mesmos campos que o backoffice web (inspecao-nova): o backend preenche localização a partir do estabelecimento.
-      final requestData = <String, dynamic>{
-        'checklistId': _selectedChecklist!.id,
-        'estabelecimentoId': _selectedEstablishment!.id,
-        'equipeId': _selectedEquipe!.id,
-        'dataInspecao': dataInspecao,
-        'horaInicio': horaInicio,
-      };
+      // Criar no servidor (igual à web) — um único POST; espelho local sem novo POST em background.
+      final map = await _apiService.createInspectionOnServer(requestData);
+      final sid = map['id']?.toString();
+      if (sid == null || sid.isEmpty) {
+        throw Exception('Resposta do servidor sem ID da inspeção.');
+      }
 
-      final response = await _apiService.createInspectionMobile(requestData);
-      final serverId = response['id']?.toString();
+      final synced = _dataService
+          .inspectionFromApiData(map)
+          .copyWith(isSynced: true, serverId: sid);
 
-      // Usar o ID do servidor como chave local evita duplicar a inspeção quando a lista é
-      // atualizada a partir da API (antes ficava uma linha com id temporário e outra com UUID).
-      final syncedInspection = inspection.copyWith(
-        id: serverId ?? inspection.id,
-        serverId: serverId,
-        isSynced: true,
-      );
-      await _dataService.addInspection(syncedInspection);
+      await _dataService.addInspection(synced, persistOnly: true);
 
       if (mounted) {
         HapticFeedback.heavyImpact();
@@ -380,9 +383,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
         Navigator.pop(context);
       }
     } catch (_) {
-      // ── Fallback: guardar localmente se offline ou erro de rede ─────────
       try {
-        await _dataService.addInspection(inspection);
+        await _dataService.addInspection(draftOffline);
         if (mounted) {
           HapticFeedback.heavyImpact();
           _showSuccessSnackBar(online: false);
