@@ -223,6 +223,13 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   }
 
   Future<String?> _resolverInspetorUuid() async {
+    try {
+      final daApi =
+          await _inspecaoService.obterInspetorIdDaInspecao(widget.inspection.id);
+      if (daApi != null && daApi.isNotEmpty) {
+        return daApi;
+      }
+    } catch (_) {}
     final fromInspection = widget.inspection.inspectorId;
     if (fromInspection != null && fromInspection.isNotEmpty) {
       return fromInspection;

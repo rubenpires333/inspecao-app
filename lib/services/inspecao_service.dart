@@ -352,6 +352,25 @@ class InspecaoService {
     }
   }
 
+  /// GET inspeção — devolve o UUID do inspetor na BD (`inspetor.id`), não o Keycloak «sub» por omissão.
+  Future<String?> obterInspetorIdDaInspecao(String inspecaoId) async {
+    final dio = await _buildDio();
+    try {
+      final response = await dio.get('/api/v1/inspecoes/$inspecaoId');
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return null;
+      final insp = data['inspetor'];
+      if (insp is Map<String, dynamic> && insp['id'] != null) {
+        return insp['id'].toString();
+      }
+      return null;
+    } on DioException catch (e) {
+      AppLogger.log(
+          '⚠️ [InspecaoService.obterInspetorIdDaInspecao] ${e.response?.statusCode}');
+      return null;
+    }
+  }
+
   /// Finaliza o rastreamento da inspeção (marca pontos inactivos).
   Future<void> finalizarRastreamentoSessao(String inspecaoId) async {
     final dio = await _buildDio();

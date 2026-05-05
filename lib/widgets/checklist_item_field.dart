@@ -90,6 +90,9 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   /// IDs de anexos do servidor que o utilizador removeu da lista (DELETE no guardar).
   final Set<String> _anexosServidorRemovidosIds = {};
 
+  /// Ficheiros já descarregados para miniatura / pré-visualização (evita GET duplicado).
+  final Map<String, File> _planoServidorArquivoCache = {};
+
   /// Flag: já foi inicializado com resposta existente (evita reset em re-renders)
   bool _initialized = false;
 
@@ -278,6 +281,9 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
       }
 
       if (!mounted || _focusObsPlano.hasFocus) return;
+      final idsSv = servidor.map((e) => e.id).toSet();
+      _planoServidorArquivoCache
+          .removeWhere((k, _) => !idsSv.contains(k));
       setState(() {
         _anexosPlanoServidor = servidor;
         _anexosServidorRemovidosIds.clear();
@@ -389,14 +395,16 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
             _buildPlanoAcaoPanel(),
           ],
 
-          // ── Divisor + "Evidências e observações" (colapsável) ──────────
-          const Divider(height: 1, color: _kBorder),
-          _EvidenciasSection(
-            resposta: widget.resposta,
-            expanded: _evidenciasExpanded,
-            onToggle: () =>
-                setState(() => _evidenciasExpanded = !_evidenciasExpanded),
-          ),
+          // Rodapé genérico só quando não há painel de plano (evita duplicar observações/evidências).
+          if (!_mostrarPlanoAcao) ...[
+            const Divider(height: 1, color: _kBorder),
+            _EvidenciasSection(
+              resposta: widget.resposta,
+              expanded: _evidenciasExpanded,
+              onToggle: () =>
+                  setState(() => _evidenciasExpanded = !_evidenciasExpanded),
+            ),
+          ],
         ],
       ),
     );
@@ -535,37 +543,61 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                   const SizedBox(height: 6),
 
                   // Anexos já no servidor (evitar download; abrir com «Ver»)
-                  if (_anexosServidorVisiveis > 0) ...[
-                    ..._anexosPlanoServidor
-                        .where((x) =>
-                            !_anexosServidorRemovidosIds.contains(x.id))
-                        .map((a) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: _buildAnexoServidorRow(a),
-                            )),
-                  ],
+                  Builder(
+                    builder: (context) {
+                      final servidorVis = _anexosPlanoServidor
+                          .where((x) =>
+                              !_anexosServidorRemovidosIds.contains(x.id))
+                          .toList();
+                      final temMiniaturas = servidorVis.isNotEmpty ||
+                          _evidenciasPlanoLocais.isNotEmpty;
 
-                  // Miniaturas de ficheiros locais (ainda não enviados)
-                  if (_evidenciasPlanoLocais.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ..._evidenciasPlanoLocais
-                            .asMap()
-                            .entries
-                            .map((e) => _buildEvidenciaThumbnail(
-                                e.key, e.value)),
-                        if (widget.enabled)
-                          _buildAdicionarEvidenciaBtn(compact: true),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Botões de adicionar (quando lista local vazia)
-                  if (_evidenciasPlanoLocais.isEmpty && widget.enabled)
-                    _buildBotoesEvidencia(),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (temMiniaturas)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                ...servidorVis.map(
+                                  (a) => _PlanoServidorEvidenciaThumb(
+                                    key: ValueKey('plano-srv-${a.id}'),
+                                    anexo: a,
+                                    enabled: widget.enabled,
+                                    cached:
+                                        _planoServidorArquivoCache[a.id],
+                                    onCached: (id, file) {
+                                      if (!mounted) return;
+                                      setState(() =>
+                                          _planoServidorArquivoCache[id] =
+                                              file);
+                                    },
+                                    onPreview: () =>
+                                        _verAnexoServidorComPreview(a),
+                                    onRemove: () => setState(() =>
+                                        _anexosServidorRemovidosIds
+                                            .add(a.id)),
+                                  ),
+                                ),
+                                ..._evidenciasPlanoLocais
+                                    .asMap()
+                                    .entries
+                                    .map((e) => _buildEvidenciaThumbnail(
+                                        e.key, e.value)),
+                                if (widget.enabled)
+                                  _buildAdicionarEvidenciaBtn(
+                                      compact: true),
+                              ],
+                            ),
+                          if (temMiniaturas)
+                            const SizedBox(height: 10),
+                          if (!temMiniaturas && widget.enabled)
+                            _buildBotoesEvidencia(),
+                        ],
+                      );
+                    },
+                  ),
 
                   // Aviso quando desabilitado e sem evidências
                   if (!widget.enabled &&
@@ -612,47 +644,17 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     );
   }
 
-  Widget _buildAnexoServidorRow(_AnexoPlanoServidor a) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.attach_file_rounded,
-              size: 18, color: _kPrimary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              a.nome,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: _kTextPrimary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => _verAnexoServidorComPreview(a),
-            child: const Text('Ver'),
-          ),
-          if (widget.enabled)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              color: _kError,
-              onPressed: () => setState(
-                  () => _anexosServidorRemovidosIds.add(a.id)),
-            ),
-        ],
-      ),
-    );
-  }
-
   /// GET `/api/v1/itens-plano-acao/anexos/{id}/download` e pré-visualização em ecrã completo
   /// (igual às evidências locais: zoom + fechar).
   Future<void> _verAnexoServidorComPreview(_AnexoPlanoServidor a) async {
+    final cached = _planoServidorArquivoCache[a.id];
+    if (cached != null && await cached.exists()) {
+      if (!mounted) return;
+      _abrirPreviewFicheiroPlanoDescarregado(cached, titulo: a.nome);
+      return;
+    }
+
+    if (!mounted) return;
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -688,6 +690,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
       );
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
+      _planoServidorArquivoCache[a.id] = file;
       _abrirPreviewFicheiroPlanoDescarregado(file, titulo: a.nome);
     } catch (e, st) {
       AppLogger.error('[ChecklistItemField] Ver anexo plano (download)', e, st);
@@ -1825,6 +1828,156 @@ class _DateTimeButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Miniatura evidência servidor (plano de acção) ───────────────────────────
+class _PlanoServidorEvidenciaThumb extends StatefulWidget {
+  final _AnexoPlanoServidor anexo;
+  final bool enabled;
+  final File? cached;
+  final void Function(String id, File file) onCached;
+  final VoidCallback onPreview;
+  final VoidCallback onRemove;
+
+  const _PlanoServidorEvidenciaThumb({
+    super.key,
+    required this.anexo,
+    required this.enabled,
+    required this.cached,
+    required this.onCached,
+    required this.onPreview,
+    required this.onRemove,
+  });
+
+  @override
+  State<_PlanoServidorEvidenciaThumb> createState() =>
+      _PlanoServidorEvidenciaThumbState();
+}
+
+class _PlanoServidorEvidenciaThumbState extends State<_PlanoServidorEvidenciaThumb> {
+  File? _file;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  @override
+  void didUpdateWidget(_PlanoServidorEvidenciaThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final c = widget.cached;
+    if (c != null &&
+        c.path != oldWidget.cached?.path &&
+        _file?.path != c.path) {
+      _file = c;
+      _loading = false;
+    }
+  }
+
+  Future<void> _bootstrap() async {
+    final c = widget.cached;
+    if (c != null && await c.exists()) {
+      if (mounted) {
+        setState(() {
+          _file = c;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    try {
+      final f = await InspecaoService().downloadAnexoPlanoAcao(
+        widget.anexo.id,
+        filename: widget.anexo.nome,
+      );
+      widget.onCached(widget.anexo.id, f);
+      if (mounted) {
+        setState(() {
+          _file = f;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: widget.onPreview,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: _loading
+                  ? Container(
+                      color: _kSurface,
+                      alignment: Alignment.center,
+                      child: const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _file != null
+                      ? Image.file(
+                          _file!,
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 72,
+                            height: 72,
+                            color: _kSurface,
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.insert_drive_file_outlined,
+                              color: _kTextSecondary,
+                              size: 32,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 72,
+                          height: 72,
+                          color: _kSurface,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: _kTextSecondary,
+                            size: 28,
+                          ),
+                        ),
+            ),
+          ),
+        ),
+        if (widget.enabled)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: widget.onRemove,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: _kError,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(2),
+                child:
+                    const Icon(Icons.close, color: Colors.white, size: 12),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
