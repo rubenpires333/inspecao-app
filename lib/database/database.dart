@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -102,6 +102,16 @@ class AppDatabase extends _$AppDatabase {
             );
           }
           print('✅ Colunas categoriaEstabelecimento ok em estabelecimentos');
+        }
+        if (from < 6) {
+          print('🔄 Migration 5->6: equipe_id em inspecoes...');
+          if (!await _sqliteTableHasColumn('inspecoes', 'equipe_id')) {
+            await m.addColumn(
+              inspecoes,
+              inspecoes.equipeId,
+            );
+          }
+          print('✅ Coluna equipe_id ok em inspecoes');
         }
       },
     );

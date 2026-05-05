@@ -120,6 +120,18 @@ class ApiService {
     return response.data;
   }
 
+  /// Detalhe da inspeção no servidor (inclui `inspetor` com nome, checklist, equipa, etc.)
+  /// Usa primeiro o endpoint mobile (mesma visibilidade que a lista; não exige INSPECAO_VISUALIZAR).
+  Future<Map<String, dynamic>> getInspecaoById(String id) async {
+    try {
+      final response = await _dio.get('/api/v1/mobile/inspecoes/$id');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      final response = await _dio.get('/api/v1/inspecoes/$id');
+      return response.data as Map<String, dynamic>;
+    }
+  }
+
   /// Busca todos os checklists
   Future<List<Map<String, dynamic>>> getChecklists() async {
     final response = await _dio.get('/api/v1/checklists');

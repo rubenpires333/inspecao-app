@@ -176,6 +176,17 @@ class $InspecoesTable extends Inspecoes
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _equipeIdMeta = const VerificationMeta(
+    'equipeId',
+  );
+  @override
+  late final GeneratedColumn<String> equipeId = GeneratedColumn<String>(
+    'equipe_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _scoreConformidadeMeta = const VerificationMeta(
     'scoreConformidade',
   );
@@ -317,6 +328,7 @@ class $InspecoesTable extends Inspecoes
     establishmentId,
     checklistId,
     inspectorId,
+    equipeId,
     scoreConformidade,
     scoreNaoConformidade,
     isSynced,
@@ -451,6 +463,12 @@ class $InspecoesTable extends Inspecoes
           data['inspector_id']!,
           _inspectorIdMeta,
         ),
+      );
+    }
+    if (data.containsKey('equipe_id')) {
+      context.handle(
+        _equipeIdMeta,
+        equipeId.isAcceptableOrUnknown(data['equipe_id']!, _equipeIdMeta),
       );
     }
     if (data.containsKey('score_conformidade')) {
@@ -603,6 +621,10 @@ class $InspecoesTable extends Inspecoes
         DriftSqlType.string,
         data['${effectivePrefix}inspector_id'],
       ),
+      equipeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}equipe_id'],
+      ),
       scoreConformidade: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}score_conformidade'],
@@ -674,6 +696,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
   final String? establishmentId;
   final String? checklistId;
   final String? inspectorId;
+  final String? equipeId;
   final double? scoreConformidade;
   final double? scoreNaoConformidade;
   final bool isSynced;
@@ -701,6 +724,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
     this.establishmentId,
     this.checklistId,
     this.inspectorId,
+    this.equipeId,
     this.scoreConformidade,
     this.scoreNaoConformidade,
     required this.isSynced,
@@ -752,6 +776,9 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
     }
     if (!nullToAbsent || inspectorId != null) {
       map['inspector_id'] = Variable<String>(inspectorId);
+    }
+    if (!nullToAbsent || equipeId != null) {
+      map['equipe_id'] = Variable<String>(equipeId);
     }
     if (!nullToAbsent || scoreConformidade != null) {
       map['score_conformidade'] = Variable<double>(scoreConformidade);
@@ -808,6 +835,9 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
       inspectorId: inspectorId == null && nullToAbsent
           ? const Value.absent()
           : Value(inspectorId),
+      equipeId: equipeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(equipeId),
       scoreConformidade: scoreConformidade == null && nullToAbsent
           ? const Value.absent()
           : Value(scoreConformidade),
@@ -853,6 +883,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
       establishmentId: serializer.fromJson<String?>(json['establishmentId']),
       checklistId: serializer.fromJson<String?>(json['checklistId']),
       inspectorId: serializer.fromJson<String?>(json['inspectorId']),
+      equipeId: serializer.fromJson<String?>(json['equipeId']),
       scoreConformidade: serializer.fromJson<double?>(
         json['scoreConformidade'],
       ),
@@ -889,6 +920,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
       'establishmentId': serializer.toJson<String?>(establishmentId),
       'checklistId': serializer.toJson<String?>(checklistId),
       'inspectorId': serializer.toJson<String?>(inspectorId),
+      'equipeId': serializer.toJson<String?>(equipeId),
       'scoreConformidade': serializer.toJson<double?>(scoreConformidade),
       'scoreNaoConformidade': serializer.toJson<double?>(scoreNaoConformidade),
       'isSynced': serializer.toJson<bool>(isSynced),
@@ -919,6 +951,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
     Value<String?> establishmentId = const Value.absent(),
     Value<String?> checklistId = const Value.absent(),
     Value<String?> inspectorId = const Value.absent(),
+    Value<String?> equipeId = const Value.absent(),
     Value<double?> scoreConformidade = const Value.absent(),
     Value<double?> scoreNaoConformidade = const Value.absent(),
     bool? isSynced,
@@ -950,6 +983,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
         : this.establishmentId,
     checklistId: checklistId.present ? checklistId.value : this.checklistId,
     inspectorId: inspectorId.present ? inspectorId.value : this.inspectorId,
+    equipeId: equipeId.present ? equipeId.value : this.equipeId,
     scoreConformidade: scoreConformidade.present
         ? scoreConformidade.value
         : this.scoreConformidade,
@@ -997,6 +1031,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
       inspectorId: data.inspectorId.present
           ? data.inspectorId.value
           : this.inspectorId,
+      equipeId: data.equipeId.present ? data.equipeId.value : this.equipeId,
       scoreConformidade: data.scoreConformidade.present
           ? data.scoreConformidade.value
           : this.scoreConformidade,
@@ -1037,6 +1072,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
           ..write('establishmentId: $establishmentId, ')
           ..write('checklistId: $checklistId, ')
           ..write('inspectorId: $inspectorId, ')
+          ..write('equipeId: $equipeId, ')
           ..write('scoreConformidade: $scoreConformidade, ')
           ..write('scoreNaoConformidade: $scoreNaoConformidade, ')
           ..write('isSynced: $isSynced, ')
@@ -1069,6 +1105,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
     establishmentId,
     checklistId,
     inspectorId,
+    equipeId,
     scoreConformidade,
     scoreNaoConformidade,
     isSynced,
@@ -1100,6 +1137,7 @@ class Inspecoe extends DataClass implements Insertable<Inspecoe> {
           other.establishmentId == this.establishmentId &&
           other.checklistId == this.checklistId &&
           other.inspectorId == this.inspectorId &&
+          other.equipeId == this.equipeId &&
           other.scoreConformidade == this.scoreConformidade &&
           other.scoreNaoConformidade == this.scoreNaoConformidade &&
           other.isSynced == this.isSynced &&
@@ -1129,6 +1167,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
   final Value<String?> establishmentId;
   final Value<String?> checklistId;
   final Value<String?> inspectorId;
+  final Value<String?> equipeId;
   final Value<double?> scoreConformidade;
   final Value<double?> scoreNaoConformidade;
   final Value<bool> isSynced;
@@ -1157,6 +1196,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
     this.establishmentId = const Value.absent(),
     this.checklistId = const Value.absent(),
     this.inspectorId = const Value.absent(),
+    this.equipeId = const Value.absent(),
     this.scoreConformidade = const Value.absent(),
     this.scoreNaoConformidade = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1186,6 +1226,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
     this.establishmentId = const Value.absent(),
     this.checklistId = const Value.absent(),
     this.inspectorId = const Value.absent(),
+    this.equipeId = const Value.absent(),
     this.scoreConformidade = const Value.absent(),
     this.scoreNaoConformidade = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1225,6 +1266,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
     Expression<String>? establishmentId,
     Expression<String>? checklistId,
     Expression<String>? inspectorId,
+    Expression<String>? equipeId,
     Expression<double>? scoreConformidade,
     Expression<double>? scoreNaoConformidade,
     Expression<bool>? isSynced,
@@ -1254,6 +1296,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
       if (establishmentId != null) 'establishment_id': establishmentId,
       if (checklistId != null) 'checklist_id': checklistId,
       if (inspectorId != null) 'inspector_id': inspectorId,
+      if (equipeId != null) 'equipe_id': equipeId,
       if (scoreConformidade != null) 'score_conformidade': scoreConformidade,
       if (scoreNaoConformidade != null)
         'score_nao_conformidade': scoreNaoConformidade,
@@ -1286,6 +1329,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
     Value<String?>? establishmentId,
     Value<String?>? checklistId,
     Value<String?>? inspectorId,
+    Value<String?>? equipeId,
     Value<double?>? scoreConformidade,
     Value<double?>? scoreNaoConformidade,
     Value<bool>? isSynced,
@@ -1315,6 +1359,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
       establishmentId: establishmentId ?? this.establishmentId,
       checklistId: checklistId ?? this.checklistId,
       inspectorId: inspectorId ?? this.inspectorId,
+      equipeId: equipeId ?? this.equipeId,
       scoreConformidade: scoreConformidade ?? this.scoreConformidade,
       scoreNaoConformidade: scoreNaoConformidade ?? this.scoreNaoConformidade,
       isSynced: isSynced ?? this.isSynced,
@@ -1384,6 +1429,9 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
     if (inspectorId.present) {
       map['inspector_id'] = Variable<String>(inspectorId.value);
     }
+    if (equipeId.present) {
+      map['equipe_id'] = Variable<String>(equipeId.value);
+    }
     if (scoreConformidade.present) {
       map['score_conformidade'] = Variable<double>(scoreConformidade.value);
     }
@@ -1441,6 +1489,7 @@ class InspecoesCompanion extends UpdateCompanion<Inspecoe> {
           ..write('establishmentId: $establishmentId, ')
           ..write('checklistId: $checklistId, ')
           ..write('inspectorId: $inspectorId, ')
+          ..write('equipeId: $equipeId, ')
           ..write('scoreConformidade: $scoreConformidade, ')
           ..write('scoreNaoConformidade: $scoreNaoConformidade, ')
           ..write('isSynced: $isSynced, ')
@@ -11139,6 +11188,7 @@ typedef $$InspecoesTableCreateCompanionBuilder =
       Value<String?> establishmentId,
       Value<String?> checklistId,
       Value<String?> inspectorId,
+      Value<String?> equipeId,
       Value<double?> scoreConformidade,
       Value<double?> scoreNaoConformidade,
       Value<bool> isSynced,
@@ -11169,6 +11219,7 @@ typedef $$InspecoesTableUpdateCompanionBuilder =
       Value<String?> establishmentId,
       Value<String?> checklistId,
       Value<String?> inspectorId,
+      Value<String?> equipeId,
       Value<double?> scoreConformidade,
       Value<double?> scoreNaoConformidade,
       Value<bool> isSynced,
@@ -11270,6 +11321,11 @@ class $$InspecoesTableFilterComposer
 
   ColumnFilters<String> get inspectorId => $composableBuilder(
     column: $table.inspectorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get equipeId => $composableBuilder(
+    column: $table.equipeId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11413,6 +11469,11 @@ class $$InspecoesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get equipeId => $composableBuilder(
+    column: $table.equipeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get scoreConformidade => $composableBuilder(
     column: $table.scoreConformidade,
     builder: (column) => ColumnOrderings(column),
@@ -11535,6 +11596,9 @@ class $$InspecoesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get equipeId =>
+      $composableBuilder(column: $table.equipeId, builder: (column) => column);
+
   GeneratedColumn<double> get scoreConformidade => $composableBuilder(
     column: $table.scoreConformidade,
     builder: (column) => column,
@@ -11618,6 +11682,7 @@ class $$InspecoesTableTableManager
                 Value<String?> establishmentId = const Value.absent(),
                 Value<String?> checklistId = const Value.absent(),
                 Value<String?> inspectorId = const Value.absent(),
+                Value<String?> equipeId = const Value.absent(),
                 Value<double?> scoreConformidade = const Value.absent(),
                 Value<double?> scoreNaoConformidade = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -11646,6 +11711,7 @@ class $$InspecoesTableTableManager
                 establishmentId: establishmentId,
                 checklistId: checklistId,
                 inspectorId: inspectorId,
+                equipeId: equipeId,
                 scoreConformidade: scoreConformidade,
                 scoreNaoConformidade: scoreNaoConformidade,
                 isSynced: isSynced,
@@ -11676,6 +11742,7 @@ class $$InspecoesTableTableManager
                 Value<String?> establishmentId = const Value.absent(),
                 Value<String?> checklistId = const Value.absent(),
                 Value<String?> inspectorId = const Value.absent(),
+                Value<String?> equipeId = const Value.absent(),
                 Value<double?> scoreConformidade = const Value.absent(),
                 Value<double?> scoreNaoConformidade = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -11704,6 +11771,7 @@ class $$InspecoesTableTableManager
                 establishmentId: establishmentId,
                 checklistId: checklistId,
                 inspectorId: inspectorId,
+                equipeId: equipeId,
                 scoreConformidade: scoreConformidade,
                 scoreNaoConformidade: scoreNaoConformidade,
                 isSynced: isSynced,

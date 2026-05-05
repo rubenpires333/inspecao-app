@@ -108,7 +108,8 @@ class Inspecoes extends Table {
   TextColumn get establishmentId => text().nullable()();
   TextColumn get checklistId => text().nullable()();
   TextColumn get inspectorId => text().nullable()();
-  
+  TextColumn get equipeId => text().nullable()();
+
   // Scores
   RealColumn get scoreConformidade => real().nullable()();
   RealColumn get scoreNaoConformidade => real().nullable()();

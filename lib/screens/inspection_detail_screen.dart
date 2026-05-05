@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -59,6 +61,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   Map<String, dynamic>? _equipe;
   List<Map<String, dynamic>> _membros = [];
   bool _loadingEquipe = false;
+  /// Inspetor que está a executar a inspeção no servidor (`inspetor.nomeCompleto`).
+  String? _inspetorNome;
+  bool _loadingInspetor = true;
   int get _pendentes => (_checklistTotal - _checklistRespondidos).clamp(0, _checklistTotal);
 
   /// Chamado pelo ChecklistTab sempre que o progresso muda
@@ -95,6 +100,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     _loadChecklistNome();
     _loadChecklistItens();
     _loadEquipe();
+    _loadInspetorDesignado();
   }
 
   @override
@@ -145,6 +151,62 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       return 'Sem horário';
     }
     return DateFormat('HH:mm').format(d);
+  }
+
+  /// Inspetor designado na inspeção (quem executa), via detalhe no servidor
+  /// (mobile primeiro, depois web).
+  Future<void> _loadInspetorDesignado() async {
+    final rawId = (_inspection.serverId != null && _inspection.serverId!.isNotEmpty)
+        ? _inspection.serverId!
+        : _inspection.id;
+    if (rawId.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _inspetorNome = '';
+          _loadingInspetor = false;
+        });
+      }
+      return;
+    }
+
+    if (mounted) setState(() => _loadingInspetor = true);
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final authService = AuthService(apiService, prefs);
+      final token = await authService.getAccessToken();
+      if (token != null) apiService.setAuthToken(token);
+
+      final data = await apiService.getInspecaoById(rawId);
+      final insp = data['inspetor'];
+      String nome = '';
+      if (insp is Map<String, dynamic>) {
+        nome = (insp['nomeCompleto'] ?? insp['nome'] ?? '').toString().trim();
+      }
+      if (mounted) setState(() => _inspetorNome = nome);
+
+      // Resposta inclui `equipeId`; a BD local antiga não gravava — preenche e carrega membros.
+      final eqFromApi = data['equipeId']?.toString();
+      if (eqFromApi != null &&
+          eqFromApi.isNotEmpty &&
+          (_inspection.equipeId == null || _inspection.equipeId!.isEmpty)) {
+        final merged = _inspection.copyWith(equipeId: eqFromApi);
+        _inspection = merged;
+        unawaited(_dataService.updateInspection(merged));
+        if (mounted) {
+          setState(() {});
+          await _loadEquipe();
+        }
+      }
+    } catch (e) {
+      AppLogger.log('⚠️ [InspectionDetail] inspetor designado não carregado: $e');
+      if (mounted) setState(() => _inspetorNome = '');
+    } finally {
+      if (mounted) setState(() => _loadingInspetor = false);
+    }
   }
 
   Future<void> _loadEquipe() async {
@@ -592,6 +654,15 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               DateFormat('dd/MM/yyyy').format(_inspection.dataAgendada)),
           _infoRow(Icons.access_time_rounded, 'Horário',
               _formatAgendaTimeLabel(_inspection.dataAgendada)),
+          _infoRow(
+            Icons.person_search_rounded,
+            'Inspetor designado',
+            _loadingInspetor
+                ? 'A carregar…'
+                : ((_inspetorNome != null && _inspetorNome!.isNotEmpty)
+                    ? _inspetorNome!
+                    : '—'),
+          ),
           _infoRow(Icons.sync_rounded, 'Sincronização',
               _inspection.isSynced ? 'Sincronizado ✓' : 'Pendente'),
         ],
@@ -654,11 +725,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           ]),
           const SizedBox(height: 12),
 
-          // Nome da equipa
+          // Nome da equipa + inspetor-chefe (supervisor)
           if (_equipe != null) ...[
             _infoRow(
               Icons.groups_rounded,
-              'Nome',
+              'Nome da equipa',
               _equipe!['nome']?.toString() ?? '—',
             ),
             if ((_equipe!['codigo'] ?? '').toString().isNotEmpty)
@@ -666,6 +737,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 Icons.tag_rounded,
                 'Código',
                 _equipe!['codigo'].toString(),
+              ),
+            if ((_equipe!['supervisorNome'] ?? '').toString().trim().isNotEmpty)
+              _infoRow(
+                Icons.supervisor_account_rounded,
+                'Inspetor-chefe da equipa',
+                _equipe!['supervisorNome'].toString().trim(),
               ),
           ] else if (!_loadingEquipe) ...[
             _infoRow(Icons.tag_rounded, 'ID', _inspection.equipeId!),
@@ -1339,15 +1416,23 @@ class _MembroCard extends StatelessWidget {
   final Map<String, dynamic> membro;
   const _MembroCard({required this.membro});
 
-  String _val(String key) => membro[key]?.toString() ?? '';
+  static String _pick(Map<String, dynamic> m, List<String> keys) {
+    for (final k in keys) {
+      final v = m[k]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final nome     = _val('nome').isNotEmpty ? _val('nome') : _val('nomeCompleto');
-    final email    = _val('email');
-    final telefone = _val('telefone').isNotEmpty ? _val('telefone') : _val('telemovel');
-    final cargo    = _val('cargo').isNotEmpty ? _val('cargo') : _val('funcao');
-    final role     = _val('role').isNotEmpty ? _val('role') : _val('perfil');
+    // API (`MembroResponse`): usuarioNome, usuarioEmail — modelo local: nome, email
+    final nome = _pick(membro, const ['nome', 'nomeCompleto', 'usuarioNome']);
+    final email = _pick(membro, const ['email', 'usuarioEmail']);
+    final telefone =
+        _pick(membro, const ['telefone', 'telemovel', 'usuarioTelefone']);
+    final cargo = _pick(membro, const ['cargo', 'funcao']);
+    final role = _pick(membro, const ['role', 'perfil']);
 
     // Iniciais para avatar
     final partes = nome.trim().split(' ');

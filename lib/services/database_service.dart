@@ -62,6 +62,7 @@ class DatabaseService {
       establishmentId: Value(inspection.establishmentId),
       checklistId: Value(inspection.checklistId),
       inspectorId: Value(inspection.inspectorId),
+      equipeId: Value(inspection.equipeId),
       scoreConformidade: Value(null), // TODO: calcular scores
       scoreNaoConformidade: Value(null),
       isSynced: Value(inspection.isSynced),
@@ -107,7 +108,7 @@ class DatabaseService {
       establishmentId: dbInspection.establishmentId,
       inspectorId: dbInspection.inspectorId,
       checklistId: dbInspection.checklistId,
-      equipeId: null, // TODO: adicionar quando tiver tabela de equipe
+      equipeId: dbInspection.equipeId,
       isTemplate: dbInspection.isTemplate,
       isSynced: dbInspection.isSynced,
       createdAt: dbInspection.createdAt,
