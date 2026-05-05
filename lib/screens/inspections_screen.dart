@@ -563,6 +563,11 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
   }
 
   Widget _buildAuditCard(Inspection inspection) {
+    final est = _establishmentsCache[inspection.establishmentId];
+    final endereco = (est != null && est.endereco.trim().isNotEmpty)
+        ? est.endereco.trim()
+        : inspection.endereco.trim();
+
     return InkWell(
       onTap: () async {
         await Navigator.push(
@@ -592,6 +597,35 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      endereco.isNotEmpty ? endereco : 'Endereço não informado',
+                      style: TextStyle(
+                        color: endereco.isNotEmpty
+                            ? Colors.grey[700]
+                            : Colors.grey[500],
+                        fontSize: 13,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               

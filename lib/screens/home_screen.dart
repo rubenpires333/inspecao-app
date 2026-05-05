@@ -686,6 +686,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final totalItems = inspection.itens.length;
     final conformItems = inspection.itens.where((item) => item.status == ItemStatus.conforme).length;
     final score = totalItems > 0 ? (conformItems / totalItems * 100).round() : 0;
+    final scoreLabel = totalItems > 0 ? '$score%' : '—';
     
     return InkWell(
       onTap: () {
@@ -800,7 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    '$score%',
+                    scoreLabel,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,

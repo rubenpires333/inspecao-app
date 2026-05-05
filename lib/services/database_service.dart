@@ -243,8 +243,10 @@ class DatabaseService {
         await _database.insertInspecao(companion);
       }
       
-      // Salvar itens/respostas da inspeção
-      await _saveInspectionItems(inspection.id, inspection.itens);
+      // Lista da API não inclui itens; não substituir respostas locais por lista vazia
+      if (inspection.itens.isNotEmpty) {
+        await _saveInspectionItems(inspection.id, inspection.itens);
+      }
     } catch (e) {
       print('Erro ao salvar inspeção no banco local: $e');
       rethrow;
@@ -285,8 +287,9 @@ class DatabaseService {
       ));
       await _database.updateInspecao(companion);
       
-      // Atualizar itens/respostas
-      await _saveInspectionItems(inspection.id, inspection.itens);
+      if (inspection.itens.isNotEmpty) {
+        await _saveInspectionItems(inspection.id, inspection.itens);
+      }
     } catch (e) {
       print('Erro ao atualizar inspeção no banco local: $e');
       rethrow;

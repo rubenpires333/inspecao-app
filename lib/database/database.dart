@@ -88,15 +88,20 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 5) {
           print('🔄 Migration 4->5: categoria no estabelecimento...');
-          await m.addColumn(
-            estabelecimentos,
-            estabelecimentos.categoriaEstabelecimentoId,
-          );
-          await m.addColumn(
-            estabelecimentos,
-            estabelecimentos.categoriaEstabelecimentoNome,
-          );
-          print('✅ Colunas categoriaEstabelecimento adicionadas a estabelecimentos');
+          // Idempotente: se a migração falhou a meio ou as colunas já existiam, não repetir ADD COLUMN
+          if (!await _sqliteTableHasColumn('estabelecimentos', 'categoria_estabelecimento_id')) {
+            await m.addColumn(
+              estabelecimentos,
+              estabelecimentos.categoriaEstabelecimentoId,
+            );
+          }
+          if (!await _sqliteTableHasColumn('estabelecimentos', 'categoria_estabelecimento_nome')) {
+            await m.addColumn(
+              estabelecimentos,
+              estabelecimentos.categoriaEstabelecimentoNome,
+            );
+          }
+          print('✅ Colunas categoriaEstabelecimento ok em estabelecimentos');
         }
       },
     );
@@ -381,6 +386,15 @@ class AppDatabase extends _$AppDatabase {
   
   Future<int> deleteSincronizacaoByInspecao(String inspecaoId) => 
       (delete(sincronizacoes)..where((t) => t.inspecaoId.equals(inspecaoId))).go();
+
+  Future<bool> _sqliteTableHasColumn(String tableName, String columnName) async {
+    final rows = await customSelect(
+      "SELECT 1 AS one FROM pragma_table_info('$tableName') WHERE name = ? LIMIT 1",
+      variables: [Variable.withString(columnName)],
+      readsFrom: const {},
+    ).get();
+    return rows.isNotEmpty;
+  }
 }
 
 /// Abre conexão com o banco de dados SQLite
