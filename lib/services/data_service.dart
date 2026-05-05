@@ -1735,12 +1735,15 @@ class DataService {
     return temp.tipoText;
   }
 
-  // Método para formatar título da inspeção com estabelecimento
+  /// Título para UI: evita duplicar o nome quando a API já envia
+  /// `Inspeção N - Nome` ou quando o título local é só o nome do estabelecimento.
   static String getInspectionDisplayTitle(Inspection inspection, Establishment? establishment) {
-    if (establishment != null) {
-      return '${inspection.titulo} - ${establishment.nome}';
-    }
-    return inspection.titulo;
+    final t = inspection.titulo.trim();
+    if (establishment == null) return t;
+    final nome = establishment.nome.trim();
+    if (nome.isEmpty) return t;
+    if (t == nome || t.endsWith(' - $nome')) return t;
+    return '$t - $nome';
   }
 
   // Métodos para checklists por categoria

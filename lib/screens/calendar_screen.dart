@@ -196,16 +196,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   String _getInspectionDisplayTitle(Inspection inspection) {
-    if (inspection.establishmentId == null) {
-      return inspection.titulo;
+    final est = inspection.establishmentId != null
+        ? _establishmentsCache[inspection.establishmentId]
+        : null;
+    return DataService.getInspectionDisplayTitle(inspection, est);
+  }
+
+  /// A API envia `dataInspecao` como data sem hora → vira `DateTime` à meia-noite local (00:00).
+  String _formatInspectionTimeLabel(DateTime dataAgendada) {
+    final d = dataAgendada;
+    if (d.hour == 0 && d.minute == 0 && d.second == 0) {
+      return 'Sem horário';
     }
-    
-    final establishment = _establishmentsCache[inspection.establishmentId];
-    if (establishment != null) {
-      return '${inspection.titulo} - ${establishment.nome}';
-    }
-    
-    return inspection.titulo;
+    return DateFormat('HH:mm').format(d);
   }
 
   List<Widget> _buildEventMarkers(DateTime day) {
@@ -385,47 +388,78 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabeçalho com título e status
+              Text(
+                _getInspectionDisplayTitle(inspection),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E2E2E),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título e informações
+                  Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getInspectionDisplayTitle(inspection),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF2E2E2E),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                inspection.endereco,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: Text(
+                      inspection.endereco.isNotEmpty
+                          ? inspection.endereco
+                          : 'Endereço não informado',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Badge de status
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Data, hora (ou "Sem horário") e status na mesma linha
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(inspection.dataAgendada),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatInspectionTimeLabel(inspection.dataAgendada),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (!inspection.isSynced) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Não sincronizada',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -452,48 +486,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Informações adicionais
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(inspection.dataAgendada),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('HH:mm').format(inspection.dataAgendada),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (!inspection.isSynced)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Não sincronizada',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ],
