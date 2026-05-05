@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:inspecao/models/user.dart';
 import 'package:inspecao/services/api_service.dart';
@@ -187,6 +188,105 @@ class AuthService {
     }
   }
 
+  /// Ao abrir a app: reativa o token no [ApiService], repara `exp` em falta,
+  /// renova com refresh se o access tiver expirado e garante utilizador em prefs.
+  Future<bool> ensureSessionRestored() async {
+    await initializeToken();
+    await _repairExpiresFromJwtIfNeeded();
+
+    if (!await isAuthenticated()) {
+      final rt = await getRefreshToken();
+      if (rt == null || rt.isEmpty) {
+        return false;
+      }
+      try {
+        await refreshToken();
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (await getCurrentUser() != null) {
+      return true;
+    }
+
+    try {
+      await _hydrateUserFromProfile();
+    } catch (_) {
+      final fallback = _userFromStoredAccessTokenClaims(await getAccessToken());
+      if (fallback != null) {
+        await _saveUser(fallback);
+      }
+    }
+
+    return await getCurrentUser() != null;
+  }
+
+  Future<void> _repairExpiresFromJwtIfNeeded() async {
+    if (await getTokenExpiresAt() != null) return;
+    final access = await getAccessToken();
+    if (access == null || access.isEmpty) return;
+    try {
+      final map = json.decode(_jwtPayloadJson(access)) as Map<String, dynamic>;
+      final exp = map['exp'];
+      if (exp is int) {
+        final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true);
+        await _prefs.setString(_tokenExpiresAtKey, expiresAt.toIso8601String());
+      }
+    } catch (_) {}
+  }
+
+  String _jwtPayloadJson(String jwt) {
+    final parts = jwt.split('.');
+    if (parts.length < 2) {
+      throw const FormatException('JWT inválido');
+    }
+    var seg = parts[1];
+    final pad = seg.length % 4;
+    if (pad != 0) {
+      seg += '=' * (4 - pad);
+    }
+    return utf8.decode(base64Url.decode(seg));
+  }
+
+  Future<void> _hydrateUserFromProfile() async {
+    final data = await _apiService.getProfile();
+    var user = _mapUserFromResponse(data);
+    try {
+      final keycloakId = data['email']?.toString() ??
+          data['username']?.toString() ??
+          user.email;
+      final permissions = await _apiService.getUserPermissions(keycloakId);
+      user = user.copyWith(permissions: permissions);
+    } catch (e) {
+      print('Aviso: Não foi possível buscar permissões (perfil): $e');
+    }
+    await _saveUser(user);
+  }
+
+  User? _userFromStoredAccessTokenClaims(String? access) {
+    if (access == null || access.isEmpty) return null;
+    try {
+      final map = json.decode(_jwtPayloadJson(access)) as Map<String, dynamic>;
+      final sub = map['sub']?.toString() ?? '';
+      final nome = map['name']?.toString() ??
+          map['preferred_username']?.toString() ??
+          map['email']?.toString() ??
+          'Usuário';
+      final email = map['email']?.toString() ?? '';
+      return User(
+        id: sub.isNotEmpty ? sub : email,
+        nome: nome,
+        email: email,
+        role: UserRole.inspetor,
+        dataCriacao: DateTime.now(),
+        ultimoAcesso: DateTime.now(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Salva tokens de forma segura
   Future<void> _saveTokens(String accessToken, String? refreshToken, DateTime expiresAt) async {
     await _prefs.setString(_accessTokenKey, accessToken);
@@ -241,9 +341,11 @@ class AuthService {
 
     return User(
       id: userData['id']?.toString() ?? '',
-      nome: userData['nomeCompleto']?.toString() ?? 
-            userData['username']?.toString() ?? 
-            userData['email']?.toString() ?? 'Usuário',
+      nome: userData['nomeCompleto']?.toString() ??
+            userData['nome']?.toString() ??
+            userData['username']?.toString() ??
+            userData['email']?.toString() ??
+            'Usuário',
       email: userData['email']?.toString() ?? userData['username']?.toString() ?? '',
       role: role,
       avatar: userData['foto']?.toString(),

@@ -77,23 +77,10 @@ class _SplashScreenState extends State<SplashScreen>
         apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
       }
       
-      // Inicializar AuthService e verificar autenticação
+      // Inicializar AuthService: token, refresh se necessário, utilizador em prefs
       final prefs = await SharedPreferences.getInstance();
       final authService = AuthService(apiService, prefs);
-      
-      // Inicializar token se existir
-      await authService.initializeToken();
-      
-      // Verificar se o usuário está autenticado
-      final isAuthenticated = await authService.isAuthenticated();
-      
-      if (isAuthenticated) {
-        // Verificar se o usuário existe localmente
-        final user = await authService.getCurrentUser();
-        _isLoggedIn = user != null;
-      } else {
-        _isLoggedIn = false;
-      }
+      _isLoggedIn = await authService.ensureSessionRestored();
     } catch (e) {
       // Em caso de erro, verificar usuário local como fallback
       final user = await _dataService.getCurrentUser();
