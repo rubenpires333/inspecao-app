@@ -244,12 +244,18 @@ class InspecaoService {
   // Validação e Finalização
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// GET /api/v1/inspecoes/{id}/validar
+  /// POST /api/v1/inspecoes/{id}/validar
+  ///
+  /// Igual ao backoffice Angular ([InspecaoService.validar]): POST com corpo vazio.
+  /// O servidor só expõe este método (não há GET).
   Future<Map<String, dynamic>> validar(String inspecaoId) async {
-    AppLogger.log('🔍 [InspecaoService.validar] → GET /api/v1/inspecoes/$inspecaoId/validar');
+    AppLogger.log('🔍 [InspecaoService.validar] → POST /api/v1/inspecoes/$inspecaoId/validar');
     final dio = await _buildDio();
     try {
-      final response = await dio.get('/api/v1/inspecoes/$inspecaoId/validar');
+      final response = await dio.post(
+        '/api/v1/inspecoes/$inspecaoId/validar',
+        data: const <String, dynamic>{},
+      );
       AppLogger.log('✅ [InspecaoService.validar] status=${response.statusCode}');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
@@ -388,24 +394,49 @@ class InspecaoService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// POST /api/v1/inspecoes/{id}/validar-localizacao
-  /// Valida se o inspetor está dentro do raio do estabelecimento
+  ///
+  /// Persiste GPS na inspeção e define [desvioRegistrado] quando fora do raio
+  /// (pré-requisito para [registrarJustificativaDesvio] no backend).
   Future<Map<String, dynamic>> validarLocalizacao(
-      String inspecaoId, double lat, double lng, double accuracy) async {
-    AppLogger.log('📍 [InspecaoService.validarLocalizacao] → POST lat=$lat lng=$lng');
+    String inspecaoId, {
+    required double latitude,
+    required double longitude,
+    double? precisaoGps,
+  }) async {
+    AppLogger.log('📍 [InspecaoService.validarLocalizacao] → POST lat=$latitude lng=$longitude');
     final dio = await _buildDio();
     try {
       final response = await dio.post(
         '/api/v1/inspecoes/$inspecaoId/validar-localizacao',
         data: {
-          'latitude': lat,
-          'longitude': lng,
-          'precisao': accuracy,
+          'latitude': latitude,
+          'longitude': longitude,
+          if (precisaoGps != null) 'precisaoGps': precisaoGps,
         },
       );
       AppLogger.log('✅ [InspecaoService.validarLocalizacao] status=${response.statusCode}');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw _handleError('validarLocalizacao', e);
+    }
+  }
+
+  /// POST /api/v1/inspecoes/{id}/registrar-justificativa-desvio
+  ///
+  /// Exige desvio registado no servidor (via [validarLocalizacao] fora do raio).
+  /// Texto mínimo 10 caracteres (igual à API).
+  Future<void> registrarJustificativaDesvio(
+      String inspecaoId, String justificativa) async {
+    AppLogger.log('📝 [InspecaoService.registrarJustificativaDesvio] inspecao=$inspecaoId');
+    final dio = await _buildDio();
+    try {
+      await dio.post(
+        '/api/v1/inspecoes/$inspecaoId/registrar-justificativa-desvio',
+        data: {'justificativa': justificativa},
+      );
+      AppLogger.log('✅ [InspecaoService.registrarJustificativaDesvio] OK');
+    } on DioException catch (e) {
+      throw _handleError('registrarJustificativaDesvio', e);
     }
   }
 

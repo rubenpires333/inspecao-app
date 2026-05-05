@@ -244,6 +244,7 @@ class DataService {
       'checklistId': apiData['checklistId']?.toString(),
       'equipeId': apiData['equipeId']?.toString(),
       'isTemplate': false,
+      'justificativaDesvio': apiData['justificativaDesvio']?.toString(),
       'isSynced': apiData['sincronizado'] as bool? ?? true,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),

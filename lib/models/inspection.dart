@@ -45,6 +45,10 @@ class Inspection {
   final String? checklistId; // ID do checklist associado
   final String? equipeId; // ID da equipe designada
   final bool isTemplate; // Se é um template de auditoria
+
+  /// Justificativa quando a inspeção é finalizada fora do raio GPS (espelha o backend).
+  /// Não persistido no SQLite local; preenchido quando a lista vem da API.
+  final String? justificativaDesvio;
   
   // Campos de controle para sincronização
   final bool isSynced;
@@ -73,6 +77,7 @@ class Inspection {
     this.checklistId,
     this.equipeId,
     this.isTemplate = false,
+    this.justificativaDesvio,
     this.isSynced = false,
     required this.createdAt,
     required this.updatedAt,
@@ -100,6 +105,7 @@ class Inspection {
     String? checklistId,
     String? equipeId,
     bool? isTemplate,
+    String? justificativaDesvio,
     bool? isSynced,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -126,6 +132,7 @@ class Inspection {
       checklistId: checklistId ?? this.checklistId,
       equipeId: equipeId ?? this.equipeId,
       isTemplate: isTemplate ?? this.isTemplate,
+      justificativaDesvio: justificativaDesvio ?? this.justificativaDesvio,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -154,6 +161,7 @@ class Inspection {
     'checklistId': checklistId,
     'equipeId': equipeId,
     'isTemplate': isTemplate,
+    if (justificativaDesvio != null) 'justificativaDesvio': justificativaDesvio,
     'isSynced': isSynced,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
@@ -183,6 +191,7 @@ class Inspection {
       checklistId: json['checklistId'],
       equipeId: json['equipeId'],
       isTemplate: json['isTemplate'] ?? false,
+      justificativaDesvio: json['justificativaDesvio']?.toString(),
       isSynced: json['isSynced'] ?? false,
     createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
     updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : DateTime.now(),

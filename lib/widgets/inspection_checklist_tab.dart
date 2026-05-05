@@ -675,9 +675,9 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         });
         if (!r.dentroDoRaio && r.temLocalizacao) {
           if (mounted) setState(() => _finalizando = false);
-          final continuar = await _dlgFora(r.distanciaMetros!);
+          final continuar = await _resolverForaDoRaio(r.distanciaMetros!);
           if (!continuar) return;
-          setState(() => _finalizando = true);
+          if (mounted) setState(() => _finalizando = true);
         }
       } catch (_) { semGps = true; }
     }
@@ -746,50 +746,95 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.help_outline_rounded, size: 48, color: _kWarning),
-            const SizedBox(height: 12),
-            const Text('Itens por responder',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
-            const SizedBox(height: 8),
-            Text(
-              '$pendentes ${pendentes == 1 ? "item ainda não foi respondido" : "itens ainda não foram respondidos"}.\nDeseja concluir mesmo assim?',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: _kTextSecondary),
-            ),
-            const SizedBox(height: 20),
-          ]),
-          actions: [
-            Row(children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancelar',
-                      style: TextStyle(color: _kTextSecondary)),
-                ),
-              ),
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Concluir mesmo assim',
-                      style: TextStyle(color: _kWarning, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ]),
-          ],
-        ),
-      ) ?? false;
+        builder: (_) => _PendentesOpcionaisDialog(pendentes: pendentes),
+      ) ??
+      false;
 
-  Future<bool> _dlgFora(double dist) async =>
-      await showDialog<bool>(
+  /// Fora do raio: alinha com a web — validar localização no servidor, justificativa
+  /// (mín. 10 caracteres) e só depois permitir continuar para a confirmação final.
+  Future<bool> _resolverForaDoRaio(double distanciaMetros) async {
+    if (!mounted) return false;
+    final pos = _gpsService.lastPosition;
+    if (pos == null) {
+      _dlg(
+        icon: Icons.location_off_rounded,
+        cor: _kError,
+        titulo: 'Localização indisponível',
+        msg: 'Não foi possível obter coordenadas GPS para registar o desvio no servidor.',
+        label: 'Entendido',
+      );
+      return false;
+    }
+
+    try {
+      await _inspecaoService.validarLocalizacao(
+        widget.inspection.id,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        precisaoGps: pos.accuracy,
+      );
+    } catch (e) {
+      if (mounted) {
+        _dlg(
+          icon: Icons.cloud_off_rounded,
+          cor: _kError,
+          titulo: 'Erro ao validar localização',
+          msg: e.toString().replaceAll('Exception: ', ''),
+          label: 'OK',
+        );
+      }
+      return false;
+    }
+
+    if (!mounted) return false;
+
+    final existente = widget.inspection.justificativaDesvio?.trim() ?? '';
+    if (existente.length >= 10) {
+      final confirmar = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => _LocationWarningDlg(distancia: dist),
-      ) ?? false;
+        builder: (_) => _JustificativaExistenteDlg(
+          distanciaMetros: distanciaMetros,
+          justificativa: existente,
+        ),
+      );
+      return confirmar == true;
+    }
+
+    if (!mounted) return false;
+
+    final texto = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _JustificativaDesvioFormDlg(
+        distanciaMetros: distanciaMetros,
+      ),
+    );
+
+    if (texto == null || texto.trim().length < 10) {
+      return false;
+    }
+
+    try {
+      await _inspecaoService.registrarJustificativaDesvio(
+        widget.inspection.id,
+        texto.trim(),
+      );
+    } catch (e) {
+      if (mounted) {
+        _dlg(
+          icon: Icons.error_outline_rounded,
+          cor: _kError,
+          titulo: 'Erro ao registar justificativa',
+          msg: e.toString().replaceAll('Exception: ', ''),
+          label: 'OK',
+        );
+      }
+      return false;
+    }
+
+    return true;
+  }
 
   Future<bool> _dlgConfirmar() async =>
       await showDialog<bool>(
@@ -1413,61 +1458,296 @@ class _AlertDlg extends StatelessWidget {
   );
 }
 
-// ─── _LocationWarningDlg ──────────────────────────────────────────────────────
-class _LocationWarningDlg extends StatelessWidget {
-  final double distancia;
-  const _LocationWarningDlg({required this.distancia});
+// ─── Itens opcionais por responder (concluir na mesma) ───────────────────────
+
+class _PendentesOpcionaisDialog extends StatelessWidget {
+  final int pendentes;
+
+  const _PendentesOpcionaisDialog({required this.pendentes});
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-    content: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: _kError.withOpacity(0.1), shape: BoxShape.circle),
-        child: const Icon(Icons.location_off_rounded, size: 36, color: _kError),
-      ),
-      const SizedBox(height: 16),
-      const Text('Fora do local de inspeção',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700, color: _kTextPrimary)),
-      const SizedBox(height: 8),
-      Text(
-        'Está a ${distancia.round()}m do estabelecimento (raio permitido: 10m).\nDeseja concluir mesmo assim?',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13, color: _kTextSecondary),
-      ),
-      const SizedBox(height: 20),
-    ]),
-    actions: [
-      Row(children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 16),
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
+  Widget build(BuildContext context) {
+    final resumo = pendentes == 1
+        ? '1 item do checklist ainda não tem resposta indicada.'
+        : '$pendentes itens do checklist ainda não têm resposta indicada.';
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF4E5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.assignment_late_outlined,
+                  size: 36,
+                  color: _kWarning,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Respostas em falta',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                  color: _kTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                resumo,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.45,
+                  color: _kTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kBorder),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 22,
+                      color: _kPrimary,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Se concluir agora, a inspeção fica registada com o preenchimento actual. '
+                        'Itens em branco podem afectar o score e a completude do relatório.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: _kTextPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: _kBorder, width: 1.2),
+                    foregroundColor: _kTextPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Voltar ao checklist',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: _kPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Concluir na mesma',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16, bottom: 16),
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: FilledButton.styleFrom(backgroundColor: _kError),
-              child: const Text('Concluir mesmo assim',
-                  style: TextStyle(fontSize: 12)),
+      ),
+    );
+  }
+}
+
+// ─── Justificativa fora do raio (mesmo fluxo que o backoffice) ───────────────
+
+class _JustificativaExistenteDlg extends StatelessWidget {
+  final double distanciaMetros;
+  final String justificativa;
+
+  const _JustificativaExistenteDlg({
+    required this.distanciaMetros,
+    required this.justificativa,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Finalizar com justificativa?',
+        style: TextStyle(
+            fontSize: 17, fontWeight: FontWeight.w700, color: _kTextPrimary),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Está a ${distanciaMetros.round()} m do estabelecimento (raio: 10 m). '
+              'Já existe uma justificativa registada:',
+              style: const TextStyle(fontSize: 13, color: _kTextSecondary),
             ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _kPrimaryLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Text(
+                justificativa,
+                style: const TextStyle(fontSize: 13, color: _kTextPrimary),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Deseja continuar para concluir a inspeção?',
+              style: TextStyle(fontSize: 13, color: _kTextSecondary),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: FilledButton.styleFrom(backgroundColor: _kPrimary),
+          child: const Text('Continuar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _JustificativaDesvioFormDlg extends StatefulWidget {
+  final double distanciaMetros;
+
+  const _JustificativaDesvioFormDlg({required this.distanciaMetros});
+
+  @override
+  State<_JustificativaDesvioFormDlg> createState() =>
+      _JustificativaDesvioFormDlgState();
+}
+
+class _JustificativaDesvioFormDlgState extends State<_JustificativaDesvioFormDlg> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Justificativa do desvio',
+        style: TextStyle(
+            fontSize: 17, fontWeight: FontWeight.w700, color: _kTextPrimary),
+      ),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Está a ${widget.distanciaMetros.round()} m do estabelecimento (raio permitido: 10 m). '
+                'Indique o motivo (mínimo 10 caracteres), como na versão web.',
+                style: const TextStyle(fontSize: 13, color: _kTextSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _controller,
+                minLines: 3,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'Explique o motivo do desvio de localização…',
+                  filled: true,
+                  fillColor: _kSurface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                ),
+                validator: (v) {
+                  final t = v?.trim() ?? '';
+                  if (t.isEmpty) return 'Justificativa obrigatória.';
+                  if (t.length < 10) return 'Mínimo de 10 caracteres.';
+                  return null;
+                },
+              ),
+            ],
           ),
         ),
-      ]),
-    ],
-  );
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          style: FilledButton.styleFrom(backgroundColor: _kPrimary),
+          child: const Text('Registar e continuar'),
+        ),
+      ],
+    );
+  }
 }
 
 // ─── _ConfirmDlg ──────────────────────────────────────────────────────────────
