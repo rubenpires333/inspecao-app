@@ -159,6 +159,25 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  /// Marca como removidas do espelho local as inspeções com `server_id` que
+  /// não vieram na última lista de ativas do servidor.
+  Future<int> softDeleteInspecoesEspelhadasDoServidorNotIn(List<String> serverIdsAtivos) {
+    if (serverIdsAtivos.isEmpty) {
+      return softDeleteInspecoesEspelhadasDoServidor();
+    }
+    return (update(inspecoes)
+          ..where((t) =>
+              t.serverId.isNotNull() &
+              t.isDeleted.equals(false) &
+              t.serverId.isNotIn(serverIdsAtivos)))
+        .write(
+      InspecoesCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// DAO para Respostas de Inspeção
   Future<List<RespostasInspecaoData>> getRespostasByInspecao(String inspecaoId) => 
       (select(respostasInspecao)..where((t) => t.inspecaoId.equals(inspecaoId))..orderBy([(t) => OrderingTerm(expression: t.ordem)])).get();

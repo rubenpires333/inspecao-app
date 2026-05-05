@@ -91,6 +91,14 @@ class DataService {
         final apiInspections = data.map((json) {
         return Inspection.fromJson(_mapApiResponseToInspection(json));
       }).toList();
+
+        // Limpar espelho local das inspeções que já não estão ativas no servidor.
+        final activeServerIds = apiInspections
+            .map((i) => i.serverId?.trim())
+            .whereType<String>()
+            .where((id) => id.isNotEmpty)
+            .toList();
+        await _dbService.softDeleteServerMirroredInspectionsNotIn(activeServerIds);
       
         // PASSO 3: Salvar no banco local (espelho do servidor)
         // As inspeções já vêm com isSynced=true e serverId da API no mapeamento
@@ -691,6 +699,14 @@ class DataService {
         final apiInspections = data.map((json) {
         return Inspection.fromJson(_mapApiResponseToInspection(json));
       }).toList();
+
+        // Limpar espelho local das inspeções que já não estão ativas no servidor.
+        final activeServerIds = apiInspections
+            .map((i) => i.serverId?.trim())
+            .whereType<String>()
+            .where((id) => id.isNotEmpty)
+            .toList();
+        await _dbService.softDeleteServerMirroredInspectionsNotIn(activeServerIds);
         
         // PASSO 3: Salvar no banco local (espelho do servidor)
         await _dbService.saveInspections(apiInspections);

@@ -280,6 +280,20 @@ class DatabaseService {
     }
   }
 
+  /// Remove do espelho local inspeções com `server_id` que não vieram na
+  /// última lista de ativas devolvida pelo servidor.
+  Future<int> softDeleteServerMirroredInspectionsNotIn(List<String> activeServerIds) async {
+    try {
+      final n = await _database.softDeleteInspecoesEspelhadasDoServidorNotIn(activeServerIds);
+      print(
+          '🧹 Espelho servidor: $n inspeção(ões) fora da lista ativa foram marcadas como removidas');
+      return n;
+    } catch (e) {
+      print('Erro ao limpar espelho de inspeções fora da lista ativa: $e');
+      rethrow;
+    }
+  }
+
   /// Atualiza inspeção no banco local
   Future<void> updateInspection(Inspection inspection) async {
     try {

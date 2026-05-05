@@ -263,12 +263,13 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.map_outlined,
         'label': 'Mapa',
       });
-      // Tela temporária de debug - será removida
-      items.add({
-        'screen': 'database',
-        'icon': Icons.storage_outlined,
-        'label': 'DB Local',
-      });
+      // Tela temporária de debug (DB Local) oculta por enquanto.
+      // Mantido comentado para reativação rápida no futuro.
+      // items.add({
+      //   'screen': 'database',
+      //   'icon': Icons.storage_outlined,
+      //   'label': 'DB Local',
+      // });
       return items;
     }
     
@@ -302,12 +303,13 @@ class _HomeScreenState extends State<HomeScreen> {
       'label': 'Mapa',
     });
     
-    // Tela temporária de debug - será removida
-    items.add({
-      'screen': 'database',
-      'icon': Icons.storage_outlined,
-      'label': 'DB Local',
-    });
+    // Tela temporária de debug (DB Local) oculta por enquanto.
+    // Mantido comentado para reativação rápida no futuro.
+    // items.add({
+    //   'screen': 'database',
+    //   'icon': Icons.storage_outlined,
+    //   'label': 'DB Local',
+    // });
     
     return items;
   }

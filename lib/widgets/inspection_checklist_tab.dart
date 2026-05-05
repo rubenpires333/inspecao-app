@@ -688,7 +688,25 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     if (!confirmar) return;
     setState(() => _finalizando = true);
 
-    // 5. Finalizar
+    // 5. Antes de finalizar, parar rastreamento periódico para evitar corrida
+    // com POST /rastreamento/registrar durante a conclusão.
+    var retomarRastreamentoSeFalhar = false;
+    if (_trackingTimer != null ||
+        _rastreamentoApiIniciadoNestaVisita ||
+        _gpsService.isTracking) {
+      retomarRastreamentoSeFalhar = widget.canEdit && widget.isChecklistTabActive;
+      _trackingTimer?.cancel();
+      _trackingTimer = null;
+      _gpsService.stopTracking();
+      try {
+        await _inspecaoService.finalizarRastreamentoSessao(widget.inspection.id);
+      } catch (_) {
+        // Best-effort: não bloquear a conclusão da inspeção por falha no rastreamento.
+      }
+      _rastreamentoApiIniciadoNestaVisita = false;
+    }
+
+    // 6. Finalizar
     try {
       final pos     = _gpsService.lastPosition;
       final payload = <String, dynamic>{};
@@ -715,6 +733,9 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     } catch (e) {
       if (mounted) {
         setState(() => _finalizando = false);
+        if (retomarRastreamentoSeFalhar) {
+          unawaited(_iniciarFluxoRastreamentoChecklist());
+        }
         _dlg(icon: Icons.error_outline_rounded, cor: _kError,
             titulo: 'Erro ao concluir',
             msg: e.toString().replaceAll('Exception: ', ''),
