@@ -267,6 +267,10 @@ class Estabelecimentos extends Table {
   TextColumn get email => text().nullable()();
   TextColumn get responsavel => text().nullable()();
   TextColumn get observacoes => text().nullable()();
+
+  /// Ligação ao catálogo de categorias (mesmo UUID da API / BD servidor)
+  TextColumn get categoriaEstabelecimentoId => text().nullable()();
+  TextColumn get categoriaEstabelecimentoNome => text().nullable()();
   
   // Controle de sincronização
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();

@@ -1921,6 +1921,7 @@ class DataService {
     final responsavel = apiData['responsavel']?.toString();
     final observacoes = apiData['numeroAlvara']?.toString() ?? apiData['observacoes']?.toString();
     
+    final catId = apiData['categoriaEstabelecimentoId']?.toString();
     return Establishment(
       id: id,
       nome: nome,
@@ -1937,6 +1938,10 @@ class DataService {
       updatedAt: updatedAt,
       isSynced: true, // Vem da API, então está sincronizado
       serverId: id, // ID do servidor é o mesmo ID
+      categoriaEstabelecimentoId:
+          (catId != null && catId.isNotEmpty) ? catId : null,
+      categoriaEstabelecimentoNome:
+          categoriaNome.isNotEmpty ? categoriaNome : null,
     );
   }
 

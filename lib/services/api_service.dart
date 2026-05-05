@@ -148,18 +148,44 @@ class ApiService {
     return [];
   }
 
-  /// Busca checklists por categoria de estabelecimento (endpoint mobile)
-  Future<List<Map<String, dynamic>>> getChecklistsPorCategoriaEstabelecimento(String categoria) async {
+  /// Busca checklists por **nome** da categoria de estabelecimento (API compara por nome).
+  /// Preferir [getChecklistsPorCategoriaEstabelecimentoId] quando tiver o UUID.
+  Future<List<Map<String, dynamic>>> getChecklistsPorCategoriaEstabelecimento(String categoriaNome) async {
+    final encoded = Uri.encodeComponent(categoriaNome.trim());
     try {
-      // Tentar endpoint mobile primeiro
-      final response = await _dio.get('/api/v1/mobile/checklists/por-categoria-estabelecimento/$categoria');
+      final response = await _dio.get(
+        '/api/v1/mobile/checklists/por-categoria-estabelecimento/$encoded',
+      );
       if (response.data is List) {
         return List<Map<String, dynamic>>.from(response.data);
       }
     } catch (e) {
-      // Fallback para endpoint web se mobile não estiver disponível
       print('⚠️ Endpoint mobile não disponível, usando endpoint web: $e');
-      final response = await _dio.get('/api/v1/checklists/por-categoria-estabelecimento/$categoria');
+      final response = await _dio.get(
+        '/api/v1/checklists/por-categoria-estabelecimento/$encoded',
+      );
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    }
+    return [];
+  }
+
+  /// Lista checklists públicos ativos pela categoria de estabelecimento (UUID) — alinhado ao backoffice web.
+  Future<List<Map<String, dynamic>>> getChecklistsPorCategoriaEstabelecimentoId(
+      String categoriaEstabelecimentoId) async {
+    try {
+      final response = await _dio.get(
+        '/api/v1/mobile/checklists/por-categoria-estabelecimento-id/$categoriaEstabelecimentoId',
+      );
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+    } catch (e) {
+      print('⚠️ GET por-categoria-estabelecimento-id mobile falhou: $e');
+      final response = await _dio.get(
+        '/api/v1/checklists/por-categoria-estabelecimento-id/$categoriaEstabelecimentoId',
+      );
       if (response.data is List) {
         return List<Map<String, dynamic>>.from(response.data);
       }

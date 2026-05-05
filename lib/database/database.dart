@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -85,6 +85,18 @@ class AppDatabase extends _$AppDatabase {
             print('⚠️ Erro na migration 3->4: $e');
             // Continuar mesmo se houver erro
           }
+        }
+        if (from < 5) {
+          print('🔄 Migration 4->5: categoria no estabelecimento...');
+          await m.addColumn(
+            estabelecimentos,
+            estabelecimentos.categoriaEstabelecimentoId,
+          );
+          await m.addColumn(
+            estabelecimentos,
+            estabelecimentos.categoriaEstabelecimentoNome,
+          );
+          print('✅ Colunas categoriaEstabelecimento adicionadas a estabelecimentos');
         }
       },
     );

@@ -26,6 +26,10 @@ class Establishment {
   final bool isSynced;
   final String? serverId;
 
+  /// UUID da categoria de estabelecimento (API `categoriaEstabelecimentoId`) — preferido para filtrar checklists.
+  final String? categoriaEstabelecimentoId;
+  final String? categoriaEstabelecimentoNome;
+
   Establishment({
     required this.id,
     required this.nome,
@@ -42,6 +46,8 @@ class Establishment {
     required this.updatedAt,
     this.isSynced = false,
     this.serverId,
+    this.categoriaEstabelecimentoId,
+    this.categoriaEstabelecimentoNome,
   });
 
   Establishment copyWith({
@@ -60,6 +66,8 @@ class Establishment {
     DateTime? updatedAt,
     bool? isSynced,
     String? serverId,
+    String? categoriaEstabelecimentoId,
+    String? categoriaEstabelecimentoNome,
   }) {
     return Establishment(
       id: id ?? this.id,
@@ -77,6 +85,10 @@ class Establishment {
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
       serverId: serverId ?? this.serverId,
+      categoriaEstabelecimentoId:
+          categoriaEstabelecimentoId ?? this.categoriaEstabelecimentoId,
+      categoriaEstabelecimentoNome:
+          categoriaEstabelecimentoNome ?? this.categoriaEstabelecimentoNome,
     );
   }
 
@@ -96,6 +108,8 @@ class Establishment {
     'updatedAt': updatedAt.toIso8601String(),
     'isSynced': isSynced,
     'serverId': serverId,
+    'categoriaEstabelecimentoId': categoriaEstabelecimentoId,
+    'categoriaEstabelecimentoNome': categoriaEstabelecimentoNome,
   };
 
   factory Establishment.fromJson(Map<String, dynamic> json) => Establishment(
@@ -114,6 +128,8 @@ class Establishment {
     updatedAt: DateTime.parse(json['updatedAt']),
     isSynced: json['isSynced'] ?? false,
     serverId: json['serverId'],
+    categoriaEstabelecimentoId: json['categoriaEstabelecimentoId']?.toString(),
+    categoriaEstabelecimentoNome: json['categoriaEstabelecimentoNome']?.toString(),
   );
 
   String get tipoText {

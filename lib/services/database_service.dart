@@ -439,6 +439,8 @@ class DatabaseService {
         email: Value(establishment.email),
         responsavel: Value(establishment.responsavel),
         observacoes: Value(establishment.observacoes),
+        categoriaEstabelecimentoId: Value(establishment.categoriaEstabelecimentoId),
+        categoriaEstabelecimentoNome: Value(establishment.categoriaEstabelecimentoNome),
         isSynced: Value(establishment.isSynced),
         dataSincronizacao: Value(establishment.isSynced ? DateTime.now() : null),
         createdAt: Value(establishment.createdAt),
@@ -567,6 +569,8 @@ class DatabaseService {
         updatedAt: dbEstabelecimento.updatedAt,
         isSynced: dbEstabelecimento.isSynced,
         serverId: dbEstabelecimento.serverId,
+        categoriaEstabelecimentoId: dbEstabelecimento.categoriaEstabelecimentoId,
+        categoriaEstabelecimentoNome: dbEstabelecimento.categoriaEstabelecimentoNome,
       );
     } catch (e) {
       print('Erro ao buscar estabelecimento por ID: $e');
@@ -595,6 +599,8 @@ class DatabaseService {
         updatedAt: e.updatedAt,
         isSynced: e.isSynced,
         serverId: e.serverId,
+        categoriaEstabelecimentoId: e.categoriaEstabelecimentoId,
+        categoriaEstabelecimentoNome: e.categoriaEstabelecimentoNome,
       )).toList();
       
       print('📊 Estabelecimentos válidos: ${establishments.length}');

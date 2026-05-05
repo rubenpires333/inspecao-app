@@ -7263,6 +7263,28 @@ class $EstabelecimentosTable extends Estabelecimentos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _categoriaEstabelecimentoIdMeta =
+      const VerificationMeta('categoriaEstabelecimentoId');
+  @override
+  late final GeneratedColumn<String> categoriaEstabelecimentoId =
+      GeneratedColumn<String>(
+        'categoria_estabelecimento_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _categoriaEstabelecimentoNomeMeta =
+      const VerificationMeta('categoriaEstabelecimentoNome');
+  @override
+  late final GeneratedColumn<String> categoriaEstabelecimentoNome =
+      GeneratedColumn<String>(
+        'categoria_estabelecimento_nome',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _isSyncedMeta = const VerificationMeta(
     'isSynced',
   );
@@ -7337,6 +7359,8 @@ class $EstabelecimentosTable extends Estabelecimentos
     email,
     responsavel,
     observacoes,
+    categoriaEstabelecimentoId,
+    categoriaEstabelecimentoNome,
     isSynced,
     dataSincronizacao,
     createdAt,
@@ -7436,6 +7460,24 @@ class $EstabelecimentosTable extends Estabelecimentos
         ),
       );
     }
+    if (data.containsKey('categoria_estabelecimento_id')) {
+      context.handle(
+        _categoriaEstabelecimentoIdMeta,
+        categoriaEstabelecimentoId.isAcceptableOrUnknown(
+          data['categoria_estabelecimento_id']!,
+          _categoriaEstabelecimentoIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('categoria_estabelecimento_nome')) {
+      context.handle(
+        _categoriaEstabelecimentoNomeMeta,
+        categoriaEstabelecimentoNome.isAcceptableOrUnknown(
+          data['categoria_estabelecimento_nome']!,
+          _categoriaEstabelecimentoNomeMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_synced')) {
       context.handle(
         _isSyncedMeta,
@@ -7532,6 +7574,14 @@ class $EstabelecimentosTable extends Estabelecimentos
         DriftSqlType.string,
         data['${effectivePrefix}observacoes'],
       ),
+      categoriaEstabelecimentoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}categoria_estabelecimento_id'],
+      ),
+      categoriaEstabelecimentoNome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}categoria_estabelecimento_nome'],
+      ),
       isSynced: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
@@ -7577,6 +7627,10 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
   final String? email;
   final String? responsavel;
   final String? observacoes;
+
+  /// Ligação ao catálogo de categorias (mesmo UUID da API / BD servidor)
+  final String? categoriaEstabelecimentoId;
+  final String? categoriaEstabelecimentoNome;
   final bool isSynced;
   final DateTime? dataSincronizacao;
   final DateTime createdAt;
@@ -7595,6 +7649,8 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
     this.email,
     this.responsavel,
     this.observacoes,
+    this.categoriaEstabelecimentoId,
+    this.categoriaEstabelecimentoNome,
     required this.isSynced,
     this.dataSincronizacao,
     required this.createdAt,
@@ -7629,6 +7685,16 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
     }
     if (!nullToAbsent || observacoes != null) {
       map['observacoes'] = Variable<String>(observacoes);
+    }
+    if (!nullToAbsent || categoriaEstabelecimentoId != null) {
+      map['categoria_estabelecimento_id'] = Variable<String>(
+        categoriaEstabelecimentoId,
+      );
+    }
+    if (!nullToAbsent || categoriaEstabelecimentoNome != null) {
+      map['categoria_estabelecimento_nome'] = Variable<String>(
+        categoriaEstabelecimentoNome,
+      );
     }
     map['is_synced'] = Variable<bool>(isSynced);
     if (!nullToAbsent || dataSincronizacao != null) {
@@ -7666,6 +7732,14 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
       observacoes: observacoes == null && nullToAbsent
           ? const Value.absent()
           : Value(observacoes),
+      categoriaEstabelecimentoId:
+          categoriaEstabelecimentoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoriaEstabelecimentoId),
+      categoriaEstabelecimentoNome:
+          categoriaEstabelecimentoNome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoriaEstabelecimentoNome),
       isSynced: Value(isSynced),
       dataSincronizacao: dataSincronizacao == null && nullToAbsent
           ? const Value.absent()
@@ -7696,6 +7770,12 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
       email: serializer.fromJson<String?>(json['email']),
       responsavel: serializer.fromJson<String?>(json['responsavel']),
       observacoes: serializer.fromJson<String?>(json['observacoes']),
+      categoriaEstabelecimentoId: serializer.fromJson<String?>(
+        json['categoriaEstabelecimentoId'],
+      ),
+      categoriaEstabelecimentoNome: serializer.fromJson<String?>(
+        json['categoriaEstabelecimentoNome'],
+      ),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       dataSincronizacao: serializer.fromJson<DateTime?>(
         json['dataSincronizacao'],
@@ -7721,6 +7801,12 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
       'email': serializer.toJson<String?>(email),
       'responsavel': serializer.toJson<String?>(responsavel),
       'observacoes': serializer.toJson<String?>(observacoes),
+      'categoriaEstabelecimentoId': serializer.toJson<String?>(
+        categoriaEstabelecimentoId,
+      ),
+      'categoriaEstabelecimentoNome': serializer.toJson<String?>(
+        categoriaEstabelecimentoNome,
+      ),
       'isSynced': serializer.toJson<bool>(isSynced),
       'dataSincronizacao': serializer.toJson<DateTime?>(dataSincronizacao),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -7742,6 +7828,8 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
     Value<String?> email = const Value.absent(),
     Value<String?> responsavel = const Value.absent(),
     Value<String?> observacoes = const Value.absent(),
+    Value<String?> categoriaEstabelecimentoId = const Value.absent(),
+    Value<String?> categoriaEstabelecimentoNome = const Value.absent(),
     bool? isSynced,
     Value<DateTime?> dataSincronizacao = const Value.absent(),
     DateTime? createdAt,
@@ -7760,6 +7848,12 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
     email: email.present ? email.value : this.email,
     responsavel: responsavel.present ? responsavel.value : this.responsavel,
     observacoes: observacoes.present ? observacoes.value : this.observacoes,
+    categoriaEstabelecimentoId: categoriaEstabelecimentoId.present
+        ? categoriaEstabelecimentoId.value
+        : this.categoriaEstabelecimentoId,
+    categoriaEstabelecimentoNome: categoriaEstabelecimentoNome.present
+        ? categoriaEstabelecimentoNome.value
+        : this.categoriaEstabelecimentoNome,
     isSynced: isSynced ?? this.isSynced,
     dataSincronizacao: dataSincronizacao.present
         ? dataSincronizacao.value
@@ -7786,6 +7880,12 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
       observacoes: data.observacoes.present
           ? data.observacoes.value
           : this.observacoes,
+      categoriaEstabelecimentoId: data.categoriaEstabelecimentoId.present
+          ? data.categoriaEstabelecimentoId.value
+          : this.categoriaEstabelecimentoId,
+      categoriaEstabelecimentoNome: data.categoriaEstabelecimentoNome.present
+          ? data.categoriaEstabelecimentoNome.value
+          : this.categoriaEstabelecimentoNome,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       dataSincronizacao: data.dataSincronizacao.present
           ? data.dataSincronizacao.value
@@ -7811,6 +7911,10 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
           ..write('email: $email, ')
           ..write('responsavel: $responsavel, ')
           ..write('observacoes: $observacoes, ')
+          ..write('categoriaEstabelecimentoId: $categoriaEstabelecimentoId, ')
+          ..write(
+            'categoriaEstabelecimentoNome: $categoriaEstabelecimentoNome, ',
+          )
           ..write('isSynced: $isSynced, ')
           ..write('dataSincronizacao: $dataSincronizacao, ')
           ..write('createdAt: $createdAt, ')
@@ -7834,6 +7938,8 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
     email,
     responsavel,
     observacoes,
+    categoriaEstabelecimentoId,
+    categoriaEstabelecimentoNome,
     isSynced,
     dataSincronizacao,
     createdAt,
@@ -7856,6 +7962,9 @@ class Estabelecimento extends DataClass implements Insertable<Estabelecimento> {
           other.email == this.email &&
           other.responsavel == this.responsavel &&
           other.observacoes == this.observacoes &&
+          other.categoriaEstabelecimentoId == this.categoriaEstabelecimentoId &&
+          other.categoriaEstabelecimentoNome ==
+              this.categoriaEstabelecimentoNome &&
           other.isSynced == this.isSynced &&
           other.dataSincronizacao == this.dataSincronizacao &&
           other.createdAt == this.createdAt &&
@@ -7876,6 +7985,8 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
   final Value<String?> email;
   final Value<String?> responsavel;
   final Value<String?> observacoes;
+  final Value<String?> categoriaEstabelecimentoId;
+  final Value<String?> categoriaEstabelecimentoNome;
   final Value<bool> isSynced;
   final Value<DateTime?> dataSincronizacao;
   final Value<DateTime> createdAt;
@@ -7895,6 +8006,8 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
     this.email = const Value.absent(),
     this.responsavel = const Value.absent(),
     this.observacoes = const Value.absent(),
+    this.categoriaEstabelecimentoId = const Value.absent(),
+    this.categoriaEstabelecimentoNome = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.dataSincronizacao = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -7915,6 +8028,8 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
     this.email = const Value.absent(),
     this.responsavel = const Value.absent(),
     this.observacoes = const Value.absent(),
+    this.categoriaEstabelecimentoId = const Value.absent(),
+    this.categoriaEstabelecimentoNome = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.dataSincronizacao = const Value.absent(),
     required DateTime createdAt,
@@ -7943,6 +8058,8 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
     Expression<String>? email,
     Expression<String>? responsavel,
     Expression<String>? observacoes,
+    Expression<String>? categoriaEstabelecimentoId,
+    Expression<String>? categoriaEstabelecimentoNome,
     Expression<bool>? isSynced,
     Expression<DateTime>? dataSincronizacao,
     Expression<DateTime>? createdAt,
@@ -7963,6 +8080,10 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
       if (email != null) 'email': email,
       if (responsavel != null) 'responsavel': responsavel,
       if (observacoes != null) 'observacoes': observacoes,
+      if (categoriaEstabelecimentoId != null)
+        'categoria_estabelecimento_id': categoriaEstabelecimentoId,
+      if (categoriaEstabelecimentoNome != null)
+        'categoria_estabelecimento_nome': categoriaEstabelecimentoNome,
       if (isSynced != null) 'is_synced': isSynced,
       if (dataSincronizacao != null) 'data_sincronizacao': dataSincronizacao,
       if (createdAt != null) 'created_at': createdAt,
@@ -7985,6 +8106,8 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
     Value<String?>? email,
     Value<String?>? responsavel,
     Value<String?>? observacoes,
+    Value<String?>? categoriaEstabelecimentoId,
+    Value<String?>? categoriaEstabelecimentoNome,
     Value<bool>? isSynced,
     Value<DateTime?>? dataSincronizacao,
     Value<DateTime>? createdAt,
@@ -8005,6 +8128,10 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
       email: email ?? this.email,
       responsavel: responsavel ?? this.responsavel,
       observacoes: observacoes ?? this.observacoes,
+      categoriaEstabelecimentoId:
+          categoriaEstabelecimentoId ?? this.categoriaEstabelecimentoId,
+      categoriaEstabelecimentoNome:
+          categoriaEstabelecimentoNome ?? this.categoriaEstabelecimentoNome,
       isSynced: isSynced ?? this.isSynced,
       dataSincronizacao: dataSincronizacao ?? this.dataSincronizacao,
       createdAt: createdAt ?? this.createdAt,
@@ -8055,6 +8182,16 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
     if (observacoes.present) {
       map['observacoes'] = Variable<String>(observacoes.value);
     }
+    if (categoriaEstabelecimentoId.present) {
+      map['categoria_estabelecimento_id'] = Variable<String>(
+        categoriaEstabelecimentoId.value,
+      );
+    }
+    if (categoriaEstabelecimentoNome.present) {
+      map['categoria_estabelecimento_nome'] = Variable<String>(
+        categoriaEstabelecimentoNome.value,
+      );
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -8091,6 +8228,10 @@ class EstabelecimentosCompanion extends UpdateCompanion<Estabelecimento> {
           ..write('email: $email, ')
           ..write('responsavel: $responsavel, ')
           ..write('observacoes: $observacoes, ')
+          ..write('categoriaEstabelecimentoId: $categoriaEstabelecimentoId, ')
+          ..write(
+            'categoriaEstabelecimentoNome: $categoriaEstabelecimentoNome, ',
+          )
           ..write('isSynced: $isSynced, ')
           ..write('dataSincronizacao: $dataSincronizacao, ')
           ..write('createdAt: $createdAt, ')
@@ -14209,6 +14350,8 @@ typedef $$EstabelecimentosTableCreateCompanionBuilder =
       Value<String?> email,
       Value<String?> responsavel,
       Value<String?> observacoes,
+      Value<String?> categoriaEstabelecimentoId,
+      Value<String?> categoriaEstabelecimentoNome,
       Value<bool> isSynced,
       Value<DateTime?> dataSincronizacao,
       required DateTime createdAt,
@@ -14230,6 +14373,8 @@ typedef $$EstabelecimentosTableUpdateCompanionBuilder =
       Value<String?> email,
       Value<String?> responsavel,
       Value<String?> observacoes,
+      Value<String?> categoriaEstabelecimentoId,
+      Value<String?> categoriaEstabelecimentoNome,
       Value<bool> isSynced,
       Value<DateTime?> dataSincronizacao,
       Value<DateTime> createdAt,
@@ -14305,6 +14450,16 @@ class $$EstabelecimentosTableFilterComposer
 
   ColumnFilters<String> get observacoes => $composableBuilder(
     column: $table.observacoes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoriaEstabelecimentoId => $composableBuilder(
+    column: $table.categoriaEstabelecimentoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoriaEstabelecimentoNome => $composableBuilder(
+    column: $table.categoriaEstabelecimentoNome,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14403,6 +14558,17 @@ class $$EstabelecimentosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get categoriaEstabelecimentoId => $composableBuilder(
+    column: $table.categoriaEstabelecimentoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoriaEstabelecimentoNome =>
+      $composableBuilder(
+        column: $table.categoriaEstabelecimentoNome,
+        builder: (column) => ColumnOrderings(column),
+      );
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
@@ -14478,6 +14644,17 @@ class $$EstabelecimentosTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get categoriaEstabelecimentoId => $composableBuilder(
+    column: $table.categoriaEstabelecimentoId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoriaEstabelecimentoNome =>
+      $composableBuilder(
+        column: $table.categoriaEstabelecimentoNome,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
 
@@ -14545,6 +14722,10 @@ class $$EstabelecimentosTableTableManager
                 Value<String?> email = const Value.absent(),
                 Value<String?> responsavel = const Value.absent(),
                 Value<String?> observacoes = const Value.absent(),
+                Value<String?> categoriaEstabelecimentoId =
+                    const Value.absent(),
+                Value<String?> categoriaEstabelecimentoNome =
+                    const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<DateTime?> dataSincronizacao = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -14564,6 +14745,8 @@ class $$EstabelecimentosTableTableManager
                 email: email,
                 responsavel: responsavel,
                 observacoes: observacoes,
+                categoriaEstabelecimentoId: categoriaEstabelecimentoId,
+                categoriaEstabelecimentoNome: categoriaEstabelecimentoNome,
                 isSynced: isSynced,
                 dataSincronizacao: dataSincronizacao,
                 createdAt: createdAt,
@@ -14585,6 +14768,10 @@ class $$EstabelecimentosTableTableManager
                 Value<String?> email = const Value.absent(),
                 Value<String?> responsavel = const Value.absent(),
                 Value<String?> observacoes = const Value.absent(),
+                Value<String?> categoriaEstabelecimentoId =
+                    const Value.absent(),
+                Value<String?> categoriaEstabelecimentoNome =
+                    const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<DateTime?> dataSincronizacao = const Value.absent(),
                 required DateTime createdAt,
@@ -14604,6 +14791,8 @@ class $$EstabelecimentosTableTableManager
                 email: email,
                 responsavel: responsavel,
                 observacoes: observacoes,
+                categoriaEstabelecimentoId: categoriaEstabelecimentoId,
+                categoriaEstabelecimentoNome: categoriaEstabelecimentoNome,
                 isSynced: isSynced,
                 dataSincronizacao: dataSincronizacao,
                 createdAt: createdAt,

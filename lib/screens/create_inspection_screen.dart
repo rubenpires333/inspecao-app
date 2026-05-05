@@ -5,8 +5,11 @@ import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/inspector.dart';
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/screens/establishment_selection_screen.dart';
 import 'package:inspecao/screens/team_selection_screen.dart';
 
@@ -57,7 +60,8 @@ class _ChecklistItem {
       id: json['id']?.toString() ?? '',
       nome: json['nome']?.toString() ?? '',
       descricao: json['descricao']?.toString(),
-      categoria: json['categoria']?.toString() ??
+      categoria: json['categoriaEstabelecimentoNome']?.toString() ??
+          json['categoria']?.toString() ??
           json['categoriaEstabelecimento']?.toString(),
     );
   }
@@ -127,12 +131,23 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
   }
 
   Future<void> _loadInitialData() async {
-    await Future.wait([_loadEquipes(), _loadChecklists()]);
+    await _loadEquipes();
+  }
+
+  Future<void> _ensureApiReady() async {
+    if (_apiService.baseUrl == null) {
+      _apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final authService = AuthService(_apiService, prefs);
+    final token = await authService.getAccessToken();
+    if (token != null) _apiService.setAuthToken(token);
   }
 
   Future<void> _loadEquipes() async {
     setState(() => _isLoadingEquipes = true);
     try {
+      await _ensureApiReady();
       final raw = await _apiService.getEquipesAtivas();
       if (mounted) {
         setState(() {
@@ -149,43 +164,44 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
     }
   }
 
-  Future<void> _loadChecklists() async {
+  /// Alinhado ao backoffice: checklists filtrados por `categoriaEstabelecimentoId` (ou nome da categoria).
+  Future<void> _loadChecklistsByCategoria(Establishment establishment) async {
     setState(() => _isLoadingChecklists = true);
     try {
-      final raw = await _apiService.getChecklistsPublicos();
+      await _ensureApiReady();
+      List<Map<String, dynamic>> raw = [];
+      final catId = establishment.categoriaEstabelecimentoId;
+      if (catId != null && catId.trim().isNotEmpty) {
+        raw = await _apiService.getChecklistsPorCategoriaEstabelecimentoId(catId.trim());
+      } else {
+        final nome = establishment.categoriaEstabelecimentoNome;
+        if (nome != null && nome.trim().isNotEmpty) {
+          raw = await _apiService.getChecklistsPorCategoriaEstabelecimento(nome.trim());
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _checklists = raw
+            .map((e) => _ChecklistItem.fromJson(e as Map<String, dynamic>))
+            .where((e) => e.id.isNotEmpty)
+            .toList();
+        if (_checklists.length == 1) {
+          _selectedChecklist = _checklists.first;
+        } else if (_selectedChecklist != null &&
+            !_checklists.any((c) => c.id == _selectedChecklist!.id)) {
+          _selectedChecklist = null;
+        }
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar checklists por categoria: $e');
       if (mounted) {
         setState(() {
-          _checklists = raw
-              .map((e) => _ChecklistItem.fromJson(e as Map<String, dynamic>))
-              .where((e) => e.id.isNotEmpty)
-              .toList();
+          _checklists = [];
+          _selectedChecklist = null;
         });
       }
-    } catch (e) {
-      debugPrint('Erro ao carregar checklists: $e');
     } finally {
       if (mounted) setState(() => _isLoadingChecklists = false);
-    }
-  }
-
-  Future<void> _loadChecklistsByCategoria(Establishment establishment) async {
-    try {
-      final categoria = establishment.tipo.name;
-      final raw = await _apiService.getChecklistsPorCategoriaEstabelecimento(categoria);
-      if (mounted && raw.isNotEmpty) {
-        setState(() {
-          _checklists = raw
-              .map((e) => _ChecklistItem.fromJson(e as Map<String, dynamic>))
-              .where((e) => e.id.isNotEmpty)
-              .toList();
-          if (_selectedChecklist != null &&
-              !_checklists.any((c) => c.id == _selectedChecklist!.id)) {
-            _selectedChecklist = null;
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Checklists por categoria não disponíveis, mantendo lista geral');
     }
   }
 
@@ -248,7 +264,11 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
           setState(() => _selectedChecklist = checklist);
           Navigator.pop(ctx);
         },
-        onRefresh: _loadChecklists,
+        onRefresh: () async {
+          if (_selectedEstablishment != null) {
+            await _loadChecklistsByCategoria(_selectedEstablishment!);
+          }
+        },
       ),
     );
   }
@@ -765,51 +785,71 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen>
 
   Widget _buildChecklistCard() {
     final s = _selectedChecklist;
+    final est = _selectedEstablishment;
+    final canTap = est != null && !_isLoadingChecklists;
+
+    String emptyLabel() {
+      final semCat = est!.categoriaEstabelecimentoId == null &&
+          (est.categoriaEstabelecimentoNome == null ||
+              est.categoriaEstabelecimentoNome!.trim().isEmpty);
+      if (semCat) {
+        return 'Estabelecimento sem categoria — atualize a sincronização ou escolha outro';
+      }
+      return 'Nenhum checklist público para esta categoria';
+    }
+
     return _SelectionCard(
-      onTap: !_isLoadingChecklists ? _showChecklistBottomSheet : null,
+      onTap: canTap ? _showChecklistBottomSheet : null,
       isSelected: s != null,
-      child: _isLoadingChecklists
-          ? const _LoadingHint(label: 'A carregar checklists...')
-          : _checklists.isEmpty
-              ? const _EmptyDataHint(label: 'Nenhum checklist disponível')
-              : s != null
-                  ? Row(
-                      children: [
-                        _IconBox(icon: Icons.checklist_rounded, selected: true),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(s.nome,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                      color: _kTextPrimary),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis),
-                              if (s.descricao != null && s.descricao!.isNotEmpty) ...[
-                                const SizedBox(height: 3),
-                                Text(s.descricao!,
-                                    style: const TextStyle(color: _kTextSecondary, fontSize: 12),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
-                              ],
-                              if (s.categoria != null) ...[
-                                const SizedBox(height: 5),
-                                _Chip(label: s.categoria!, color: _kPrimary),
-                              ],
-                            ],
-                          ),
+      child: est == null
+          ? const _EmptyHint(
+              icon: Icons.store_mall_directory_outlined,
+              label:
+                  'Selecione o estabelecimento para mostrar apenas checklists da sua categoria',
+            )
+          : _isLoadingChecklists
+              ? const _LoadingHint(label: 'A carregar checklists...')
+              : _checklists.isEmpty
+                  ? _EmptyDataHint(label: emptyLabel())
+                  : s != null
+                      ? Row(
+                          children: [
+                            _IconBox(icon: Icons.checklist_rounded, selected: true),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(s.nome,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: _kTextPrimary),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis),
+                                  if (s.descricao != null && s.descricao!.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Text(s.descricao!,
+                                        style: const TextStyle(
+                                            color: _kTextSecondary, fontSize: 12),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                  ],
+                                  if (s.categoria != null) ...[
+                                    const SizedBox(height: 5),
+                                    _Chip(label: s.categoria!, color: _kPrimary),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded, color: _kTextSecondary),
+                          ],
+                        )
+                      : _EmptyHint(
+                          icon: Icons.playlist_add_check_circle_rounded,
+                          label:
+                              'Toque para selecionar o checklist (${_checklists.length} disponíveis)',
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: _kTextSecondary),
-                      ],
-                    )
-                  : _EmptyHint(
-                      icon: Icons.playlist_add_check_circle_rounded,
-                      label:
-                          'Toque para selecionar o checklist (${_checklists.length} disponíveis)',
-                    ),
     );
   }
 
