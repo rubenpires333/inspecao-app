@@ -47,6 +47,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   bool _loadingItens = false;
   final _commentsController = TextEditingController();
   Establishment? _establishment;
+  final _dbService = DatabaseService();
+  String? _checklistNome;
   late TabController _tabController;
 
   // Progresso do checklist — actualizado pelo InspectionChecklistTab via callback
@@ -90,6 +92,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     AppLogger.log('🔎 [InspectionDetail] init inspectionId=${_inspection.id} '
         'status=${_inspection.status} checklistId=${_inspection.checklistId}');
     _loadEstablishment();
+    _loadChecklistNome();
     _loadChecklistItens();
     _loadEquipe();
   }
@@ -106,6 +109,42 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       final est = await _dataService.getEstablishmentById(_inspection.establishmentId!);
       if (mounted) setState(() => _establishment = est);
     }
+  }
+
+  /// Nome do checklist na BD local; se não existir, tenta API (nome oficial do modelo de inspeção).
+  Future<void> _loadChecklistNome() async {
+    final id = _inspection.checklistId;
+    if (id == null || id.isEmpty) return;
+
+    String? nome = await _dbService.getChecklistNomeById(id);
+
+    if ((nome == null || nome.isEmpty) && mounted) {
+      try {
+        final apiService = ApiService();
+        if (apiService.baseUrl == null) {
+          apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+        }
+        final prefs = await SharedPreferences.getInstance();
+        final authService = AuthService(apiService, prefs);
+        final token = await authService.getAccessToken();
+        if (token != null) apiService.setAuthToken(token);
+
+        final data = await apiService.getChecklistCompleto(id);
+        nome = data['nome']?.toString();
+      } catch (_) {
+        /* offline ou erro — mantém null */
+      }
+    }
+
+    if (mounted) setState(() => _checklistNome = nome ?? '');
+  }
+
+  /// `dataInspecao` da API é só data → meia-noite local; não confundir com hora agendada real.
+  String _formatAgendaTimeLabel(DateTime d) {
+    if (d.hour == 0 && d.minute == 0 && d.second == 0) {
+      return 'Sem horário';
+    }
+    return DateFormat('HH:mm').format(d);
   }
 
   Future<void> _loadEquipe() async {
@@ -535,15 +574,24 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           const SizedBox(height: 12),
           if (_establishment != null) ...[
             _infoRow(Icons.business_rounded, 'Estabelecimento', _establishment!.nome),
-            _infoRow(Icons.category_rounded, 'Tipo', _establishment!.tipoText),
+            _infoRow(Icons.store_mall_directory_rounded, 'Categoria do estabelecimento',
+                _establishment!.categoriaOuTipoText),
             if (_establishment!.endereco.isNotEmpty)
               _infoRow(Icons.location_on_rounded, 'Endereço', _establishment!.endereco),
             const _Divider(),
           ],
+          if (_inspection.checklistId != null && _inspection.checklistId!.isNotEmpty)
+            _infoRow(
+              Icons.assignment_outlined,
+              'Checklist',
+              _checklistNome == null
+                  ? 'A carregar…'
+                  : (_checklistNome!.trim().isEmpty ? '—' : _checklistNome!.trim()),
+            ),
           _infoRow(Icons.calendar_today_rounded, 'Data Agendada',
               DateFormat('dd/MM/yyyy').format(_inspection.dataAgendada)),
           _infoRow(Icons.access_time_rounded, 'Horário',
-              DateFormat('HH:mm').format(_inspection.dataAgendada)),
+              _formatAgendaTimeLabel(_inspection.dataAgendada)),
           _infoRow(Icons.sync_rounded, 'Sincronização',
               _inspection.isSynced ? 'Sincronizado ✓' : 'Pendente'),
         ],

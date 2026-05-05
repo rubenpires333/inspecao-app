@@ -596,7 +596,7 @@ class _DatabaseViewerScreenState extends State<DatabaseViewerScreen> {
               columns: const [
                 DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Nome', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Tipo', style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Categoria', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('ID Local', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('ID Servidor', style: TextStyle(fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Sincronizado', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -622,7 +622,7 @@ class _DatabaseViewerScreenState extends State<DatabaseViewerScreen> {
                     ),
                   ),
                 ),
-                DataCell(Text(establishment.tipoText)),
+                DataCell(Text(establishment.categoriaOuTipoText)),
                 DataCell(
                   SizedBox(
                     width: 100,

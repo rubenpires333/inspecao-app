@@ -153,6 +153,14 @@ class Establishment {
     }
   }
 
+  /// Para UI: usa a categoria do catálogo (API) quando existir; senão o [tipo] legado (`tipoText`).
+  /// Evita mostrar "Outros" quando o estabelecimento já tem `categoriaEstabelecimentoNome`.
+  String get categoriaOuTipoText {
+    final n = categoriaEstabelecimentoNome?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    return tipoText;
+  }
+
   String get tipoIcon {
     switch (tipo) {
       case EstablishmentType.instituicao:

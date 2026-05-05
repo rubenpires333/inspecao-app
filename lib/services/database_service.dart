@@ -659,6 +659,18 @@ class DatabaseService {
     }
   }
 
+  /// Nome do checklist no SQLite (sincronizado com a API).
+  Future<String?> getChecklistNomeById(String id) async {
+    try {
+      await initialize();
+      final row = await _database.getChecklistById(id);
+      return row?.nome;
+    } catch (e) {
+      print('Erro ao buscar checklist por id: $e');
+      return null;
+    }
+  }
+
   /// Busca todas as seções de checklist
   Future<List<db.SecoesChecklistData>> getAllSecoesChecklist() async {
     try {
