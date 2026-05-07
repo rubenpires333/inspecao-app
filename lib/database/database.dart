@@ -23,12 +23,13 @@ part 'database.g.dart';
   Equipes,
   EquipeMembros,
   Sincronizacoes,
+  PendingRespostaOps,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -112,6 +113,21 @@ class AppDatabase extends _$AppDatabase {
             );
           }
           print('✅ Coluna equipe_id ok em inspecoes');
+        }
+        if (from < 7) {
+          print('🔄 Migration 6->7: fila pending_resposta_ops...');
+          await m.createTable(pendingRespostaOps);
+          print('✅ Tabela pending_resposta_ops criada');
+        }
+        if (from < 8) {
+          print('🔄 Migration 7->8: opcao_id em respostas_inspecao...');
+          if (!await _sqliteTableHasColumn('respostas_inspecao', 'opcao_id')) {
+            await m.addColumn(
+              respostasInspecao,
+              respostasInspecao.opcaoId,
+            );
+          }
+          print('✅ Coluna opcao_id ok em respostas_inspecao');
         }
       },
     );
@@ -415,6 +431,15 @@ class AppDatabase extends _$AppDatabase {
   
   Future<int> deleteSincronizacaoByInspecao(String inspecaoId) => 
       (delete(sincronizacoes)..where((t) => t.inspecaoId.equals(inspecaoId))).go();
+
+  Future<List<PendingRespostaOp>> getAllPendingRespostaOps() =>
+      select(pendingRespostaOps).get();
+
+  Future<int> insertPendingRespostaOp(PendingRespostaOpsCompanion row) =>
+      into(pendingRespostaOps).insert(row);
+
+  Future<int> deletePendingRespostaOp(int id) =>
+      (delete(pendingRespostaOps)..where((t) => t.id.equals(id))).go();
 
   Future<bool> _sqliteTableHasColumn(String tableName, String columnName) async {
     final rows = await customSelect(

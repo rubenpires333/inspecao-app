@@ -15,8 +15,10 @@ import 'package:inspecao/widgets/item_evidence_widget.dart';
 import 'package:inspecao/widgets/action_plan_widget.dart';
 import 'package:inspecao/widgets/non_conformity_action_dialog.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/services/connectivity_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
 import 'package:inspecao/widgets/inspection_checklist_tab.dart';
+import 'package:inspecao/widgets/pending_sync_sheet.dart';
 
 // ─── Paleta ──────────────────────────────────────────────────────────────────
 const _kPrimary      = Color(0xFF18778A);
@@ -122,6 +124,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     super.dispose();
   }
 
+  Future<void> _reloadInspectionFromLocalDb() async {
+    final refreshed = await _dbService.getInspectionById(_inspection.id);
+    if (refreshed != null && mounted) setState(() => _inspection = refreshed);
+  }
+
   Future<void> _loadEstablishment() async {
     if (_inspection.establishmentId != null) {
       final est = await _dataService.getEstablishmentById(_inspection.establishmentId!);
@@ -207,7 +214,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           (_inspection.equipeId == null || _inspection.equipeId!.isEmpty)) {
         final merged = _inspection.copyWith(equipeId: eqFromApi);
         _inspection = merged;
-        unawaited(_dataService.updateInspection(merged));
+        unawaited(_dataService.updateInspection(merged, markDirty: false));
         if (mounted) {
           setState(() {});
           await _loadEquipe();
@@ -230,23 +237,54 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     }
 
     if (mounted) setState(() => _loadingEquipe = true);
-    try {
-      final apiService = ApiService();
-      if (apiService.baseUrl == null) {
-        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
-      }
-      final prefs = await SharedPreferences.getInstance();
-      final authService = AuthService(apiService, prefs);
-      final token = await authService.getAccessToken();
-      if (token != null) apiService.setAuthToken(token);
+    Map<String, dynamic>? equipeMap;
+    List<Map<String, dynamic>> membros = [];
 
-      final data = await apiService.getEquipeCompleta(equipeId);
-      final membros = (data['membros'] as List<dynamic>?)
-              ?.cast<Map<String, dynamic>>() ??
-          [];
+    try {
+      await _dbService.initialize();
+      final online = ConnectivityService().isConnected;
+
+      if (online) {
+        try {
+          final apiService = ApiService();
+          if (apiService.baseUrl == null) {
+            apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+          }
+          final prefs = await SharedPreferences.getInstance();
+          final authService = AuthService(apiService, prefs);
+          final token = await authService.getAccessToken();
+          if (token != null) apiService.setAuthToken(token);
+
+          final data = await apiService.getEquipeCompleta(equipeId);
+          equipeMap = Map<String, dynamic>.from(data);
+          membros = (data['membros'] as List<dynamic>?)
+                  ?.map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList() ??
+              [];
+        } catch (e) {
+          AppLogger.log('⚠️ [InspectionDetail] equipa API indisponível: $e');
+        }
+      }
+
+      if (equipeMap == null) {
+        final snap =
+            await _dbService.getEquipeCompletaSnapshotFromLocalDb(equipeId);
+        if (snap != null) {
+          equipeMap = <String, dynamic>{
+            'nome': snap['nome'],
+            'codigo': snap['codigo'],
+            'supervisorNome': snap['supervisorNome'],
+          };
+          membros = List<Map<String, dynamic>>.from(
+            (snap['membros'] as List<dynamic>? ?? [])
+                .map((e) => Map<String, dynamic>.from(e as Map)),
+          );
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _equipe  = data;
+          _equipe = equipeMap;
           _membros = membros;
           _loadingEquipe = false;
         });
@@ -499,6 +537,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
+        IconButton(
+          tooltip: 'Sincronizar dados',
+          icon: const Icon(Icons.sync_alt_rounded, size: 22),
+          onPressed: () => showPendingSyncSheet(context),
+        ),
         _StatusBadge(status: _inspection.status),
         const SizedBox(width: 12),
       ],
@@ -826,6 +869,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       isChecklistTabActive: _tabController.index == 1,
       onFinalizado: _onInspecaoFinalizada,
       onProgressoAtualizado: _onProgressoAtualizado,
+      onInspectionDirtyLocal: () => unawaited(_reloadInspectionFromLocalDb()),
     );
   }
 

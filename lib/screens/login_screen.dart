@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:inspecao/services/data_service.dart';
+import 'package:inspecao/services/connectivity_service.dart';
 import 'package:inspecao/screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -44,7 +45,22 @@ class _LoginScreenState extends State<LoginScreen> {
         _dataService.syncInitialData().catchError((e) {
           print('⚠️ Erro na sincronização inicial (não bloqueante): $e');
         });
-        
+
+        final online = await ConnectivityService().checkConnectivity();
+        if (!mounted) return;
+        if (!online) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Sem ligação: sessão reutilizada neste dispositivo (modo offline).',
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          await Future.delayed(const Duration(milliseconds: 450));
+        }
+        if (!mounted) return;
+
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => HomeScreen(changeThemeMode: widget.changeThemeMode)),
         );

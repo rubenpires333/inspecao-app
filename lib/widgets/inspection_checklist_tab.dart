@@ -2,12 +2,17 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/models/checklist_secao.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/services/api_service.dart';
 import 'package:inspecao/services/auth_service.dart';
+import 'package:inspecao/services/connectivity_service.dart';
+import 'package:inspecao/services/database_service.dart';
 import 'package:inspecao/services/gps_service.dart';
+import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/inspecao_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
 import 'package:inspecao/widgets/checklist_item_field.dart';
@@ -44,6 +49,9 @@ class InspectionChecklistTab extends StatefulWidget {
   /// Callback chamado sempre que o progresso muda (total, respondidos)
   final void Function(int total, int respondidos)? onProgressoAtualizado;
 
+  /// Após gravar resposta em modo offline (fila local).
+  final VoidCallback? onInspectionDirtyLocal;
+
   const InspectionChecklistTab({
     super.key,
     required this.inspection,
@@ -52,6 +60,7 @@ class InspectionChecklistTab extends StatefulWidget {
     this.isChecklistTabActive = true,
     this.onFinalizado,
     this.onProgressoAtualizado,
+    this.onInspectionDirtyLocal,
   });
 
   @override
@@ -61,6 +70,7 @@ class InspectionChecklistTab extends StatefulWidget {
 class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   final _inspecaoService = InspecaoService();
   final _gpsService      = GpsService();
+  final _dbService       = DatabaseService();
 
   // ── Dados ────────────────────────────────────────────────────────────────
   List<SecaoChecklistCompleta>          _secoes       = [];
@@ -151,16 +161,58 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
   Future<void> _loadChecklistItens() async {
     if (widget.inspection.checklistId == null) return;
-    if (mounted) setState(() { _loadingItens = true; _erroCarregamento = null; });
+    if (mounted) {
+      setState(() {
+        _loadingItens = true;
+        _erroCarregamento = null;
+      });
+    }
 
     try {
-      final results = await Future.wait([
-        _inspecaoService.getChecklistCompleto(widget.inspection.checklistId!),
-        _inspecaoService.getRespostas(widget.inspection.id),
-      ]);
+      final cid = widget.inspection.checklistId!;
+      final apiInspecaoId = widget.inspection.apiInspecaoId;
 
-      final secoes    = results[0] as List<SecaoChecklistCompleta>;
-      final respostas = results[1] as List<RespostaInspecaoCompleta>;
+      late List<SecaoChecklistCompleta> secoes;
+      late List<RespostaInspecaoCompleta> respostas;
+      var mirrorApiRespostasToLocalDb = false;
+
+      final online = ConnectivityService().isConnected;
+
+      if (online) {
+        try {
+          final results = await Future.wait([
+            _inspecaoService.getChecklistCompleto(cid),
+            _inspecaoService.getRespostas(apiInspecaoId),
+          ]);
+          secoes = results[0] as List<SecaoChecklistCompleta>;
+          respostas = results[1] as List<RespostaInspecaoCompleta>;
+          mirrorApiRespostasToLocalDb = true;
+        } catch (_) {
+          await _dbService.initialize();
+          secoes = await _dbService.loadChecklistCompletoFromCache(cid);
+          respostas = await _dbService.listRespostasChecklistCompleta(
+              widget.inspection.id);
+          if (secoes.isEmpty) rethrow;
+        }
+      } else {
+        await _dbService.initialize();
+        secoes = await _dbService.loadChecklistCompletoFromCache(cid);
+        respostas =
+            await _dbService.listRespostasChecklistCompleta(widget.inspection.id);
+        if (secoes.isEmpty) {
+          throw Exception(
+            'Sem dados locais do checklist. Abra esta inspeção com internet pelo menos uma vez para descarregar o modelo.',
+          );
+        }
+      }
+
+      if (mirrorApiRespostasToLocalDb && respostas.isNotEmpty) {
+        await _dbService.initialize();
+        await _dbService.mergeChecklistRespostasFromServer(
+          widget.inspection.id,
+          respostas,
+        );
+      }
 
       final expanded = <String, bool>{};
       for (final s in secoes) {
@@ -168,21 +220,28 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         for (final sub in s.subsecoes) expanded[sub.id] = true;
       }
       final map = <String, RespostaInspecaoCompleta>{};
-      for (final r in respostas) map[r.itemChecklistId] = r;
+      for (final r in respostas) {
+        map[r.itemChecklistId] = r;
+      }
 
       if (mounted) {
         setState(() {
-          _secoes       = secoes;
+          _secoes = secoes;
           _respostasMap = map;
           _expandedMap.addAll(expanded);
           _loadingItens = false;
-          _lastSync     = DateTime.now();
+          _lastSync = DateTime.now();
         });
         widget.onProgressoAtualizado?.call(_todosItens.length, map.length);
       }
     } catch (e, st) {
       AppLogger.error('[ChecklistTab] erro carregamento', e, st);
-      if (mounted) setState(() { _loadingItens = false; _erroCarregamento = e.toString(); });
+      if (mounted) {
+        setState(() {
+          _loadingItens = false;
+          _erroCarregamento = e.toString();
+        });
+      }
     }
   }
 
@@ -196,7 +255,11 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     if (_syncing || !mounted) return;
     setState(() => _syncing = true);
     try {
-      final respostas = await _inspecaoService.getRespostas(widget.inspection.id);
+      final respostas =
+          await _inspecaoService.getRespostas(widget.inspection.apiInspecaoId);
+      await _dbService.initialize();
+      await _dbService.mergeChecklistRespostasFromServer(
+          widget.inspection.id, respostas);
       if (!mounted) return;
       final map = <String, RespostaInspecaoCompleta>{};
       for (final r in respostas) map[r.itemChecklistId] = r;
@@ -225,7 +288,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   Future<String?> _resolverInspetorUuid() async {
     try {
       final daApi =
-          await _inspecaoService.obterInspetorIdDaInspecao(widget.inspection.id);
+          await _inspecaoService.obterInspetorIdDaInspecao(widget.inspection.apiInspecaoId);
       if (daApi != null && daApi.isNotEmpty) {
         return daApi;
       }
@@ -256,7 +319,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     }
     try {
       await _inspecaoService.iniciarRastreamentoSessao(
-        inspecaoId: widget.inspection.id,
+        inspecaoId: widget.inspection.apiInspecaoId,
         inspetorId: inspetor,
       );
       if (mounted) {
@@ -303,7 +366,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   void _pararFluxoRastreamentoChecklist() {
     _trackingTimer?.cancel();
     _trackingTimer = null;
-    unawaited(_inspecaoService.finalizarRastreamentoSessao(widget.inspection.id));
+    unawaited(_inspecaoService.finalizarRastreamentoSessao(widget.inspection.apiInspecaoId));
     _gpsService.stopTracking();
     _rastreamentoApiIniciadoNestaVisita = false;
   }
@@ -329,7 +392,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     final pos = _gpsService.lastPosition;
     if (pos == null) return;
     await _inspecaoService.registrarLocalizacaoRastreamento(
-      inspecaoId: widget.inspection.id,
+      inspecaoId: widget.inspection.apiInspecaoId,
       latitude: pos.latitude,
       longitude: pos.longitude,
       precisaoMetros: pos.accuracy,
@@ -350,6 +413,100 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
   ///   4. Faz upload das evidências (imagens)
   ///
   /// Caso contrário, apenas guarda a resposta.
+  bool _podeEnfileirarRespostaOffline() {
+    final sid = widget.inspection.serverId?.trim();
+    return sid != null && sid.isNotEmpty;
+  }
+
+  bool _deveTratarComoErroDeRede(Object e) {
+    if (!ConnectivityService().isConnected) return true;
+    if (e is DioException) {
+      return e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout;
+    }
+    return false;
+  }
+
+  Future<void> _guardarRespostaOffline(
+    Map<String, dynamic> payloadCompleto,
+    Map<String, dynamic> payloadResposta,
+    bool salvarPlanoAcao,
+    String itemChecklistId,
+  ) async {
+    if (!_podeEnfileirarRespostaOffline()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'Sem rede: sincronize a inspeção primeiro para obter o ID no servidor.',
+        ),
+        backgroundColor: _kError,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    final uuid = const Uuid().v4();
+    await _dbService.initialize();
+    await _dbService.upsertRespostaFromChecklistPayload(
+      inspecaoLocalId: widget.inspection.id,
+      payload: payloadResposta,
+      respostaRowId: uuid,
+    );
+
+    await _dbService.enqueuePendingRespostaOp(
+      inspecaoLocalId: widget.inspection.id,
+      payloadResposta: payloadResposta,
+      salvarPlanoAcao: salvarPlanoAcao,
+      planoExtras: salvarPlanoAcao
+          ? {
+              'observacoesPlanoAcao': payloadCompleto['observacoesPlanoAcao'],
+              'evidenciasPlanoAcao': payloadCompleto['evidenciasPlanoAcao'],
+              'anexosPlanoServidorRemovidosIds':
+                  payloadCompleto['anexosPlanoServidorRemovidosIds'],
+            }
+          : null,
+    );
+
+    final optimistic = RespostaInspecaoCompleta(
+      id: uuid,
+      inspecaoId: widget.inspection.id,
+      itemChecklistId: itemChecklistId,
+      opcaoId: payloadResposta['opcaoId']?.toString(),
+      valorTexto: payloadResposta['valorTexto']?.toString(),
+      valorNumero: (payloadResposta['valorNumero'] as num?)?.toDouble(),
+      valorData: payloadResposta['valorData']?.toString(),
+      valorDataHora: payloadResposta['valorDataHora']?.toString(),
+      valorRating: (payloadResposta['valorRating'] as num?)?.toInt(),
+      latitude: (payloadResposta['latitude'] as num?)?.toDouble(),
+      longitude: (payloadResposta['longitude'] as num?)?.toDouble(),
+      observacoes: payloadResposta['observacoes']?.toString(),
+    );
+
+    await DataService().updateInspection(
+      widget.inspection.copyWith(updatedAt: DateTime.now()),
+      markDirty: true,
+    );
+
+    if (mounted) {
+      setState(() {
+        _respostasMap[optimistic.itemChecklistId] = optimistic;
+      });
+      widget.onProgressoAtualizado?.call(_todosItens.length, _respostasMap.length);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          salvarPlanoAcao
+              ? 'Guardado offline (resposta e plano na fila). Sincronize com rede.'
+              : 'Guardado offline. Sincronize com rede.',
+        ),
+        backgroundColor: _kPrimary,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+    widget.onInspectionDirtyLocal?.call();
+  }
+
   Future<void> _salvarResposta(Map<String, dynamic> payload) async {
     final salvarPlanoAcao = payload['salvarPlanoAcao'] == true;
     final itemChecklistId = payload['itemChecklistId']?.toString() ?? '';
@@ -362,7 +519,8 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       ..remove('anexosPlanoServidorRemovidosIds');
 
     var loadingShown = false;
-    if (salvarPlanoAcao && mounted) {
+    final online = ConnectivityService().isConnected;
+    if (salvarPlanoAcao && mounted && online) {
       loadingShown = true;
       showDialog<void>(
         context: context,
@@ -393,28 +551,47 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     }
 
     try {
-      final r = await _inspecaoService.salvarResposta(
-          widget.inspection.id, payloadResposta);
-      if (mounted) {
-        setState(() {
-          _respostasMap[r.itemChecklistId] = r;
-        });
-        widget.onProgressoAtualizado?.call(_todosItens.length, _respostasMap.length);
+      if (!online) {
+        await _guardarRespostaOffline(
+            payload, payloadResposta, salvarPlanoAcao, itemChecklistId);
+        return;
       }
 
-      if (salvarPlanoAcao && r.id.isNotEmpty) {
-        await _processarPlanoAcao(
-          respostaId: r.id,
-          itemChecklistId: itemChecklistId,
-          observacoes: payload['observacoesPlanoAcao']?.toString() ?? '',
-          evidenciasPaths: (payload['evidenciasPlanoAcao'] as List?)
-                  ?.cast<String>() ??
-              [],
-          anexosServidorRemovidosIds:
-              (payload['anexosPlanoServidorRemovidosIds'] as List?)
-                      ?.cast<String>() ??
-                  [],
-        );
+      try {
+        final r = await _inspecaoService.salvarResposta(
+            widget.inspection.apiInspecaoId, payloadResposta);
+        await _dbService.initialize();
+        await _dbService.mergeChecklistRespostasFromServer(
+            widget.inspection.id, [r]);
+        if (mounted) {
+          setState(() {
+            _respostasMap[r.itemChecklistId] = r;
+          });
+          widget.onProgressoAtualizado
+              ?.call(_todosItens.length, _respostasMap.length);
+        }
+
+        if (salvarPlanoAcao && r.id.isNotEmpty) {
+          await _processarPlanoAcao(
+            respostaId: r.id,
+            itemChecklistId: itemChecklistId,
+            observacoes: payload['observacoesPlanoAcao']?.toString() ?? '',
+            evidenciasPaths: (payload['evidenciasPlanoAcao'] as List?)
+                    ?.cast<String>() ??
+                [],
+            anexosServidorRemovidosIds:
+                (payload['anexosPlanoServidorRemovidosIds'] as List?)
+                        ?.cast<String>() ??
+                    [],
+          );
+        }
+      } catch (e) {
+        if (_deveTratarComoErroDeRede(e)) {
+          await _guardarRespostaOffline(
+              payload, payloadResposta, salvarPlanoAcao, itemChecklistId);
+          return;
+        }
+        rethrow;
       }
     } catch (e) {
       if (mounted) {
@@ -422,7 +599,8 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
           content: Text('Erro ao guardar: $e'),
           backgroundColor: _kError,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
       }
     } finally {
@@ -646,7 +824,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
     // 2. Validar no servidor (best-effort)
     try {
-      final v = await _inspecaoService.validar(widget.inspection.id);
+      final v = await _inspecaoService.validar(widget.inspection.apiInspecaoId);
       final valida = v['valida'] as bool? ?? true;
       final erros  = (v['erros'] as List?)?.cast<String>() ?? [];
       if (!valida && erros.isNotEmpty) {
@@ -699,7 +877,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       _trackingTimer = null;
       _gpsService.stopTracking();
       try {
-        await _inspecaoService.finalizarRastreamentoSessao(widget.inspection.id);
+        await _inspecaoService.finalizarRastreamentoSessao(widget.inspection.apiInspecaoId);
       } catch (_) {
         // Best-effort: não bloquear a conclusão da inspeção por falha no rastreamento.
       }
@@ -715,7 +893,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         payload['longitude']   = pos.longitude;
         payload['precisaoGps'] = pos.accuracy;
       }
-      await _inspecaoService.finalizar(widget.inspection.id, payload);
+      await _inspecaoService.finalizar(widget.inspection.apiInspecaoId, payload);
 
       if (mounted) {
         setState(() => _finalizando = false);
@@ -789,7 +967,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
     try {
       await _inspecaoService.validarLocalizacao(
-        widget.inspection.id,
+        widget.inspection.apiInspecaoId,
         latitude: pos.latitude,
         longitude: pos.longitude,
         precisaoGps: pos.accuracy,
@@ -838,7 +1016,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
 
     try {
       await _inspecaoService.registrarJustificativaDesvio(
-        widget.inspection.id,
+        widget.inspection.apiInspecaoId,
         texto.trim(),
       );
     } catch (e) {

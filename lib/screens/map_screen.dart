@@ -8,6 +8,9 @@ import 'package:inspecao/models/establishment.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/services/connectivity_service.dart';
+import 'package:inspecao/widgets/offline_map_tile_provider.dart';
+import 'package:inspecao/utils/map_tile_lookup.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
 import 'package:intl/intl.dart';
@@ -34,13 +37,59 @@ class _MapScreenState extends State<MapScreen> {
   String _currentMapStyle = 'OpenStreetMap';
   LatLng? _currentLocation;
   bool _isLoadingLocation = false;
+  /// Semântica: só usar raster HTTP quando há interface **e** DNS aos tiles OSM (Wi‑Fi “sem net” falha aqui).
+  bool? _tileHostReachable;
 
   @override
   void initState() {
     super.initState();
+    ConnectivityService().onlineNotifier.addListener(_onConnectivityForMapTiles);
     _loadInspections(sync: false);
     _loadNotifications();
     _getCurrentLocation();
+    _scheduleTileHostProbe();
+  }
+
+  @override
+  void dispose() {
+    ConnectivityService().onlineNotifier.removeListener(_onConnectivityForMapTiles);
+    super.dispose();
+  }
+
+  void _onConnectivityForMapTiles() {
+    _scheduleTileHostProbe();
+    setState(() {});
+  }
+
+  void _scheduleTileHostProbe() {
+    Future.microtask(_probeTileHostReachability);
+  }
+
+  Future<void> _probeTileHostReachability() async {
+    final svc = ConnectivityService();
+    if (!svc.onlineNotifier.value) {
+      if (mounted) setState(() => _tileHostReachable = false);
+      return;
+    }
+    if (mounted) setState(() => _tileHostReachable = null);
+    final ok = await lookupOpenStreetMapTileHost();
+    if (!mounted) return;
+    if (!svc.onlineNotifier.value) {
+      setState(() => _tileHostReachable = false);
+      return;
+    }
+    setState(() => _tileHostReachable = ok);
+  }
+
+  bool _useNetworkRasterTiles(bool interfaceOnline) {
+    return interfaceOnline && (_tileHostReachable == true);
+  }
+
+  String _mapRasterModeLabel(bool interfaceOnline) {
+    if (!interfaceOnline) return 'Mapa offline';
+    if (_tileHostReachable == null) return 'A preparar mapa…';
+    if (_tileHostReachable == false) return 'Sem cartografia web';
+    return _currentMapStyle;
   }
 
   Future<void> _loadNotifications() async {
@@ -493,6 +542,14 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  TileLayer _offlineRasterPlaceholderLayer() {
+    return TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'com.inspecao.app',
+      tileProvider: OfflineTransparentTileProvider(),
+    );
+  }
+
   void _centerMapOnInspections() {
     if (_filteredInspections.isEmpty) return;
     
@@ -934,7 +991,10 @@ class _MapScreenState extends State<MapScreen> {
           // Mapa expandido
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => _loadInspections(sync: true),
+              onRefresh: () async {
+                await _loadInspections(sync: true);
+                await _probeTileHostReachability();
+              },
               child: _inspections.isEmpty
                   ? Center(
                       child: Column(
@@ -952,99 +1012,169 @@ class _MapScreenState extends State<MapScreen> {
                         ],
                       ),
                     )
-                  : Stack(
-                      children: [
-                        FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter: _currentLocation ?? LatLng(
-                              _inspections.first.latitude,
-                              _inspections.first.longitude,
-                            ),
-                            initialZoom: 12.0,
-                            minZoom: 3.0,
-                            maxZoom: 18.0,
-                            interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.all,
-                            ),
-                          ),
+                  : ValueListenableBuilder<bool>(
+                      valueListenable:
+                          ConnectivityService().onlineNotifier,
+                      builder: (context, interfaceOnline, _) {
+                        final useRasterNet =
+                            _useNetworkRasterTiles(interfaceOnline);
+                        return Stack(
                           children: [
-                            _getTileLayer(),
-                            MarkerLayer(markers: _markers),
-                          ],
-                        ),
-                        // Controles do mapa
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Column(
-                            children: [
-                              FloatingActionButton.small(
-                                onPressed: _changeMapType,
-                                tooltip: 'Trocar Layer ($_currentMapStyle)',
-                                backgroundColor: Colors.white,
-                                child: Icon(
-                                  _currentMapStyle == 'OpenStreetMap' 
-                                      ? Icons.map 
-                                      : _currentMapStyle == 'CartoDB'
-                                          ? Icons.terrain
-                                          : Icons.satellite,
-                                  color: const Color(0xFF18778A),
+                            if (!useRasterNet)
+                              Positioned.fill(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        const Color(0xFFE4E8EB),
+                                        const Color(0xFFC5CED6),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              FloatingActionButton.small(
-                                onPressed: _centerMapOnInspections,
-                                tooltip: 'Centralizar nas Inspeções',
-                                backgroundColor: Colors.white,
-                                child: const Icon(
-                                  Icons.center_focus_strong,
-                                  color: Color(0xFF18778A),
+                            FlutterMap(
+                              mapController: _mapController,
+                              options: MapOptions(
+                                initialCenter: _currentLocation ??
+                                    LatLng(
+                                      _inspections.first.latitude,
+                                      _inspections.first.longitude,
+                                    ),
+                                initialZoom: 12.0,
+                                minZoom: 3.0,
+                                maxZoom: 18.0,
+                                interactionOptions:
+                                    const InteractionOptions(
+                                  flags: InteractiveFlag.all,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              FloatingActionButton.small(
-                                onPressed: _getCurrentLocation,
-                                tooltip: 'Minha Localização',
-                                backgroundColor: Colors.white,
-                                child: _isLoadingLocation 
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF18778A)),
+                              children: [
+                                useRasterNet
+                                    ? _getTileLayer()
+                                    : _offlineRasterPlaceholderLayer(),
+                                MarkerLayer(markers: _markers),
+                              ],
+                            ),
+                            // Controles do mapa
+                            Positioned(
+                              top: 16,
+                              right: 16,
+                              child: Column(
+                                children: [
+                                  FloatingActionButton.small(
+                                    onPressed:
+                                        useRasterNet ? _changeMapType : null,
+                                    tooltip: useRasterNet
+                                        ? 'Trocar Layer ($_currentMapStyle)'
+                                        : 'Sem rede aos servidores de mapas',
+                                    backgroundColor: Colors.white,
+                                    child: Icon(
+                                      _currentMapStyle == 'OpenStreetMap'
+                                          ? Icons.map
+                                          : _currentMapStyle == 'CartoDB'
+                                              ? Icons.terrain
+                                              : Icons.satellite,
+                                      color: const Color(0xFF18778A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  FloatingActionButton.small(
+                                    onPressed: _centerMapOnInspections,
+                                    tooltip: 'Centralizar nas Inspeções',
+                                    backgroundColor: Colors.white,
+                                    child: const Icon(
+                                      Icons.center_focus_strong,
+                                      color: Color(0xFF18778A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  FloatingActionButton.small(
+                                    onPressed: _getCurrentLocation,
+                                    tooltip: 'Minha Localização',
+                                    backgroundColor: Colors.white,
+                                    child: _isLoadingLocation
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child:
+                                                CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<
+                                                      Color>(
+                                                Color(0xFF18778A),
+                                              ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.my_location,
+                                            color: Color(0xFF18778A),
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Indicador do layer atual
+                            Positioned(
+                              top: 16,
+                              left: 16,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.7),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _mapRasterModeLabel(interfaceOnline),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (!useRasterNet)
+                              Positioned(
+                                left: 12,
+                                right: 12,
+                                bottom: 24,
+                                child: Material(
+                                  elevation: 4,
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.black87,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(Icons.cloud_off,
+                                            color: Colors.white, size: 20),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Sem cartografia web. Só estão disponíveis os marcadores das inspeções guardadas neste dispositivo.',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              height: 1.25,
+                                            ),
+                                          ),
                                         ),
-                                      )
-                                    : const Icon(
-                                        Icons.my_location,
-                                        color: Color(0xFF18778A),
-                                      ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ],
-                          ),
-                        ),
-                        // Indicador do layer atual
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _currentMapStyle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
             ),
           ),

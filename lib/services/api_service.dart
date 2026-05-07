@@ -258,10 +258,12 @@ class ApiService {
 
   // Métodos de configuração
   void setAuthToken(String token) {
+    if (_baseUrl == null) return;
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
 
   void clearAuthToken() {
+    if (_baseUrl == null) return;
     _dio.options.headers.remove('Authorization');
   }
 

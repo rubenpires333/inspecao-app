@@ -139,6 +139,8 @@ class RespostasInspecao extends Table {
   TextColumn get categoria => text()();
   TextColumn get status => text().map(const ItemStatusConverter())();
   
+  TextColumn get opcaoId => text().nullable()();
+  
   // Valores da resposta
   TextColumn get valorTexto => text().nullable()();
   RealColumn get valorNumero => real().nullable()();
@@ -427,4 +429,15 @@ class Sincronizacoes extends Table {
   TextColumn get direcao => text()(); // 'upload', 'download', 'bidirecional'
   
   // Nota: autoIncrement() já define id como primary key automaticamente
+}
+
+/// Fila de POST /respostas (e extras do plano de ação) para sincronizar quando houver rede.
+class PendingRespostaOps extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get inspecaoLocalId => text()();
+  TextColumn get payloadJson => text()();
+  BoolColumn get salvarPlanoAcao =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get planoExtrasJson => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
 }

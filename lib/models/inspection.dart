@@ -56,6 +56,11 @@ class Inspection {
   final DateTime updatedAt;
   final String? serverId;
 
+  /// ID da inspeção nas rotas HTTP (`/api/v1/inspecoes/{id}/...`).
+  /// Preferir sempre este getter em chamadas à API.
+  String get apiInspecaoId =>
+      (serverId != null && serverId!.trim().isNotEmpty) ? serverId!.trim() : id;
+
   Inspection({
     required this.id,
     required this.titulo,

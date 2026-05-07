@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/user.dart';
@@ -16,6 +18,10 @@ import 'package:inspecao/screens/database_viewer_screen.dart';
 import 'package:inspecao/screens/inspections_screen.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inspecao/services/connectivity_service.dart';
+import 'package:inspecao/services/sync_service.dart';
+import 'package:inspecao/widgets/pending_sync_sheet.dart';
+import 'package:inspecao/utils/offline_create_inspection_guard.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) changeThemeMode;
@@ -32,8 +38,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<Inspection> _inspections = [];
   List<AppNotification> _notifications = [];
-  bool _isLoading = false;
-  
+  bool _isLoading = true;
+  StreamSubscription<bool>? _connectivitySub;
+  bool _wasOffline = false;
+  Future<void>? _mandatorySyncFuture;
+
   // Filtros para Inspeções Recentes
   InspectionStatus? _statusFilter;
   final _searchController = TextEditingController();
@@ -42,16 +51,31 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_filterRecentInspections);
-    _loadData().then((_) {
-      // Sempre começar na tela de início (dashboard) - índice 0
+    ConnectivityService().initialize().then((_) {
+      _wasOffline = !ConnectivityService().isConnected;
+    });
+    _connectivitySub =
+        ConnectivityService().onConnectivityChanged.listen((online) async {
+      if (!mounted) return;
+      if (online && _wasOffline) {
+        _wasOffline = false;
+        await _offerMandatoryPendingSyncIfNeeded();
+      }
+      if (!online) _wasOffline = true;
+      setState(() {});
+    });
+    _loadData().then((_) async {
+      if (!mounted) return;
       setState(() {
-        _selectedIndex = 0; // Primeira tela será o dashboard/início
+        _selectedIndex = 0;
       });
+      await _offerMandatoryPendingSyncIfNeeded();
     });
   }
   
   @override
   void dispose() {
+    _connectivitySub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -188,11 +212,39 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _inspections = [];
           _notifications = [];
+          _isLoading = false;
         });
       }
       // Log do erro para debug
       print('Erro ao carregar dados: $e');
     }
+  }
+
+  /// Com Internet e fila pendente: obriga a escolher política de sync antes de continuar.
+  Future<void> _offerMandatoryPendingSyncIfNeeded() async {
+    if (!mounted) return;
+    if (!ConnectivityService().isConnected) return;
+    final overview = await SyncService().loadPendingOverview();
+    if (!mounted || overview.totalItems == 0) return;
+
+    _mandatorySyncFuture ??= () async {
+      try {
+        var attempts = 0;
+        while (mounted &&
+            ConnectivityService().isConnected &&
+            attempts < 12) {
+          final check = await SyncService().loadPendingOverview();
+          if (!mounted || check.totalItems == 0) break;
+          await showMandatoryPendingSyncSheet(context);
+          if (!mounted) break;
+          await _loadData();
+          attempts++;
+        }
+      } finally {
+        _mandatorySyncFuture = null;
+      }
+    }();
+    await _mandatorySyncFuture;
   }
 
   Future<void> _logout() async {
@@ -206,12 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _getSelectedScreen() {
     if (_currentUser == null) {
-      // Enquanto os dados do utilizador ainda não foram carregados,
-      // mostramos um pequeno indicador de carregamento em vez de
-      // forçar a navegação direta para a tela de inspeções.
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return _buildDashboardBootSkeleton();
     }
     final menuItems = _getMenuItemsForUser(_currentUser!);
     
@@ -263,13 +310,11 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.map_outlined,
         'label': 'Mapa',
       });
-      // Tela temporária de debug (DB Local) oculta por enquanto.
-      // Mantido comentado para reativação rápida no futuro.
-      // items.add({
-      //   'screen': 'database',
-      //   'icon': Icons.storage_outlined,
-      //   'label': 'DB Local',
-      // });
+      items.add({
+        'screen': 'database',
+        'icon': Icons.storage_outlined,
+        'label': 'DB Local',
+      });
       return items;
     }
     
@@ -302,16 +347,172 @@ class _HomeScreenState extends State<HomeScreen> {
       'icon': Icons.map_outlined,
       'label': 'Mapa',
     });
-    
-    // Tela temporária de debug (DB Local) oculta por enquanto.
-    // Mantido comentado para reativação rápida no futuro.
-    // items.add({
-    //   'screen': 'database',
-    //   'icon': Icons.storage_outlined,
-    //   'label': 'DB Local',
-    // });
-    
+
+    items.add({
+      'screen': 'database',
+      'icon': Icons.storage_outlined,
+      'label': 'DB Local',
+    });
+
     return items;
+  }
+
+  Widget _buildDashboardBootSkeleton() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFE3F0E9),
+      body: Column(
+        children: [
+          _buildGoAuditsHeaderSkeleton(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: _buildRecentAuditsSkeleton(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoAuditsHeaderSkeleton() {
+    final bar = Colors.grey.shade400;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.grey.shade600,
+            Colors.grey.shade700,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: bar,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 110,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: bar,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: bar,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: bar,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentAuditsSkeleton() {
+    final block = Colors.grey.shade400;
+    final chip = Colors.grey.shade500;
+
+    Widget bar(double height, double width, [double radius = 8]) {
+      return Container(
+        height: height,
+        width: width,
+        decoration: BoxDecoration(
+          color: block,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          bar(48, double.infinity, 12),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                bar(36, 88, 20),
+                const SizedBox(width: 12),
+                bar(36, 72, 20),
+                const SizedBox(width: 12),
+                bar(36, 132, 20),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(
+            3,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                height: 148,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: chip,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    bar(18, 200, 6),
+                    const SizedBox(height: 12),
+                    bar(14, double.infinity, 6),
+                    const SizedBox(height: 8),
+                    bar(14, 180, 6),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        bar(12, 88, 6),
+                        bar(12, 52, 6),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDashboard() {
@@ -334,23 +535,9 @@ class _HomeScreenState extends State<HomeScreen> {
           // Conteúdo com scroll
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF18778A)),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Carregando inspeções...',
-                          style: TextStyle(
-                            color: Color(0xFF666666),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 100),
+                    child: _buildRecentAuditsSkeleton(),
                   )
                 : RefreshIndicator(
                     onRefresh: _loadData,
@@ -978,8 +1165,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: FloatingActionButton(
                 onPressed: () async {
-                  await Navigator.push(
-                    context,
+                  final navigator = Navigator.of(context);
+                  if (!await ensureOnlineBeforeCreateInspection(context)) return;
+                  if (!mounted) return;
+                  await navigator.push(
                     MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
                   );
                   _loadData();

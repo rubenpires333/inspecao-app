@@ -3,9 +3,11 @@ import 'package:inspecao/models/inspection.dart';
 import 'package:inspecao/models/inspection_item.dart';
 import 'package:inspecao/models/inspector.dart';
 import 'package:inspecao/models/establishment.dart';
+import 'package:inspecao/models/checklist_secao.dart';
 import 'package:drift/drift.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:uuid/uuid.dart';
 
 /// Serviço de banco de dados local (SQLite/Drift)
 /// Implementa estratégia offline-first: dados locais são a fonte de verdade
@@ -86,8 +88,7 @@ class DatabaseService {
     final anexos = await _database.getAnexosByInspecao(dbInspection.id);
     final fotos = anexos.map((a) => a.caminhoLocal).toList();
 
-    // Converter equipe (por enquanto vazio, TODO: implementar quando tiver tabela de equipe)
-    final equipe = <Inspector>[];
+    final equipe = await _localEquipeInspectors(dbInspection.equipeId);
 
     return Inspection(
       id: dbInspection.id,
@@ -115,6 +116,54 @@ class DatabaseService {
       updatedAt: dbInspection.updatedAt,
       serverId: dbInspection.serverId,
     );
+  }
+
+  Future<List<Inspector>> _localEquipeInspectors(String? equipeId) async {
+    if (equipeId == null || equipeId.trim().isEmpty) return [];
+    final membros =
+        await _database.getMembrosAtivosByEquipe(equipeId.trim());
+    return membros
+        .map(
+          (m) => Inspector(
+            id: m.usuarioId,
+            nome: (m.usuarioNome ?? '').trim(),
+            email: (m.usuarioEmail ?? '').trim(),
+            telefone: '',
+            cargo: InspectorRole.tecnico,
+            especialidades: const [],
+            ativo: m.ativo,
+          ),
+        )
+        .toList();
+  }
+
+  /// Mesmo formato aproximado da API para preencher o cartão de equipa offline.
+  Future<Map<String, dynamic>?> getEquipeCompletaSnapshotFromLocalDb(
+      String equipeId) async {
+    await initialize();
+    final id = equipeId.trim();
+    if (id.isEmpty) return null;
+    final eq = await _database.getEquipeById(id);
+    if (eq == null) return null;
+    final membrosDb = await _database.getMembrosAtivosByEquipe(id);
+    final membros = membrosDb
+        .map(
+          (m) => <String, dynamic>{
+            'id': m.usuarioId,
+            'usuarioId': m.usuarioId,
+            'usuarioNome': m.usuarioNome,
+            'usuarioEmail': m.usuarioEmail,
+            'nome': m.usuarioNome,
+            'email': m.usuarioEmail,
+          },
+        )
+        .toList();
+    return <String, dynamic>{
+      'nome': eq.nome,
+      'codigo': eq.codigo,
+      'supervisorNome': eq.supervisorNome ?? '',
+      'membros': membros,
+    };
   }
 
   /// Converte RespostasInspecaoData para InspectionItem
@@ -346,9 +395,10 @@ class DatabaseService {
           itemDescricao: Value(item.descricao),
           categoria: Value(item.categoria),
           status: Value(item.status),
-          valorTexto: const Value(null), // TODO: implementar quando tiver valores específicos
-          valorNumero: const Value(null),
-          valorData: const Value(null),
+          opcaoId: Value(item.opcaoSelecionadaId),
+          valorTexto: Value(item.valorTexto),
+          valorNumero: Value(item.valorNumero),
+          valorData: Value(item.valorData),
           valorRating: const Value(null),
           valorBooleano: const Value(null),
           observacoes: Value(item.observacao),
@@ -414,6 +464,7 @@ class DatabaseService {
           itemDescricao: Value(resposta.itemDescricao),
           categoria: Value(resposta.categoria),
           status: Value(resposta.status),
+          opcaoId: Value(resposta.opcaoId),
           valorTexto: Value(resposta.valorTexto),
           valorNumero: Value(resposta.valorNumero),
           valorData: Value(resposta.valorData),
@@ -734,5 +785,300 @@ class DatabaseService {
       print('Erro ao buscar itens da seção $secaoId: $e');
       return [];
     }
+  }
+
+  List<AcaoOpcaoChecklist> _parseAcoesOpcaoJson(String? raw) {
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final d = jsonDecode(raw);
+      if (d is List) {
+        return d
+            .whereType<Map<String, dynamic>>()
+            .map(AcaoOpcaoChecklist.fromJson)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  dynamic _jsonSerializable(dynamic v) {
+    if (v == null || v is num || v is String || v is bool) return v;
+    if (v is Map) {
+      return v.map((k, e) => MapEntry(k.toString(), _jsonSerializable(e)));
+    }
+    if (v is List) return v.map(_jsonSerializable).toList();
+    return v.toString();
+  }
+
+  Map<String, dynamic> _jsonSafePayload(Map<String, dynamic> payload) {
+    return Map<String, dynamic>.from(
+      payload.map((k, v) => MapEntry(k, _jsonSerializable(v))),
+    );
+  }
+
+  /// Checklist completo a partir do SQLite (após `syncInitialData`).
+  Future<List<SecaoChecklistCompleta>> loadChecklistCompletoFromCache(
+      String checklistId) async {
+    await initialize();
+    final allSecoes = await _database.getSecoesByChecklist(checklistId);
+    if (allSecoes.isEmpty) return [];
+
+    final byParent = <String?, List<db.SecoesChecklistData>>{};
+    for (final s in allSecoes) {
+      byParent.putIfAbsent(s.secaoPaiId, () => []).add(s);
+    }
+    for (final list in byParent.values) {
+      list.sort((a, b) => a.ordem.compareTo(b.ordem));
+    }
+
+    Future<SecaoChecklistCompleta> buildSecao(db.SecoesChecklistData s) async {
+      final subRaw = byParent[s.id] ?? [];
+      final subsecoes = await Future.wait(subRaw.map(buildSecao));
+
+      final itensRows = await _database.getItensAtivosBySecao(s.id);
+      itensRows.sort((a, b) => a.ordem.compareTo(b.ordem));
+
+      final itens = <ItemChecklistCompleto>[];
+      for (final row in itensRows) {
+        final opRows = await _database.getOpcoesByItem(row.id);
+        opRows.sort((a, b) => a.ordem.compareTo(b.ordem));
+        final opcoes = opRows
+            .map(
+              (o) => OpcaoItemChecklist(
+                id: o.id,
+                itemId: o.itemId,
+                texto: o.texto,
+                valor: o.valor,
+                ordem: o.ordem,
+                cor: o.cor,
+                pontuacao: o.pontuacao?.toDouble(),
+                acoes: _parseAcoesOpcaoJson(o.acoesJson),
+              ),
+            )
+            .toList();
+
+        itens.add(
+          ItemChecklistCompleto(
+            id: row.id,
+            secaoId: row.secaoId,
+            rotulo: row.rotulo,
+            descricao: row.descricao,
+            ajuda: row.ajuda,
+            tipo: tipoFromString(row.tipo),
+            ordem: row.ordem,
+            obrigatorio: row.obrigatorio,
+            ativo: row.ativo,
+            opcoes: opcoes,
+          ),
+        );
+      }
+
+      return SecaoChecklistCompleta(
+        id: s.id,
+        checklistId: s.checklistId,
+        titulo: s.titulo,
+        descricao: s.descricao,
+        ordem: s.ordem,
+        secaoPaiId: s.secaoPaiId,
+        ativo: s.ativo,
+        itens: itens,
+        subsecoes: subsecoes,
+      );
+    }
+
+    final roots = byParent[null] ?? [];
+    return Future.wait(roots.map(buildSecao));
+  }
+
+  Future<List<RespostaInspecaoCompleta>> listRespostasChecklistCompleta(
+      String inspecaoLocalId) async {
+    await initialize();
+    final rows = await _database.getRespostasByInspecao(inspecaoLocalId);
+    return rows
+        .map(
+          (r) => RespostaInspecaoCompleta(
+            id: r.id,
+            inspecaoId: r.inspecaoId,
+            itemChecklistId: r.itemChecklistId,
+            opcaoId: r.opcaoId,
+            valorTexto: r.valorTexto,
+            valorNumero: r.valorNumero,
+            valorData: r.valorData?.toUtc().toIso8601String(),
+            valorDataHora: null,
+            valorRating: r.valorRating,
+            latitude: r.latitude,
+            longitude: r.longitude,
+            observacoes: r.observacoes,
+          ),
+        )
+        .toList();
+  }
+
+  Future<Set<String>> _pendingItemChecklistIdsForInspecao(
+      String inspecaoLocalId) async {
+    final ids = <String>{};
+    final ops = await _database.getAllPendingRespostaOps();
+    for (final op in ops) {
+      if (op.inspecaoLocalId != inspecaoLocalId) continue;
+      try {
+        final m = jsonDecode(op.payloadJson) as Map<String, dynamic>;
+        final iid = m['itemChecklistId']?.toString().trim() ?? '';
+        if (iid.isNotEmpty) ids.add(iid);
+      } catch (_) {}
+    }
+    return ids;
+  }
+
+  /// Espelha na BD local as respostas obtidas do servidor para o checklist poder
+  /// mostrar opções/valores em modo offline.
+  ///
+  /// Não substitui linhas com `isSynced == false` (alterações locais por sincronizar)
+  /// nem itens que já tenham operação na fila offline.
+  Future<void> mergeChecklistRespostasFromServer(
+    String inspecaoLocalId,
+    List<RespostaInspecaoCompleta> respostas,
+  ) async {
+    await initialize();
+    if (respostas.isEmpty) return;
+
+    final now = DateTime.now();
+    const uuid = Uuid();
+    final pendingIds = await _pendingItemChecklistIdsForInspecao(inspecaoLocalId);
+    var rowsSnapshot = await _database.getRespostasByInspecao(inspecaoLocalId);
+
+    for (final r in respostas) {
+      final itemId = r.itemChecklistId.trim();
+      if (itemId.isEmpty || pendingIds.contains(itemId)) continue;
+
+      final sameItem =
+          rowsSnapshot.where((e) => e.itemChecklistId == itemId).toList();
+      if (sameItem.isNotEmpty && !sameItem.first.isSynced) continue;
+
+      for (final e in sameItem) {
+        await _database.deleteResposta(e.id);
+      }
+      rowsSnapshot =
+          rowsSnapshot.where((e) => e.itemChecklistId != itemId).toList();
+
+      final rowId = r.id.trim().isNotEmpty ? r.id : uuid.v4();
+      DateTime? vd;
+      final vdRaw = r.valorData?.trim();
+      if (vdRaw != null && vdRaw.isNotEmpty) {
+        vd = DateTime.tryParse(vdRaw);
+      }
+
+      final companion = db.RespostasInspecaoCompanion(
+        id: Value(rowId),
+        inspecaoId: Value(inspecaoLocalId),
+        itemChecklistId: Value(itemId),
+        itemDescricao: const Value(''),
+        categoria: const Value(''),
+        status: const Value(ItemStatus.conforme),
+        opcaoId: Value(r.opcaoId),
+        valorTexto: Value(r.valorTexto),
+        valorNumero: Value(r.valorNumero),
+        valorData: Value(vd),
+        valorRating: Value(r.valorRating),
+        valorBooleano: const Value(null),
+        latitude: Value(r.latitude),
+        longitude: Value(r.longitude),
+        gpsTimestamp: const Value(null),
+        observacoes: Value(r.observacoes),
+        ordem: const Value(0),
+        obrigatorio: const Value(false),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSynced: const Value(true),
+      );
+      await _database.insertResposta(companion);
+    }
+  }
+
+  Future<void> upsertRespostaFromChecklistPayload({
+    required String inspecaoLocalId,
+    required Map<String, dynamic> payload,
+    required String respostaRowId,
+    String itemDescricao = '',
+    String categoria = '',
+  }) async {
+    await initialize();
+    final itemChecklistId = payload['itemChecklistId']?.toString() ?? '';
+    final existing = await _database.getRespostasByInspecao(inspecaoLocalId);
+    for (final e in existing) {
+      if (e.itemChecklistId == itemChecklistId) {
+        await _database.deleteResposta(e.id);
+      }
+    }
+
+    final opcaoId = payload['opcaoId']?.toString();
+    final vt = payload['valorTexto']?.toString();
+    final vn = (payload['valorNumero'] as num?)?.toDouble();
+    DateTime? vd;
+    final vdRaw = payload['valorData'];
+    if (vdRaw is String) vd = DateTime.tryParse(vdRaw);
+    final vr = (payload['valorRating'] as num?)?.toInt();
+    final lat = (payload['latitude'] as num?)?.toDouble();
+    final lng = (payload['longitude'] as num?)?.toDouble();
+    final obs = payload['observacoes']?.toString();
+
+    final now = DateTime.now();
+    final companion = db.RespostasInspecaoCompanion(
+      id: Value(respostaRowId),
+      inspecaoId: Value(inspecaoLocalId),
+      itemChecklistId: Value(itemChecklistId),
+      itemDescricao: Value(itemDescricao),
+      categoria: Value(categoria),
+      status: const Value(ItemStatus.conforme),
+      opcaoId: Value(opcaoId),
+      valorTexto: Value(vt),
+      valorNumero: Value(vn),
+      valorData: Value(vd),
+      valorRating: Value(vr),
+      valorBooleano: const Value(null),
+      latitude: Value(lat),
+      longitude: Value(lng),
+      gpsTimestamp: const Value(null),
+      observacoes: Value(obs),
+      ordem: const Value(0),
+      obrigatorio: const Value(false),
+      createdAt: Value(now),
+      updatedAt: Value(now),
+      isSynced: const Value(false),
+    );
+    await _database.insertResposta(companion);
+  }
+
+  Future<int> enqueuePendingRespostaOp({
+    required String inspecaoLocalId,
+    required Map<String, dynamic> payloadResposta,
+    required bool salvarPlanoAcao,
+    Map<String, dynamic>? planoExtras,
+  }) async {
+    await initialize();
+    final companion = db.PendingRespostaOpsCompanion(
+      inspecaoLocalId: Value(inspecaoLocalId),
+      payloadJson: Value(jsonEncode(_jsonSafePayload(payloadResposta))),
+      salvarPlanoAcao: Value(salvarPlanoAcao),
+      planoExtrasJson: Value(
+        planoExtras == null ? null : jsonEncode(_jsonSafePayload(planoExtras)),
+      ),
+      createdAt: Value(DateTime.now()),
+    );
+    return _database.insertPendingRespostaOp(companion);
+  }
+
+  Future<int> countPendingRespostaOps() async {
+    await initialize();
+    return (await _database.getAllPendingRespostaOps()).length;
+  }
+
+  Future<List<db.PendingRespostaOp>> getPendingRespostaOpsList() async {
+    await initialize();
+    return _database.getAllPendingRespostaOps();
+  }
+
+  Future<void> deletePendingRespostaOpById(int id) async {
+    await initialize();
+    await _database.deletePendingRespostaOp(id);
   }
 }

@@ -1574,6 +1574,17 @@ class $RespostasInspecaoTable extends RespostasInspecao
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       ).withConverter<ItemStatus>($RespostasInspecaoTable.$converterstatus);
+  static const VerificationMeta _opcaoIdMeta = const VerificationMeta(
+    'opcaoId',
+  );
+  @override
+  late final GeneratedColumn<String> opcaoId = GeneratedColumn<String>(
+    'opcao_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _valorTextoMeta = const VerificationMeta(
     'valorTexto',
   );
@@ -1745,6 +1756,7 @@ class $RespostasInspecaoTable extends RespostasInspecao
     itemDescricao,
     categoria,
     status,
+    opcaoId,
     valorTexto,
     valorNumero,
     valorData,
@@ -1814,6 +1826,12 @@ class $RespostasInspecaoTable extends RespostasInspecao
       );
     } else if (isInserting) {
       context.missing(_categoriaMeta);
+    }
+    if (data.containsKey('opcao_id')) {
+      context.handle(
+        _opcaoIdMeta,
+        opcaoId.isAcceptableOrUnknown(data['opcao_id']!, _opcaoIdMeta),
+      );
     }
     if (data.containsKey('valor_texto')) {
       context.handle(
@@ -1958,6 +1976,10 @@ class $RespostasInspecaoTable extends RespostasInspecao
           data['${effectivePrefix}status'],
         )!,
       ),
+      opcaoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opcao_id'],
+      ),
       valorTexto: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}valor_texto'],
@@ -2034,6 +2056,7 @@ class RespostasInspecaoData extends DataClass
   final String itemDescricao;
   final String categoria;
   final ItemStatus status;
+  final String? opcaoId;
   final String? valorTexto;
   final double? valorNumero;
   final DateTime? valorData;
@@ -2055,6 +2078,7 @@ class RespostasInspecaoData extends DataClass
     required this.itemDescricao,
     required this.categoria,
     required this.status,
+    this.opcaoId,
     this.valorTexto,
     this.valorNumero,
     this.valorData,
@@ -2082,6 +2106,9 @@ class RespostasInspecaoData extends DataClass
       map['status'] = Variable<String>(
         $RespostasInspecaoTable.$converterstatus.toSql(status),
       );
+    }
+    if (!nullToAbsent || opcaoId != null) {
+      map['opcao_id'] = Variable<String>(opcaoId);
     }
     if (!nullToAbsent || valorTexto != null) {
       map['valor_texto'] = Variable<String>(valorTexto);
@@ -2126,6 +2153,9 @@ class RespostasInspecaoData extends DataClass
       itemDescricao: Value(itemDescricao),
       categoria: Value(categoria),
       status: Value(status),
+      opcaoId: opcaoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(opcaoId),
       valorTexto: valorTexto == null && nullToAbsent
           ? const Value.absent()
           : Value(valorTexto),
@@ -2173,6 +2203,7 @@ class RespostasInspecaoData extends DataClass
       itemDescricao: serializer.fromJson<String>(json['itemDescricao']),
       categoria: serializer.fromJson<String>(json['categoria']),
       status: serializer.fromJson<ItemStatus>(json['status']),
+      opcaoId: serializer.fromJson<String?>(json['opcaoId']),
       valorTexto: serializer.fromJson<String?>(json['valorTexto']),
       valorNumero: serializer.fromJson<double?>(json['valorNumero']),
       valorData: serializer.fromJson<DateTime?>(json['valorData']),
@@ -2199,6 +2230,7 @@ class RespostasInspecaoData extends DataClass
       'itemDescricao': serializer.toJson<String>(itemDescricao),
       'categoria': serializer.toJson<String>(categoria),
       'status': serializer.toJson<ItemStatus>(status),
+      'opcaoId': serializer.toJson<String?>(opcaoId),
       'valorTexto': serializer.toJson<String?>(valorTexto),
       'valorNumero': serializer.toJson<double?>(valorNumero),
       'valorData': serializer.toJson<DateTime?>(valorData),
@@ -2223,6 +2255,7 @@ class RespostasInspecaoData extends DataClass
     String? itemDescricao,
     String? categoria,
     ItemStatus? status,
+    Value<String?> opcaoId = const Value.absent(),
     Value<String?> valorTexto = const Value.absent(),
     Value<double?> valorNumero = const Value.absent(),
     Value<DateTime?> valorData = const Value.absent(),
@@ -2244,6 +2277,7 @@ class RespostasInspecaoData extends DataClass
     itemDescricao: itemDescricao ?? this.itemDescricao,
     categoria: categoria ?? this.categoria,
     status: status ?? this.status,
+    opcaoId: opcaoId.present ? opcaoId.value : this.opcaoId,
     valorTexto: valorTexto.present ? valorTexto.value : this.valorTexto,
     valorNumero: valorNumero.present ? valorNumero.value : this.valorNumero,
     valorData: valorData.present ? valorData.value : this.valorData,
@@ -2275,6 +2309,7 @@ class RespostasInspecaoData extends DataClass
           : this.itemDescricao,
       categoria: data.categoria.present ? data.categoria.value : this.categoria,
       status: data.status.present ? data.status.value : this.status,
+      opcaoId: data.opcaoId.present ? data.opcaoId.value : this.opcaoId,
       valorTexto: data.valorTexto.present
           ? data.valorTexto.value
           : this.valorTexto,
@@ -2315,6 +2350,7 @@ class RespostasInspecaoData extends DataClass
           ..write('itemDescricao: $itemDescricao, ')
           ..write('categoria: $categoria, ')
           ..write('status: $status, ')
+          ..write('opcaoId: $opcaoId, ')
           ..write('valorTexto: $valorTexto, ')
           ..write('valorNumero: $valorNumero, ')
           ..write('valorData: $valorData, ')
@@ -2334,13 +2370,14 @@ class RespostasInspecaoData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     inspecaoId,
     itemChecklistId,
     itemDescricao,
     categoria,
     status,
+    opcaoId,
     valorTexto,
     valorNumero,
     valorData,
@@ -2355,7 +2392,7 @@ class RespostasInspecaoData extends DataClass
     createdAt,
     updatedAt,
     isSynced,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2366,6 +2403,7 @@ class RespostasInspecaoData extends DataClass
           other.itemDescricao == this.itemDescricao &&
           other.categoria == this.categoria &&
           other.status == this.status &&
+          other.opcaoId == this.opcaoId &&
           other.valorTexto == this.valorTexto &&
           other.valorNumero == this.valorNumero &&
           other.valorData == this.valorData &&
@@ -2390,6 +2428,7 @@ class RespostasInspecaoCompanion
   final Value<String> itemDescricao;
   final Value<String> categoria;
   final Value<ItemStatus> status;
+  final Value<String?> opcaoId;
   final Value<String?> valorTexto;
   final Value<double?> valorNumero;
   final Value<DateTime?> valorData;
@@ -2412,6 +2451,7 @@ class RespostasInspecaoCompanion
     this.itemDescricao = const Value.absent(),
     this.categoria = const Value.absent(),
     this.status = const Value.absent(),
+    this.opcaoId = const Value.absent(),
     this.valorTexto = const Value.absent(),
     this.valorNumero = const Value.absent(),
     this.valorData = const Value.absent(),
@@ -2435,6 +2475,7 @@ class RespostasInspecaoCompanion
     required String itemDescricao,
     required String categoria,
     required ItemStatus status,
+    this.opcaoId = const Value.absent(),
     this.valorTexto = const Value.absent(),
     this.valorNumero = const Value.absent(),
     this.valorData = const Value.absent(),
@@ -2466,6 +2507,7 @@ class RespostasInspecaoCompanion
     Expression<String>? itemDescricao,
     Expression<String>? categoria,
     Expression<String>? status,
+    Expression<String>? opcaoId,
     Expression<String>? valorTexto,
     Expression<double>? valorNumero,
     Expression<DateTime>? valorData,
@@ -2489,6 +2531,7 @@ class RespostasInspecaoCompanion
       if (itemDescricao != null) 'item_descricao': itemDescricao,
       if (categoria != null) 'categoria': categoria,
       if (status != null) 'status': status,
+      if (opcaoId != null) 'opcao_id': opcaoId,
       if (valorTexto != null) 'valor_texto': valorTexto,
       if (valorNumero != null) 'valor_numero': valorNumero,
       if (valorData != null) 'valor_data': valorData,
@@ -2514,6 +2557,7 @@ class RespostasInspecaoCompanion
     Value<String>? itemDescricao,
     Value<String>? categoria,
     Value<ItemStatus>? status,
+    Value<String?>? opcaoId,
     Value<String?>? valorTexto,
     Value<double?>? valorNumero,
     Value<DateTime?>? valorData,
@@ -2537,6 +2581,7 @@ class RespostasInspecaoCompanion
       itemDescricao: itemDescricao ?? this.itemDescricao,
       categoria: categoria ?? this.categoria,
       status: status ?? this.status,
+      opcaoId: opcaoId ?? this.opcaoId,
       valorTexto: valorTexto ?? this.valorTexto,
       valorNumero: valorNumero ?? this.valorNumero,
       valorData: valorData ?? this.valorData,
@@ -2577,6 +2622,9 @@ class RespostasInspecaoCompanion
       map['status'] = Variable<String>(
         $RespostasInspecaoTable.$converterstatus.toSql(status.value),
       );
+    }
+    if (opcaoId.present) {
+      map['opcao_id'] = Variable<String>(opcaoId.value);
     }
     if (valorTexto.present) {
       map['valor_texto'] = Variable<String>(valorTexto.value);
@@ -2635,6 +2683,7 @@ class RespostasInspecaoCompanion
           ..write('itemDescricao: $itemDescricao, ')
           ..write('categoria: $categoria, ')
           ..write('status: $status, ')
+          ..write('opcaoId: $opcaoId, ')
           ..write('valorTexto: $valorTexto, ')
           ..write('valorNumero: $valorNumero, ')
           ..write('valorData: $valorData, ')
@@ -11128,6 +11177,437 @@ class SincronizacoesCompanion extends UpdateCompanion<Sincronizacoe> {
   }
 }
 
+class $PendingRespostaOpsTable extends PendingRespostaOps
+    with TableInfo<$PendingRespostaOpsTable, PendingRespostaOp> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingRespostaOpsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _inspecaoLocalIdMeta = const VerificationMeta(
+    'inspecaoLocalId',
+  );
+  @override
+  late final GeneratedColumn<String> inspecaoLocalId = GeneratedColumn<String>(
+    'inspecao_local_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _salvarPlanoAcaoMeta = const VerificationMeta(
+    'salvarPlanoAcao',
+  );
+  @override
+  late final GeneratedColumn<bool> salvarPlanoAcao = GeneratedColumn<bool>(
+    'salvar_plano_acao',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("salvar_plano_acao" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _planoExtrasJsonMeta = const VerificationMeta(
+    'planoExtrasJson',
+  );
+  @override
+  late final GeneratedColumn<String> planoExtrasJson = GeneratedColumn<String>(
+    'plano_extras_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    inspecaoLocalId,
+    payloadJson,
+    salvarPlanoAcao,
+    planoExtrasJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_resposta_ops';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingRespostaOp> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('inspecao_local_id')) {
+      context.handle(
+        _inspecaoLocalIdMeta,
+        inspecaoLocalId.isAcceptableOrUnknown(
+          data['inspecao_local_id']!,
+          _inspecaoLocalIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_inspecaoLocalIdMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('salvar_plano_acao')) {
+      context.handle(
+        _salvarPlanoAcaoMeta,
+        salvarPlanoAcao.isAcceptableOrUnknown(
+          data['salvar_plano_acao']!,
+          _salvarPlanoAcaoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('plano_extras_json')) {
+      context.handle(
+        _planoExtrasJsonMeta,
+        planoExtrasJson.isAcceptableOrUnknown(
+          data['plano_extras_json']!,
+          _planoExtrasJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PendingRespostaOp map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingRespostaOp(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      inspecaoLocalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inspecao_local_id'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      salvarPlanoAcao: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}salvar_plano_acao'],
+      )!,
+      planoExtrasJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plano_extras_json'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingRespostaOpsTable createAlias(String alias) {
+    return $PendingRespostaOpsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingRespostaOp extends DataClass
+    implements Insertable<PendingRespostaOp> {
+  final int id;
+  final String inspecaoLocalId;
+  final String payloadJson;
+  final bool salvarPlanoAcao;
+  final String? planoExtrasJson;
+  final DateTime createdAt;
+  const PendingRespostaOp({
+    required this.id,
+    required this.inspecaoLocalId,
+    required this.payloadJson,
+    required this.salvarPlanoAcao,
+    this.planoExtrasJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['inspecao_local_id'] = Variable<String>(inspecaoLocalId);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['salvar_plano_acao'] = Variable<bool>(salvarPlanoAcao);
+    if (!nullToAbsent || planoExtrasJson != null) {
+      map['plano_extras_json'] = Variable<String>(planoExtrasJson);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PendingRespostaOpsCompanion toCompanion(bool nullToAbsent) {
+    return PendingRespostaOpsCompanion(
+      id: Value(id),
+      inspecaoLocalId: Value(inspecaoLocalId),
+      payloadJson: Value(payloadJson),
+      salvarPlanoAcao: Value(salvarPlanoAcao),
+      planoExtrasJson: planoExtrasJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planoExtrasJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PendingRespostaOp.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingRespostaOp(
+      id: serializer.fromJson<int>(json['id']),
+      inspecaoLocalId: serializer.fromJson<String>(json['inspecaoLocalId']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      salvarPlanoAcao: serializer.fromJson<bool>(json['salvarPlanoAcao']),
+      planoExtrasJson: serializer.fromJson<String?>(json['planoExtrasJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'inspecaoLocalId': serializer.toJson<String>(inspecaoLocalId),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'salvarPlanoAcao': serializer.toJson<bool>(salvarPlanoAcao),
+      'planoExtrasJson': serializer.toJson<String?>(planoExtrasJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  PendingRespostaOp copyWith({
+    int? id,
+    String? inspecaoLocalId,
+    String? payloadJson,
+    bool? salvarPlanoAcao,
+    Value<String?> planoExtrasJson = const Value.absent(),
+    DateTime? createdAt,
+  }) => PendingRespostaOp(
+    id: id ?? this.id,
+    inspecaoLocalId: inspecaoLocalId ?? this.inspecaoLocalId,
+    payloadJson: payloadJson ?? this.payloadJson,
+    salvarPlanoAcao: salvarPlanoAcao ?? this.salvarPlanoAcao,
+    planoExtrasJson: planoExtrasJson.present
+        ? planoExtrasJson.value
+        : this.planoExtrasJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PendingRespostaOp copyWithCompanion(PendingRespostaOpsCompanion data) {
+    return PendingRespostaOp(
+      id: data.id.present ? data.id.value : this.id,
+      inspecaoLocalId: data.inspecaoLocalId.present
+          ? data.inspecaoLocalId.value
+          : this.inspecaoLocalId,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      salvarPlanoAcao: data.salvarPlanoAcao.present
+          ? data.salvarPlanoAcao.value
+          : this.salvarPlanoAcao,
+      planoExtrasJson: data.planoExtrasJson.present
+          ? data.planoExtrasJson.value
+          : this.planoExtrasJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingRespostaOp(')
+          ..write('id: $id, ')
+          ..write('inspecaoLocalId: $inspecaoLocalId, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('salvarPlanoAcao: $salvarPlanoAcao, ')
+          ..write('planoExtrasJson: $planoExtrasJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    inspecaoLocalId,
+    payloadJson,
+    salvarPlanoAcao,
+    planoExtrasJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingRespostaOp &&
+          other.id == this.id &&
+          other.inspecaoLocalId == this.inspecaoLocalId &&
+          other.payloadJson == this.payloadJson &&
+          other.salvarPlanoAcao == this.salvarPlanoAcao &&
+          other.planoExtrasJson == this.planoExtrasJson &&
+          other.createdAt == this.createdAt);
+}
+
+class PendingRespostaOpsCompanion extends UpdateCompanion<PendingRespostaOp> {
+  final Value<int> id;
+  final Value<String> inspecaoLocalId;
+  final Value<String> payloadJson;
+  final Value<bool> salvarPlanoAcao;
+  final Value<String?> planoExtrasJson;
+  final Value<DateTime> createdAt;
+  const PendingRespostaOpsCompanion({
+    this.id = const Value.absent(),
+    this.inspecaoLocalId = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.salvarPlanoAcao = const Value.absent(),
+    this.planoExtrasJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  PendingRespostaOpsCompanion.insert({
+    this.id = const Value.absent(),
+    required String inspecaoLocalId,
+    required String payloadJson,
+    this.salvarPlanoAcao = const Value.absent(),
+    this.planoExtrasJson = const Value.absent(),
+    required DateTime createdAt,
+  }) : inspecaoLocalId = Value(inspecaoLocalId),
+       payloadJson = Value(payloadJson),
+       createdAt = Value(createdAt);
+  static Insertable<PendingRespostaOp> custom({
+    Expression<int>? id,
+    Expression<String>? inspecaoLocalId,
+    Expression<String>? payloadJson,
+    Expression<bool>? salvarPlanoAcao,
+    Expression<String>? planoExtrasJson,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (inspecaoLocalId != null) 'inspecao_local_id': inspecaoLocalId,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (salvarPlanoAcao != null) 'salvar_plano_acao': salvarPlanoAcao,
+      if (planoExtrasJson != null) 'plano_extras_json': planoExtrasJson,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  PendingRespostaOpsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? inspecaoLocalId,
+    Value<String>? payloadJson,
+    Value<bool>? salvarPlanoAcao,
+    Value<String?>? planoExtrasJson,
+    Value<DateTime>? createdAt,
+  }) {
+    return PendingRespostaOpsCompanion(
+      id: id ?? this.id,
+      inspecaoLocalId: inspecaoLocalId ?? this.inspecaoLocalId,
+      payloadJson: payloadJson ?? this.payloadJson,
+      salvarPlanoAcao: salvarPlanoAcao ?? this.salvarPlanoAcao,
+      planoExtrasJson: planoExtrasJson ?? this.planoExtrasJson,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (inspecaoLocalId.present) {
+      map['inspecao_local_id'] = Variable<String>(inspecaoLocalId.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (salvarPlanoAcao.present) {
+      map['salvar_plano_acao'] = Variable<bool>(salvarPlanoAcao.value);
+    }
+    if (planoExtrasJson.present) {
+      map['plano_extras_json'] = Variable<String>(planoExtrasJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingRespostaOpsCompanion(')
+          ..write('id: $id, ')
+          ..write('inspecaoLocalId: $inspecaoLocalId, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('salvarPlanoAcao: $salvarPlanoAcao, ')
+          ..write('planoExtrasJson: $planoExtrasJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -11150,6 +11630,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EquipesTable equipes = $EquipesTable(this);
   late final $EquipeMembrosTable equipeMembros = $EquipeMembrosTable(this);
   late final $SincronizacoesTable sincronizacoes = $SincronizacoesTable(this);
+  late final $PendingRespostaOpsTable pendingRespostaOps =
+      $PendingRespostaOpsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11167,6 +11649,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     equipes,
     equipeMembros,
     sincronizacoes,
+    pendingRespostaOps,
   ];
 }
 
@@ -11814,6 +12297,7 @@ typedef $$RespostasInspecaoTableCreateCompanionBuilder =
       required String itemDescricao,
       required String categoria,
       required ItemStatus status,
+      Value<String?> opcaoId,
       Value<String?> valorTexto,
       Value<double?> valorNumero,
       Value<DateTime?> valorData,
@@ -11838,6 +12322,7 @@ typedef $$RespostasInspecaoTableUpdateCompanionBuilder =
       Value<String> itemDescricao,
       Value<String> categoria,
       Value<ItemStatus> status,
+      Value<String?> opcaoId,
       Value<String?> valorTexto,
       Value<double?> valorNumero,
       Value<DateTime?> valorData,
@@ -11894,6 +12379,11 @@ class $$RespostasInspecaoTableFilterComposer
         column: $table.status,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get opcaoId => $composableBuilder(
+    column: $table.opcaoId,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<String> get valorTexto => $composableBuilder(
     column: $table.valorTexto,
@@ -12005,6 +12495,11 @@ class $$RespostasInspecaoTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get opcaoId => $composableBuilder(
+    column: $table.opcaoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get valorTexto => $composableBuilder(
     column: $table.valorTexto,
     builder: (column) => ColumnOrderings(column),
@@ -12109,6 +12604,9 @@ class $$RespostasInspecaoTableAnnotationComposer
   GeneratedColumnWithTypeConverter<ItemStatus, String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get opcaoId =>
+      $composableBuilder(column: $table.opcaoId, builder: (column) => column);
+
   GeneratedColumn<String> get valorTexto => $composableBuilder(
     column: $table.valorTexto,
     builder: (column) => column,
@@ -12212,6 +12710,7 @@ class $$RespostasInspecaoTableTableManager
                 Value<String> itemDescricao = const Value.absent(),
                 Value<String> categoria = const Value.absent(),
                 Value<ItemStatus> status = const Value.absent(),
+                Value<String?> opcaoId = const Value.absent(),
                 Value<String?> valorTexto = const Value.absent(),
                 Value<double?> valorNumero = const Value.absent(),
                 Value<DateTime?> valorData = const Value.absent(),
@@ -12234,6 +12733,7 @@ class $$RespostasInspecaoTableTableManager
                 itemDescricao: itemDescricao,
                 categoria: categoria,
                 status: status,
+                opcaoId: opcaoId,
                 valorTexto: valorTexto,
                 valorNumero: valorNumero,
                 valorData: valorData,
@@ -12258,6 +12758,7 @@ class $$RespostasInspecaoTableTableManager
                 required String itemDescricao,
                 required String categoria,
                 required ItemStatus status,
+                Value<String?> opcaoId = const Value.absent(),
                 Value<String?> valorTexto = const Value.absent(),
                 Value<double?> valorNumero = const Value.absent(),
                 Value<DateTime?> valorData = const Value.absent(),
@@ -12280,6 +12781,7 @@ class $$RespostasInspecaoTableTableManager
                 itemDescricao: itemDescricao,
                 categoria: categoria,
                 status: status,
+                opcaoId: opcaoId,
                 valorTexto: valorTexto,
                 valorNumero: valorNumero,
                 valorData: valorData,
@@ -16241,6 +16743,240 @@ typedef $$SincronizacoesTableProcessedTableManager =
       Sincronizacoe,
       PrefetchHooks Function()
     >;
+typedef $$PendingRespostaOpsTableCreateCompanionBuilder =
+    PendingRespostaOpsCompanion Function({
+      Value<int> id,
+      required String inspecaoLocalId,
+      required String payloadJson,
+      Value<bool> salvarPlanoAcao,
+      Value<String?> planoExtrasJson,
+      required DateTime createdAt,
+    });
+typedef $$PendingRespostaOpsTableUpdateCompanionBuilder =
+    PendingRespostaOpsCompanion Function({
+      Value<int> id,
+      Value<String> inspecaoLocalId,
+      Value<String> payloadJson,
+      Value<bool> salvarPlanoAcao,
+      Value<String?> planoExtrasJson,
+      Value<DateTime> createdAt,
+    });
+
+class $$PendingRespostaOpsTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingRespostaOpsTable> {
+  $$PendingRespostaOpsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inspecaoLocalId => $composableBuilder(
+    column: $table.inspecaoLocalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get salvarPlanoAcao => $composableBuilder(
+    column: $table.salvarPlanoAcao,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planoExtrasJson => $composableBuilder(
+    column: $table.planoExtrasJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingRespostaOpsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingRespostaOpsTable> {
+  $$PendingRespostaOpsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get inspecaoLocalId => $composableBuilder(
+    column: $table.inspecaoLocalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get salvarPlanoAcao => $composableBuilder(
+    column: $table.salvarPlanoAcao,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get planoExtrasJson => $composableBuilder(
+    column: $table.planoExtrasJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingRespostaOpsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingRespostaOpsTable> {
+  $$PendingRespostaOpsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get inspecaoLocalId => $composableBuilder(
+    column: $table.inspecaoLocalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get salvarPlanoAcao => $composableBuilder(
+    column: $table.salvarPlanoAcao,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get planoExtrasJson => $composableBuilder(
+    column: $table.planoExtrasJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$PendingRespostaOpsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingRespostaOpsTable,
+          PendingRespostaOp,
+          $$PendingRespostaOpsTableFilterComposer,
+          $$PendingRespostaOpsTableOrderingComposer,
+          $$PendingRespostaOpsTableAnnotationComposer,
+          $$PendingRespostaOpsTableCreateCompanionBuilder,
+          $$PendingRespostaOpsTableUpdateCompanionBuilder,
+          (
+            PendingRespostaOp,
+            BaseReferences<
+              _$AppDatabase,
+              $PendingRespostaOpsTable,
+              PendingRespostaOp
+            >,
+          ),
+          PendingRespostaOp,
+          PrefetchHooks Function()
+        > {
+  $$PendingRespostaOpsTableTableManager(
+    _$AppDatabase db,
+    $PendingRespostaOpsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingRespostaOpsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingRespostaOpsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingRespostaOpsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> inspecaoLocalId = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<bool> salvarPlanoAcao = const Value.absent(),
+                Value<String?> planoExtrasJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PendingRespostaOpsCompanion(
+                id: id,
+                inspecaoLocalId: inspecaoLocalId,
+                payloadJson: payloadJson,
+                salvarPlanoAcao: salvarPlanoAcao,
+                planoExtrasJson: planoExtrasJson,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String inspecaoLocalId,
+                required String payloadJson,
+                Value<bool> salvarPlanoAcao = const Value.absent(),
+                Value<String?> planoExtrasJson = const Value.absent(),
+                required DateTime createdAt,
+              }) => PendingRespostaOpsCompanion.insert(
+                id: id,
+                inspecaoLocalId: inspecaoLocalId,
+                payloadJson: payloadJson,
+                salvarPlanoAcao: salvarPlanoAcao,
+                planoExtrasJson: planoExtrasJson,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingRespostaOpsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingRespostaOpsTable,
+      PendingRespostaOp,
+      $$PendingRespostaOpsTableFilterComposer,
+      $$PendingRespostaOpsTableOrderingComposer,
+      $$PendingRespostaOpsTableAnnotationComposer,
+      $$PendingRespostaOpsTableCreateCompanionBuilder,
+      $$PendingRespostaOpsTableUpdateCompanionBuilder,
+      (
+        PendingRespostaOp,
+        BaseReferences<
+          _$AppDatabase,
+          $PendingRespostaOpsTable,
+          PendingRespostaOp
+        >,
+      ),
+      PendingRespostaOp,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16272,4 +17008,6 @@ class $AppDatabaseManager {
       $$EquipeMembrosTableTableManager(_db, _db.equipeMembros);
   $$SincronizacoesTableTableManager get sincronizacoes =>
       $$SincronizacoesTableTableManager(_db, _db.sincronizacoes);
+  $$PendingRespostaOpsTableTableManager get pendingRespostaOps =>
+      $$PendingRespostaOpsTableTableManager(_db, _db.pendingRespostaOps);
 }

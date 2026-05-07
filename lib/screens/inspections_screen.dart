@@ -9,6 +9,7 @@ import 'package:inspecao/screens/create_inspection_screen.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/utils/offline_create_inspection_guard.dart';
 
 class InspectionsScreen extends StatefulWidget {
   const InspectionsScreen({super.key});
@@ -297,8 +298,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
               ),
               child: FloatingActionButton(
                 onPressed: () async {
-                  await Navigator.push(
-                    context,
+                  final navigator = Navigator.of(context);
+                  if (!await ensureOnlineBeforeCreateInspection(context)) return;
+                  if (!mounted) return;
+                  await navigator.push(
                     MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
                   );
                   _loadData(sync: false);
@@ -1325,8 +1328,10 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () async {
-                  await Navigator.push(
-                    context,
+                  final navigator = Navigator.of(context);
+                  if (!await ensureOnlineBeforeCreateInspection(context)) return;
+                  if (!mounted) return;
+                  await navigator.push(
                     MaterialPageRoute(builder: (context) => const CreateInspectionScreen()),
                   );
                   _loadData(sync: false);

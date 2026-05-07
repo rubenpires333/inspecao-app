@@ -62,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Iniciar animação
     _animationController.forward();
     
-    // Verificar status de autenticação e navegar
+    // Verificar status de autenticação e navegar (connectivity inicializada em [main.dart])
     _checkAuthAndNavigate();
   }
 
@@ -81,10 +81,26 @@ class _SplashScreenState extends State<SplashScreen>
       final prefs = await SharedPreferences.getInstance();
       final authService = AuthService(apiService, prefs);
       _isLoggedIn = await authService.ensureSessionRestored();
+      if (!_isLoggedIn) {
+        _isLoggedIn = await authService.activateOfflineSessionFromCache();
+      }
     } catch (e) {
-      // Em caso de erro, verificar usuário local como fallback
-      final user = await _dataService.getCurrentUser();
-      _isLoggedIn = user != null;
+      try {
+        final apiService = ApiService();
+        if (apiService.baseUrl == null) {
+          apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+        }
+        final prefs = await SharedPreferences.getInstance();
+        final authService = AuthService(apiService, prefs);
+        _isLoggedIn = await authService.activateOfflineSessionFromCache();
+        if (!_isLoggedIn) {
+          final user = await _dataService.getCurrentUser();
+          _isLoggedIn = user != null;
+        }
+      } catch (_) {
+        final user = await _dataService.getCurrentUser();
+        _isLoggedIn = user != null;
+      }
     }
     
     // Navegar para a tela apropriada

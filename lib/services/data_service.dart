@@ -13,9 +13,18 @@ import 'package:inspecao/models/establishment.dart';
 import 'package:inspecao/services/auth_service.dart';
 import 'package:inspecao/services/api_service.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/services/connectivity_service.dart';
 import 'package:inspecao/database/database.dart' as db;
 import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/exceptions/forced_logout_exception.dart';
+
+/// Quando existem alterações locais pendentes e o servidor tem revisão mais recente.
+enum PendingInspectionConflictPolicy {
+  /// PUT com dados locais (sobrescreve servidor).
+  uploadLocal,
+  /// Descarta alterações locais e repõe o espelho a partir do GET detalhe.
+  discardLocalUseServer,
+}
 
 class DataService {
   static const String _inspectionsKey = 'inspections';
@@ -304,6 +313,8 @@ class DataService {
   /// Sincroniza inspeção com servidor (background)
   Future<void> _syncInspectionToServer(Inspection inspection) async {
     try {
+      if (!ConnectivityService().isConnected) return;
+
       final apiService = ApiService();
       if (apiService.baseUrl == null) {
         apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
@@ -316,8 +327,10 @@ class DataService {
       }
       
       // Se já tem serverId, não precisa criar novamente
-      if (inspection.serverId != null) {
-        print('Inspeção ${inspection.id} já foi sincronizada (serverId: ${inspection.serverId})');
+      final sidCheck = inspection.serverId?.trim();
+      if (sidCheck != null && sidCheck.isNotEmpty) {
+        print(
+            'Inspeção ${inspection.id} já foi sincronizada (serverId: ${inspection.serverId})');
         await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
         return;
       }
@@ -383,24 +396,77 @@ class DataService {
     return request;
   }
 
-  Future<void> updateInspection(Inspection inspection) async {
+  Future<void> updateInspection(Inspection inspection,
+      {bool markDirty = true}) async {
     await _ensureDbInitialized();
-    
-    // Atualizar no banco local primeiro (offline-first)
-    await _dbService.updateInspection(inspection);
-    
-    // Tentar sincronizar com servidor em background (se online)
-    _syncInspectionUpdateToServer(inspection).catchError((e) {
+
+    final toPersist =
+        markDirty ? inspection.copyWith(isSynced: false) : inspection;
+    await _dbService.updateInspection(toPersist);
+
+    if (!ConnectivityService().isConnected) {
+      return;
+    }
+
+    _syncInspectionUpdateToServer(toPersist).catchError((e) {
       print('Erro ao sincronizar atualização com servidor: $e');
-      // Continuar mesmo se falhar - dados estão salvos localmente
     });
+  }
+
+  /// Repõe campos da inspeção local a partir do detalhe remoto (resolver conflito «usar servidor»).
+  Future<void> mergeRemoteInspectionSnapshotIntoLocal({
+    required String localInspectionId,
+    required String serverId,
+  }) async {
+    await _ensureDbInitialized();
+    final apiService = ApiService();
+    if (apiService.baseUrl == null) {
+      apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+    }
+    final authService =
+        AuthService(apiService, await SharedPreferences.getInstance());
+    final token = await authService.getAccessToken();
+    if (token != null) apiService.setAuthToken(token);
+
+    final apiData = await apiService.getInspecaoById(serverId);
+    final merged = Map<String, dynamic>.from(_mapApiResponseToInspection(apiData));
+    merged['id'] = localInspectionId;
+    merged['serverId'] = serverId;
+    merged['isSynced'] = true;
+    await _dbService.saveInspection(Inspection.fromJson(merged));
+  }
+
+  Future<bool> _remoteInspectionIsNewerThanLocal(Inspection local) async {
+    final sid = local.serverId?.trim();
+    if (sid == null || sid.isEmpty) return false;
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      final authService =
+          AuthService(apiService, await SharedPreferences.getInstance());
+      final token = await authService.getAccessToken();
+      if (token != null) apiService.setAuthToken(token);
+
+      final apiData = await apiService.getInspecaoById(sid);
+      final raw = apiData['atualizadoEm'];
+      DateTime? remoteUpdated;
+      if (raw is String) remoteUpdated = DateTime.tryParse(raw);
+      if (remoteUpdated == null) return false;
+      return remoteUpdated.isAfter(local.updatedAt);
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Sincroniza atualização de inspeção com servidor (background)
   Future<void> _syncInspectionUpdateToServer(Inspection inspection) async {
     try {
+      if (!ConnectivityService().isConnected) return;
+
       // Se não tem serverId, não foi criada no servidor ainda - criar primeiro
-      if (inspection.serverId == null) {
+      if (inspection.serverId == null || inspection.serverId!.trim().isEmpty) {
         await _syncInspectionToServer(inspection);
         return;
       }
@@ -542,7 +608,12 @@ class DataService {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_currentUserKey);
+    final apiService = ApiService();
+    if (apiService.baseUrl == null) {
+      apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+    }
+    final authService = AuthService(apiService, prefs);
+    await authService.logout();
   }
 
 
@@ -553,75 +624,111 @@ class DataService {
   }
 
   /// Sincroniza inspeções pendentes com o servidor
-  Future<void> syncPendingInspections() async {
+  Future<void> syncPendingInspections({
+    PendingInspectionConflictPolicy onConflict =
+        PendingInspectionConflictPolicy.uploadLocal,
+  }) async {
     await _ensureDbInitialized();
-    
+
+    if (!ConnectivityService().isConnected) {
+      print('Sincronização de inspeções ignorada: sem rede.');
+      return;
+    }
+
     final pendingInspections = await _dbService.getPendingInspections();
     if (pendingInspections.isEmpty) {
       print('Nenhuma inspeção pendente de sincronização');
       return; // Nada para sincronizar
     }
-    
-    print('Iniciando sincronização de ${pendingInspections.length} inspeções pendentes...');
-    
+
+    print(
+        'Iniciando sincronização de ${pendingInspections.length} inspeções pendentes...');
+
     try {
       final apiService = ApiService();
       if (apiService.baseUrl == null) {
         apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
       }
-      
-      final authService = AuthService(apiService, await SharedPreferences.getInstance());
+
+      final authService =
+          AuthService(apiService, await SharedPreferences.getInstance());
       final token = await authService.getAccessToken();
       if (token != null) {
         apiService.setAuthToken(token);
       }
-      
+
       int successCount = 0;
       int errorCount = 0;
-      
+
       // Sincronizar cada inspeção pendente
       for (final inspection in pendingInspections) {
         try {
           // Se não tem serverId, criar no servidor
           if (inspection.serverId == null || inspection.serverId!.isEmpty) {
             // Validar campos obrigatórios antes de criar
-            if (inspection.establishmentId == null || inspection.establishmentId!.isEmpty) {
-              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: establishmentId ausente');
+            if (inspection.establishmentId == null ||
+                inspection.establishmentId!.isEmpty) {
+              print(
+                  '⚠️ Inspeção ${inspection.id} não pode ser sincronizada: establishmentId ausente');
               errorCount++;
               continue;
             }
-            
-            if (inspection.checklistId == null || inspection.checklistId!.isEmpty) {
-              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: checklistId ausente');
+
+            if (inspection.checklistId == null ||
+                inspection.checklistId!.isEmpty) {
+              print(
+                  '⚠️ Inspeção ${inspection.id} não pode ser sincronizada: checklistId ausente');
               errorCount++;
               continue;
             }
-            
+
             if (inspection.equipeId == null || inspection.equipeId!.isEmpty) {
-              print('⚠️ Inspeção ${inspection.id} não pode ser sincronizada: equipeId ausente');
+              print(
+                  '⚠️ Inspeção ${inspection.id} não pode ser sincronizada: equipeId ausente');
               errorCount++;
               continue;
             }
-            
+
             // Converter para formato do backend e criar
             final requestData = _inspectionToCreateRequest(inspection);
             final response = await apiService.createInspectionMobile(requestData);
-            
+
             // Extrair ID do servidor
             final serverId = response['id']?.toString();
             if (serverId != null) {
               await _dbService.markInspectionAsSynced(inspection.id, serverId);
               successCount++;
-              print('✅ Inspeção ${inspection.id} criada no servidor com ID: $serverId');
+              print(
+                  '✅ Inspeção ${inspection.id} criada no servidor com ID: $serverId');
             } else {
-              print('⚠️ Inspeção ${inspection.id}: resposta do servidor não contém ID');
+              print(
+                  '⚠️ Inspeção ${inspection.id}: resposta do servidor não contém ID');
               errorCount++;
             }
           } else {
+            final sid = inspection.serverId!.trim();
+            if (onConflict ==
+                    PendingInspectionConflictPolicy.discardLocalUseServer &&
+                await _remoteInspectionIsNewerThanLocal(inspection)) {
+              await mergeRemoteInspectionSnapshotIntoLocal(
+                localInspectionId: inspection.id,
+                serverId: sid,
+              );
+              successCount++;
+              print(
+                  '✅ Inspeção ${inspection.id}: espelho atualizado a partir do servidor (conflito).');
+              continue;
+            }
+
+            if (await _remoteInspectionIsNewerThanLocal(inspection)) {
+              print(
+                  'ℹ️ Inspeção ${inspection.id}: servidor tem revisão mais recente — enviando mesma versão local (política uploadLocal).');
+            }
+
             // Se tem serverId, atualizar no servidor
             final requestData = _inspectionToUpdateRequest(inspection);
-            await apiService.updateInspectionMobile(inspection.serverId!, requestData);
-            
+            await apiService.updateInspectionMobile(sid, requestData);
+
             // Marcar como sincronizada
             await _dbService.markInspectionAsSynced(inspection.id, inspection.serverId);
             successCount++;
@@ -633,16 +740,17 @@ class DataService {
           // Continuar com próxima inspeção mesmo se uma falhar
         }
       }
-      
-      print('📊 Sincronização concluída: $successCount sucesso(s), $errorCount erro(s)');
-      
+
+      print(
+          '📊 Sincronização concluída: $successCount sucesso(s), $errorCount erro(s)');
     } catch (e) {
       print('❌ Erro geral ao sincronizar inspeções pendentes: $e');
       // Não lançar erro - sincronização pode ser tentada depois
     }
   }
 
-  // Método de login via API backend
+  // Método de login via API backend; em falha de rede reutiliza sessão em cache neste dispositivo
+  // se o email/id coincidir com o último utilizador e existir access token guardado.
   Future<User?> login(String email, String password) async {
     try {
       // Obter instâncias dos serviços
@@ -659,6 +767,20 @@ class DataService {
       await setCurrentUser(user);
       return user;
     } catch (e) {
+      if (AuthService.isLikelyNetworkFailure(e)) {
+        final prefs = await SharedPreferences.getInstance();
+        final apiService = ApiService();
+        if (apiService.baseUrl == null) {
+          apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+        }
+        final authService = AuthService(apiService, prefs);
+        final offlineUser =
+            await authService.tryReuseCachedSessionForOfflineLogin(email.trim());
+        if (offlineUser != null) {
+          await setCurrentUser(offlineUser);
+          return offlineUser;
+        }
+      }
       rethrow;
     }
   }

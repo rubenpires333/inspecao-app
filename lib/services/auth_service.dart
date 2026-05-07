@@ -17,6 +17,28 @@ class AuthService {
 
   AuthService(this._apiService, this._prefs);
 
+  /// Falha de rede / timeout (não inclui 401 de credenciais inválidas).
+  static bool isLikelyNetworkFailure(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) return false;
+      return e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.badCertificate ||
+          (e.type == DioExceptionType.unknown && e.error != null);
+    }
+    final msg = e.toString().toLowerCase();
+    return msg.contains('socket') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('network') ||
+        msg.contains('connection refused') ||
+        msg.contains('connection reset') ||
+        msg.contains('timed out') ||
+        msg.contains('timeout');
+  }
+
   /// Realiza login via API backend
   Future<User> login(String username, String password) async {
     try {
@@ -157,11 +179,10 @@ class AuthService {
       return user;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        // Refresh token inválido, fazer logout
         await logout();
         throw Exception('Sessão expirada. Faça login novamente.');
       }
-      throw Exception('Erro ao renovar token: ${e.message}');
+      rethrow;
     }
   }
 
@@ -171,13 +192,28 @@ class AuthService {
     if (userJsonString == null) return null;
 
     try {
-      // Tentar parsear como JSON
       final userData = json.decode(userJsonString) as Map<String, dynamic>;
+      if (_isPersistedAppUserJson(userData)) {
+        try {
+          return User.fromJson(userData);
+        } catch (_) {
+          // Continuar para formato API
+        }
+      }
       return _mapUserFromResponse(userData);
     } catch (e) {
       print('Erro ao parsear usuário: $e');
       return null;
     }
+  }
+
+  /// JSON gravado pelo modelo [User] ([toJson]), não pelo payload cru da API.
+  bool _isPersistedAppUserJson(Map<String, dynamic> m) {
+    return m.containsKey('id') &&
+        m.containsKey('nome') &&
+        m.containsKey('email') &&
+        m['role'] is String &&
+        m['roles'] == null;
   }
 
   /// Inicializa o token nas requisições se existir
@@ -190,19 +226,31 @@ class AuthService {
 
   /// Ao abrir a app: reativa o token no [ApiService], repara `exp` em falta,
   /// renova com refresh se o access tiver expirado e garante utilizador em prefs.
+  /// Sem rede, reutiliza access token (mesmo expirado) e utilizador em cache para modo offline.
   Future<bool> ensureSessionRestored() async {
     await initializeToken();
     await _repairExpiresFromJwtIfNeeded();
 
     if (!await isAuthenticated()) {
       final rt = await getRefreshToken();
-      if (rt == null || rt.isEmpty) {
-        return false;
-      }
-      try {
-        await refreshToken();
-      } catch (_) {
-        return false;
+      if (rt != null && rt.isNotEmpty) {
+        try {
+          await refreshToken();
+        } on DioException catch (e) {
+          if (isLikelyNetworkFailure(e)) {
+            if (!await activateOfflineSessionFromCache()) return false;
+          } else {
+            return false;
+          }
+        } catch (e) {
+          if (isLikelyNetworkFailure(e)) {
+            if (!await activateOfflineSessionFromCache()) return false;
+          } else {
+            return false;
+          }
+        }
+      } else {
+        if (!await activateOfflineSessionFromCache()) return false;
       }
     }
 
@@ -220,6 +268,47 @@ class AuthService {
     }
 
     return await getCurrentUser() != null;
+  }
+
+  /// Coloca o token em cache no [ApiService] e garante [User] em prefs (ex.: claims JWT).
+  Future<bool> activateOfflineSessionFromCache() async {
+    final access = await getAccessToken();
+    if (access == null || access.isEmpty) return false;
+    _apiService.setAuthToken(access);
+    var user = await getCurrentUser();
+    if (user == null) {
+      user = _userFromStoredAccessTokenClaims(access);
+      if (user != null) await _saveUser(user);
+    }
+    return await getCurrentUser() != null;
+  }
+
+  /// Após falha de rede no login: reentra se o identificador coincide com o último utilizador
+  /// neste dispositivo e existe access token guardado (pode estar expirado).
+  Future<User?> tryReuseCachedSessionForOfflineLogin(String identifier) async {
+    await initializeToken();
+    await _repairExpiresFromJwtIfNeeded();
+    final access = await getAccessToken();
+    if (access == null || access.isEmpty) return null;
+
+    var user = await getCurrentUser();
+    if (user == null) {
+      user = _userFromStoredAccessTokenClaims(access);
+      if (user != null) await _saveUser(user);
+      user = await getCurrentUser();
+    }
+    if (user == null) return null;
+    if (!_cachedUserMatchesIdentifier(user, identifier)) return null;
+
+    _apiService.setAuthToken(access);
+    return user;
+  }
+
+  bool _cachedUserMatchesIdentifier(User cached, String raw) {
+    final t = raw.trim().toLowerCase();
+    if (t.isEmpty) return false;
+    return cached.email.trim().toLowerCase() == t ||
+        cached.id.trim().toLowerCase() == t;
   }
 
   Future<void> _repairExpiresFromJwtIfNeeded() async {

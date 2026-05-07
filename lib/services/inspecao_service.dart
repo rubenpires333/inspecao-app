@@ -674,5 +674,85 @@ class InspecaoService {
     return Exception('Erro em $method [HTTP $status]: $msg');
   }
 
+  /// Aguarda o plano de ação ficar disponível no servidor (sem UI).
+  Future<Map<String, dynamic>?> pollPlanoAteTerItem(String respostaId) async {
+    const maxAttempts = 36;
+    const step = Duration(milliseconds: 500);
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) await Future.delayed(step);
+      final plano = await buscarPlanoAcaoPorResposta(respostaId);
+      if (plano == null) continue;
+      final itens =
+          (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      Map<String, dynamic>? itemPlano;
+      for (final i in itens) {
+        if (i['respostaInspecaoId']?.toString() == respostaId) {
+          itemPlano = i;
+          break;
+        }
+      }
+      itemPlano ??= itens.isNotEmpty ? itens.first : null;
+      final itemId = itemPlano?['id']?.toString() ?? '';
+      if (itemId.isNotEmpty) return plano;
+    }
+    return null;
+  }
+
+  /// Completa observações e anexos do plano após criar a resposta (sincronização offline).
+  Future<void> completarPlanoAcaoParaRespostaSync({
+    required String respostaId,
+    required String observacoes,
+    required List<String> evidenciasPaths,
+    required List<String> anexosServidorRemovidosIds,
+  }) async {
+    final plano = await pollPlanoAteTerItem(respostaId);
+    if (plano == null) {
+      AppLogger.log(
+          '⚠️ [InspecaoService.completarPlanoAcaoParaRespostaSync] sem plano para resposta $respostaId');
+      return;
+    }
+    final itens =
+        (plano['itens'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    Map<String, dynamic> itemPlanoAcao = {};
+    for (final i in itens) {
+      if (i['respostaInspecaoId']?.toString() == respostaId) {
+        itemPlanoAcao = i;
+        break;
+      }
+    }
+    if (itemPlanoAcao.isEmpty && itens.isNotEmpty) {
+      itemPlanoAcao = itens.first;
+    }
+
+    final itemPlanoAcaoId = itemPlanoAcao['id']?.toString() ?? '';
+    if (itemPlanoAcaoId.isEmpty) return;
+
+    await atualizarItemPlanoAcao(itemPlanoAcaoId, observacoes);
+
+    for (final anexoId in anexosServidorRemovidosIds) {
+      if (anexoId.isEmpty) continue;
+      try {
+        await removerAnexoItemPlanoAcao(anexoId);
+      } catch (e) {
+        AppLogger.log('⚠️ [InspecaoService] remover anexo plano $anexoId: $e');
+      }
+    }
+
+    for (final path in evidenciasPaths) {
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          await adicionarAnexoItemPlanoAcao(
+            itemPlanoAcaoId,
+            file,
+            descricao: 'Evidência capturada no mobile',
+          );
+        }
+      } catch (e) {
+        AppLogger.log('⚠️ [InspecaoService] upload evidência $path: $e');
+      }
+    }
+  }
+
   
 }
