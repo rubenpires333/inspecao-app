@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:inspecao/config/app_config.dart';
 import 'package:inspecao/services/api_service.dart';
@@ -7,6 +8,7 @@ import 'package:inspecao/services/connectivity_service.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/database_service.dart';
 import 'package:inspecao/services/inspecao_service.dart';
+import 'package:inspecao/utils/checklist_evidence_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Orquestra sincronização após trabalho offline (inspeções + fila de respostas).
@@ -50,7 +52,48 @@ class SyncService {
 
         final payload =
             jsonDecode(op.payloadJson) as Map<String, dynamic>;
-        final r = await inspecao.salvarResposta(sid, payload);
+
+        final apiPayload = Map<String, dynamic>.from(payload)
+          ..remove('evidenciasItemPaths')
+          ..remove('anexosItemServidorRemovidosIds');
+
+        final evidenciasItemPaths = (payload['evidenciasItemPaths'] as List?)
+                ?.map((e) => e.toString())
+                .where((p) => p.trim().isNotEmpty)
+                .toList() ??
+            [];
+        final removidosItem = (payload['anexosItemServidorRemovidosIds']
+                    as List?)
+                ?.map((e) => e.toString())
+                .where((id) => id.trim().isNotEmpty)
+                .toList() ??
+            [];
+
+        final r = await inspecao.salvarResposta(sid, apiPayload);
+
+        for (final anexoId in removidosItem) {
+          try {
+            await inspecao.removerAnexoRespostaInspecao(anexoId);
+          } catch (e) {
+            print('⚠️ [SyncService] remover anexo resposta $anexoId: $e');
+          }
+        }
+
+        for (final path in evidenciasItemPaths) {
+          try {
+            final f = File(path);
+            if (await f.exists() && r.id.isNotEmpty) {
+              await inspecao.uploadAnexoRespostaInspecao(
+                inspecaoId: sid,
+                respostaId: r.id,
+                arquivo: f,
+                tipoAnexo: tipoAnexoInspecaoParaCaminhoLocal(path),
+              );
+            }
+          } catch (e) {
+            print('⚠️ [SyncService] upload evidência item $path: $e');
+          }
+        }
 
         if (op.salvarPlanoAcao && r.id.isNotEmpty) {
           Map<String, dynamic>? extras;

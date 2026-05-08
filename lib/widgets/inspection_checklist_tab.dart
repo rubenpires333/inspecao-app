@@ -15,6 +15,7 @@ import 'package:inspecao/services/gps_service.dart';
 import 'package:inspecao/services/data_service.dart';
 import 'package:inspecao/services/inspecao_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
+import 'package:inspecao/utils/checklist_evidence_storage.dart';
 import 'package:inspecao/widgets/checklist_item_field.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -173,8 +174,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       final apiInspecaoId = widget.inspection.apiInspecaoId;
 
       late List<SecaoChecklistCompleta> secoes;
-      late List<RespostaInspecaoCompleta> respostas;
-      var mirrorApiRespostasToLocalDb = false;
+      List<RespostaInspecaoCompleta>? apiRespostasParaAnexos;
 
       final online = ConnectivityService().isConnected;
 
@@ -185,20 +185,25 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
             _inspecaoService.getRespostas(apiInspecaoId),
           ]);
           secoes = results[0] as List<SecaoChecklistCompleta>;
-          respostas = results[1] as List<RespostaInspecaoCompleta>;
-          mirrorApiRespostasToLocalDb = true;
+          apiRespostasParaAnexos =
+              results[1] as List<RespostaInspecaoCompleta>;
+          await _dbService.initialize();
+          if (apiRespostasParaAnexos.isNotEmpty) {
+            await _dbService.mergeChecklistRespostasFromServer(
+              widget.inspection.id,
+              apiRespostasParaAnexos,
+            );
+          }
         } catch (_) {
           await _dbService.initialize();
           secoes = await _dbService.loadChecklistCompletoFromCache(cid);
-          respostas = await _dbService.listRespostasChecklistCompleta(
-              widget.inspection.id);
+          apiRespostasParaAnexos = null;
           if (secoes.isEmpty) rethrow;
         }
       } else {
         await _dbService.initialize();
         secoes = await _dbService.loadChecklistCompletoFromCache(cid);
-        respostas =
-            await _dbService.listRespostasChecklistCompleta(widget.inspection.id);
+        apiRespostasParaAnexos = null;
         if (secoes.isEmpty) {
           throw Exception(
             'Sem dados locais do checklist. Abra esta inspeção com internet pelo menos uma vez para descarregar o modelo.',
@@ -206,12 +211,19 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         }
       }
 
-      if (mirrorApiRespostasToLocalDb && respostas.isNotEmpty) {
-        await _dbService.initialize();
-        await _dbService.mergeChecklistRespostasFromServer(
-          widget.inspection.id,
-          respostas,
-        );
+      var respostasParaMap = await _dbService
+          .listRespostasChecklistCompleta(widget.inspection.id);
+
+      if (apiRespostasParaAnexos != null &&
+          apiRespostasParaAnexos.isNotEmpty) {
+        final apiPorItem = {
+          for (final r in apiRespostasParaAnexos) r.itemChecklistId: r,
+        };
+        respostasParaMap = respostasParaMap.map((local) {
+          final api = apiPorItem[local.itemChecklistId];
+          if (api == null) return local;
+          return local.overlayServerAnexosFrom(api);
+        }).toList();
       }
 
       final expanded = <String, bool>{};
@@ -220,7 +232,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
         for (final sub in s.subsecoes) expanded[sub.id] = true;
       }
       final map = <String, RespostaInspecaoCompleta>{};
-      for (final r in respostas) {
+      for (final r in respostasParaMap) {
         map[r.itemChecklistId] = r;
       }
 
@@ -255,17 +267,31 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     if (_syncing || !mounted) return;
     setState(() => _syncing = true);
     try {
-      final respostas =
+      final respostasApi =
           await _inspecaoService.getRespostas(widget.inspection.apiInspecaoId);
       await _dbService.initialize();
       await _dbService.mergeChecklistRespostasFromServer(
-          widget.inspection.id, respostas);
+          widget.inspection.id, respostasApi);
       if (!mounted) return;
+      var locais = await _dbService
+          .listRespostasChecklistCompleta(widget.inspection.id);
+      if (respostasApi.isNotEmpty) {
+        final apiPorItem = {
+          for (final r in respostasApi) r.itemChecklistId: r,
+        };
+        locais = locais.map((local) {
+          final api = apiPorItem[local.itemChecklistId];
+          if (api == null) return local;
+          return local.overlayServerAnexosFrom(api);
+        }).toList();
+      }
       final map = <String, RespostaInspecaoCompleta>{};
-      for (final r in respostas) map[r.itemChecklistId] = r;
+      for (final r in locais) {
+        map[r.itemChecklistId] = r;
+      }
       setState(() {
         _respostasMap = map;
-        _syncing  = false;
+        _syncing = false;
         _lastSync = DateTime.now();
       });
       widget.onProgressoAtualizado?.call(_todosItens.length, map.length);
@@ -455,9 +481,16 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       respostaRowId: uuid,
     );
 
+    final filaPayload = Map<String, dynamic>.from(payloadResposta)
+      ..['evidenciasItemPaths'] =
+          (payloadCompleto['evidenciasItemPaths'] as List?) ?? []
+      ..['anexosItemServidorRemovidosIds'] =
+          (payloadCompleto['anexosItemServidorRemovidosIds'] as List?) ??
+              [];
+
     await _dbService.enqueuePendingRespostaOp(
       inspecaoLocalId: widget.inspection.id,
-      payloadResposta: payloadResposta,
+      payloadResposta: filaPayload,
       salvarPlanoAcao: salvarPlanoAcao,
       planoExtras: salvarPlanoAcao
           ? {
@@ -482,6 +515,17 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       latitude: (payloadResposta['latitude'] as num?)?.toDouble(),
       longitude: (payloadResposta['longitude'] as num?)?.toDouble(),
       observacoes: payloadResposta['observacoes']?.toString(),
+      anexos: const [],
+      evidenciasLocaisPendentesPaths:
+          ((filaPayload['evidenciasItemPaths'] as List?) ?? [])
+              .map((e) => e.toString())
+              .where((p) => p.trim().isNotEmpty)
+              .toList(),
+      anexosServidorRemovidosPendentesIds:
+          ((filaPayload['anexosItemServidorRemovidosIds'] as List?) ?? [])
+              .map((e) => e.toString())
+              .where((id) => id.trim().isNotEmpty)
+              .toList(),
     );
 
     await DataService().updateInspection(
@@ -511,12 +555,26 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     final salvarPlanoAcao = payload['salvarPlanoAcao'] == true;
     final itemChecklistId = payload['itemChecklistId']?.toString() ?? '';
 
-    // Remover campos específicos do plano antes de enviar ao backend de resposta
+    final evidenciasItemPaths = (payload['evidenciasItemPaths'] as List?)
+            ?.map((e) => e.toString())
+            .where((p) => p.trim().isNotEmpty)
+            .toList() ??
+        [];
+    final removidosAnexosItem = (payload['anexosItemServidorRemovidosIds']
+                as List?)
+            ?.map((e) => e.toString())
+            .where((id) => id.trim().isNotEmpty)
+            .toList() ??
+        [];
+
+    // Remover campos específicos do plano e da UI mobile antes de enviar ao backend de resposta
     final payloadResposta = Map<String, dynamic>.from(payload)
       ..remove('salvarPlanoAcao')
       ..remove('observacoesPlanoAcao')
       ..remove('evidenciasPlanoAcao')
-      ..remove('anexosPlanoServidorRemovidosIds');
+      ..remove('anexosPlanoServidorRemovidosIds')
+      ..remove('evidenciasItemPaths')
+      ..remove('anexosItemServidorRemovidosIds');
 
     var loadingShown = false;
     final online = ConnectivityService().isConnected;
@@ -558,22 +616,67 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
       }
 
       try {
-        final r = await _inspecaoService.salvarResposta(
+        var respostaUi = await _inspecaoService.salvarResposta(
             widget.inspection.apiInspecaoId, payloadResposta);
+
+        for (final anexoId in removidosAnexosItem) {
+          if (anexoId.isEmpty) continue;
+          try {
+            await _inspecaoService.removerAnexoRespostaInspecao(anexoId);
+          } catch (e) {
+            AppLogger.log(
+                '⚠️ [ChecklistTab] remover anexo da resposta $anexoId: $e');
+          }
+        }
+
+        for (final path in evidenciasItemPaths) {
+          try {
+            final file = File(path);
+            if (await file.exists() && respostaUi.id.isNotEmpty) {
+              await _inspecaoService.uploadAnexoRespostaInspecao(
+                inspecaoId: widget.inspection.apiInspecaoId,
+                respostaId: respostaUi.id,
+                arquivo: file,
+                tipoAnexo: tipoAnexoInspecaoParaCaminhoLocal(path),
+              );
+            }
+          } catch (e) {
+            AppLogger.log(
+                '⚠️ [ChecklistTab] upload evidência do item $path: $e');
+          }
+        }
+
+        if (evidenciasItemPaths.isNotEmpty ||
+            removidosAnexosItem.isNotEmpty) {
+          try {
+            final todas = await _inspecaoService
+                .getRespostas(widget.inspection.apiInspecaoId);
+            for (final x in todas) {
+              if (x.itemChecklistId == respostaUi.itemChecklistId) {
+                respostaUi = x;
+                break;
+              }
+            }
+          } catch (e) {
+            AppLogger.log(
+                '⚠️ [ChecklistTab] atualizar resposta após anexos: $e');
+          }
+        }
+
         await _dbService.initialize();
         await _dbService.mergeChecklistRespostasFromServer(
-            widget.inspection.id, [r]);
+            widget.inspection.id, [respostaUi]);
         if (mounted) {
           setState(() {
-            _respostasMap[r.itemChecklistId] = r;
+            _respostasMap[respostaUi.itemChecklistId] = respostaUi;
           });
           widget.onProgressoAtualizado
               ?.call(_todosItens.length, _respostasMap.length);
         }
 
-        if (salvarPlanoAcao && r.id.isNotEmpty) {
+        if (salvarPlanoAcao && respostaUi.id.isNotEmpty) {
           await _processarPlanoAcao(
-            respostaId: r.id,
+            respostaId: respostaUi.id,
             itemChecklistId: itemChecklistId,
             observacoes: payload['observacoesPlanoAcao']?.toString() ?? '',
             evidenciasPaths: (payload['evidenciasPlanoAcao'] as List?)
@@ -1199,6 +1302,7 @@ class _InspectionChecklistTabState extends State<InspectionChecklistTab> {
     return ChecklistItemField(
       key: ValueKey('item-${item.id}'),
       item: item,
+      inspecaoLocalId: widget.inspection.id,
       resposta: _respostasMap[item.id],
       enabled: widget.canEdit,
       onSave: widget.canEdit ? _salvarResposta : null,

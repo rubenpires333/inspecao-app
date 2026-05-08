@@ -243,6 +243,26 @@ class SecaoChecklistCompleta {
   }
 }
 
+class AnexoRespostaResumo {
+  final String id;
+  final String nomeArquivo;
+  final String? tipoAnexo;
+
+  const AnexoRespostaResumo({
+    required this.id,
+    required this.nomeArquivo,
+    this.tipoAnexo,
+  });
+
+  factory AnexoRespostaResumo.fromJson(Map<String, dynamic> m) {
+    return AnexoRespostaResumo(
+      id: m['id']?.toString() ?? '',
+      nomeArquivo: m['nomeArquivo']?.toString() ?? 'anexo',
+      tipoAnexo: m['tipoAnexo']?.toString(),
+    );
+  }
+}
+
 // ─── Resposta de inspeção ─────────────────────────────────────────────────────
 
 class RespostaInspecaoCompleta {
@@ -258,6 +278,13 @@ class RespostaInspecaoCompleta {
   final double? latitude;
   final double? longitude;
   final String? observacoes;
+  final List<AnexoRespostaResumo> anexos;
+
+  /// Caminhos estáveis (pasta da app) por sincronizar — da fila `pending_resposta_ops`.
+  final List<String> evidenciasLocaisPendentesPaths;
+
+  /// IDs de anexos no servidor marcados para DELETE ao sincronizar (fila offline).
+  final List<String> anexosServidorRemovidosPendentesIds;
 
   const RespostaInspecaoCompleta({
     required this.id,
@@ -272,6 +299,9 @@ class RespostaInspecaoCompleta {
     this.latitude,
     this.longitude,
     this.observacoes,
+    this.anexos = const [],
+    this.evidenciasLocaisPendentesPaths = const [],
+    this.anexosServidorRemovidosPendentesIds = const [],
   });
 
   factory RespostaInspecaoCompleta.fromJson(Map<String, dynamic> json) {
@@ -291,6 +321,19 @@ class RespostaInspecaoCompleta {
         'itemChecklistId=$itemChecklistId opcaoId=$opcaoId '
         'valorTexto=${json['valorTexto']} valorNumero=${json['valorNumero']}');
 
+    List<AnexoRespostaResumo> anexos = [];
+    final rawAnexos = json['anexos'];
+    if (rawAnexos is List) {
+      for (final a in rawAnexos) {
+        if (a is Map) {
+          final m = Map<String, dynamic>.from(a);
+          final id = m['id']?.toString() ?? '';
+          if (id.isEmpty) continue;
+          anexos.add(AnexoRespostaResumo.fromJson(m));
+        }
+      }
+    }
+
     return RespostaInspecaoCompleta(
       id:               json['id']?.toString() ?? '',
       inspecaoId:       json['inspecaoId']?.toString() ?? '',
@@ -304,6 +347,31 @@ class RespostaInspecaoCompleta {
       latitude:         (json['latitude'] as num?)?.toDouble(),
       longitude:        (json['longitude'] as num?)?.toDouble(),
       observacoes:      json['observacoes']?.toString(),
+      anexos:           anexos,
+      evidenciasLocaisPendentesPaths: const [],
+      anexosServidorRemovidosPendentesIds: const [],
+    );
+  }
+
+  /// Mantém campos locais e pendentes da fila; usa só `anexos` vindos da API (mesmo item).
+  RespostaInspecaoCompleta overlayServerAnexosFrom(RespostaInspecaoCompleta api) {
+    if (api.itemChecklistId != itemChecklistId) return this;
+    return RespostaInspecaoCompleta(
+      id: id,
+      inspecaoId: inspecaoId,
+      itemChecklistId: itemChecklistId,
+      opcaoId: opcaoId,
+      valorTexto: valorTexto,
+      valorNumero: valorNumero,
+      valorData: valorData,
+      valorDataHora: valorDataHora,
+      valorRating: valorRating,
+      latitude: latitude,
+      longitude: longitude,
+      observacoes: observacoes,
+      anexos: api.anexos,
+      evidenciasLocaisPendentesPaths: evidenciasLocaisPendentesPaths,
+      anexosServidorRemovidosPendentesIds: anexosServidorRemovidosPendentesIds,
     );
   }
 }

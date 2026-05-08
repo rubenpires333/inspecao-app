@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inspecao/models/checklist_secao.dart';
 import 'package:inspecao/services/inspecao_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
+import 'package:inspecao/utils/checklist_evidence_storage.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path/path.dart' as p;
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const _kPrimary        = Color(0xFF18778A);
@@ -49,9 +52,13 @@ class ChecklistItemField extends StatefulWidget {
   /// Não deve mudar em cada sincronização em fundo — só sobrescreveria o texto em edição.
   final String planoHydrateKey;
 
+  /// ID local da inspeção (evidências FOTO/ARQUIVO copiadas para pasta persistente).
+  final String inspecaoLocalId;
+
   const ChecklistItemField({
     super.key,
     required this.item,
+    required this.inspecaoLocalId,
     this.resposta,
     this.enabled = false,
     this.onSave,
@@ -90,8 +97,20 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   /// IDs de anexos do servidor que o utilizador removeu da lista (DELETE no guardar).
   final Set<String> _anexosServidorRemovidosIds = {};
 
+  /// Evidências do próprio item (FOTO/ARQUIVO): caminhos locais estáveis.
+  final List<String> _pathsLocaisItem = [];
+
+  /// Anexos já guardados no servidor nesta resposta.
+  List<AnexoRespostaResumo> _itemAnexosServidor = [];
+
+  /// Remoções pendentes de anexos do servidor (DELETE ao sincronizar).
+  final Set<String> _itemAnexosServidorRemovidosIds = {};
+
   /// Ficheiros já descarregados para miniatura / pré-visualização (evita GET duplicado).
   final Map<String, File> _planoServidorArquivoCache = {};
+
+  /// Cache temporário de anexos da **resposta** (checklist FOTO/ARQUIVO) descarregados da API.
+  final Map<String, File> _respostaItemAnexoCache = {};
 
   /// Flag: já foi inicializado com resposta existente (evita reset em re-renders)
   bool _initialized = false;
@@ -126,7 +145,7 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     // Sem resposta nova → nada a fazer
     if (novaResposta == null) return;
 
-    // Primeira vez que chega uma resposta (antes era null) → sincronizar tudo
+    // Primeira vez que chega uma resposta (antes era null).
     if (antigaResposta == null) {
       _syncFromResposta(novaResposta);
       WidgetsBinding.instance
@@ -193,6 +212,28 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
       _obsPlanoAcaoCtrl.text = novaResposta.observacoes!;
     }
 
+    if (novaResposta.id == antigaResposta.id) {
+      String evidenceSig(RespostaInspecaoCompleta x) {
+        final ids = x.anexos.map((a) => a.id).toList()..sort();
+        final p = List<String>.from(x.evidenciasLocaisPendentesPaths)..sort();
+        final rm =
+            List<String>.from(x.anexosServidorRemovidosPendentesIds)..sort();
+        return '${ids.join('|')}@${p.join('|')}@${rm.join('|')}';
+      }
+
+      if (evidenceSig(novaResposta) != evidenceSig(antigaResposta)) {
+        _itemAnexosServidor =
+            List<AnexoRespostaResumo>.from(novaResposta.anexos);
+        _itemAnexosServidorRemovidosIds
+          ..clear()
+          ..addAll(novaResposta.anexosServidorRemovidosPendentesIds);
+        _pathsLocaisItem
+          ..clear()
+          ..addAll(novaResposta.evidenciasLocaisPendentesPaths);
+        _pruneRespostaItemAnexoCache();
+      }
+    }
+
     if (widget.planoHydrateKey != old.planoHydrateKey &&
         !_focusObsPlano.hasFocus) {
       WidgetsBinding.instance
@@ -210,7 +251,13 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   }
 
   void _syncFromResposta(RespostaInspecaoCompleta? r) {
-    if (r == null) return;
+    if (r == null) {
+      _itemAnexosServidor = [];
+      _itemAnexosServidorRemovidosIds.clear();
+      _pathsLocaisItem.clear();
+      _respostaItemAnexoCache.clear();
+      return;
+    }
     _textCtrl.text = r.valorTexto ?? '';
     _numCtrl.text  = r.valorNumero != null
         ? r.valorNumero!.toStringAsFixed(
@@ -224,6 +271,14 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     if (r.observacoes != null && r.observacoes!.isNotEmpty) {
       _obsPlanoAcaoCtrl.text = r.observacoes!;
     }
+    _itemAnexosServidor = List<AnexoRespostaResumo>.from(r.anexos);
+    _pruneRespostaItemAnexoCache();
+    _pathsLocaisItem
+      ..clear()
+      ..addAll(r.evidenciasLocaisPendentesPaths);
+    _itemAnexosServidorRemovidosIds
+      ..clear()
+      ..addAll(r.anexosServidorRemovidosPendentesIds);
   }
 
   /// Observações e anexos do plano vivem no item do plano (API), não só em `RespostaInspecao`.
@@ -1518,35 +1573,394 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
     );
   }
 
+  bool get _itemEvidenceSomenteImagem {
+    final t = widget.item.tipo;
+    return t == TipoItemChecklist.FOTO ||
+        t == TipoItemChecklist.ANEXO_IMAGEM_OBRIGATORIO;
+  }
+
+  void _emitItemEvidencePayload() {
+    if (!widget.enabled) return;
+    widget.onSave?.call({
+      'itemChecklistId': widget.item.id,
+      'evidenciasItemPaths': List<String>.from(_pathsLocaisItem),
+      'anexosItemServidorRemovidosIds':
+          _itemAnexosServidorRemovidosIds.toList(),
+    });
+  }
+
+  Future<void> _addItemEvidenceFromCamera() async {
+    if (!widget.enabled) return;
+    try {
+      final x = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (x == null || !mounted) return;
+      final path = await persistChecklistItemEvidence(
+        file: x,
+        inspecaoLocalId: widget.inspecaoLocalId,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (!_pathsLocaisItem.contains(path)) _pathsLocaisItem.add(path);
+      });
+      _emitItemEvidencePayload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível usar a câmara: $e'),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _addItemEvidenceFromGallery() async {
+    if (!widget.enabled) return;
+    try {
+      final x = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (x == null || !mounted) return;
+      final path = await persistChecklistItemEvidence(
+        file: x,
+        inspecaoLocalId: widget.inspecaoLocalId,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (!_pathsLocaisItem.contains(path)) _pathsLocaisItem.add(path);
+      });
+      _emitItemEvidencePayload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível escolher na galeria: $e'),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _addItemEvidenceFromFiles() async {
+    if (!widget.enabled) return;
+    try {
+      final r = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: false,
+      );
+      if (r == null || !mounted) return;
+      for (final f in r.files) {
+        final fp = f.path;
+        if (fp == null || fp.isEmpty) continue;
+        final path = await persistChecklistItemEvidence(
+          file: XFile(fp),
+          inspecaoLocalId: widget.inspecaoLocalId,
+        );
+        if (!mounted) return;
+        setState(() {
+          if (!_pathsLocaisItem.contains(path)) _pathsLocaisItem.add(path);
+        });
+      }
+      _emitItemEvidencePayload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível escolher ficheiros: $e'),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  void _removeLocalItemEvidence(String path) {
+    if (!widget.enabled) return;
+    setState(() => _pathsLocaisItem.remove(path));
+    _emitItemEvidencePayload();
+  }
+
+  void _marcarRemocaoAnexoServidor(String id) {
+    if (!widget.enabled || id.isEmpty) return;
+    setState(() => _itemAnexosServidorRemovidosIds.add(id));
+    _emitItemEvidencePayload();
+  }
+
+  void _pruneRespostaItemAnexoCache() {
+    final keep = _itemAnexosServidor.map((x) => x.id).toSet();
+    _respostaItemAnexoCache.removeWhere((k, _) => !keep.contains(k));
+  }
+
+  Future<void> _abrirAnexoServidorResposta(AnexoRespostaResumo a) async {
+    final id = a.id.trim();
+    if (id.isEmpty) return;
+
+    final cached = _respostaItemAnexoCache[id];
+    if (cached != null && await cached.exists()) {
+      await OpenFile.open(cached.path);
+      return;
+    }
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'A descarregar «${a.nomeArquivo}»…',
+                  style:
+                      const TextStyle(fontSize: 14, color: _kTextPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final f = await InspecaoService().downloadAnexoRespostaInspecao(
+        id,
+        filename: a.nomeArquivo,
+      );
+      if (!mounted) return;
+      _respostaItemAnexoCache[id] = f;
+      await OpenFile.open(f.path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível abrir o anexo: $e'),
+          backgroundColor: _kError,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  Widget _chipEvidenciaItemLocal(String path) {
+    final name = p.basename(path);
+    final isImg = tipoAnexoInspecaoParaCaminhoLocal(path) == 'FOTO';
+    return Material(
+      color: _kPrimaryLight,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => OpenFile.open(path),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10, top: 6, bottom: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isImg ? Icons.image_outlined : Icons.insert_drive_file_outlined,
+                size: 16,
+                color: _kPrimary,
+              ),
+              const SizedBox(width: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  name,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 12, color: _kTextPrimary),
+                ),
+              ),
+              if (widget.enabled)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                      minHeight: 32, minWidth: 32),
+                  icon: const Icon(Icons.close_rounded,
+                      size: 18, color: _kError),
+                  onPressed: () => _removeLocalItemEvidence(path),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipEvidenciaItemServidor(AnexoRespostaResumo a) {
+    final foto = (a.tipoAnexo ?? '').toUpperCase() == 'FOTO';
+    return Tooltip(
+      message: 'Ver anexo',
+      child: Material(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _abrirAnexoServidorResposta(a),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _kBorder),
+            ),
+            padding: const EdgeInsets.only(left: 10, top: 4, bottom: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  foto
+                      ? Icons.image_outlined
+                      : Icons.description_outlined,
+                  size: 16,
+                  color: _kPrimary,
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    a.nomeArquivo,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _kTextPrimary,
+                      decoration: TextDecoration.underline,
+                      decorationColor: _kPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.open_in_new_rounded,
+                  size: 14,
+                  color: _kPrimary.withValues(alpha: 0.75),
+                ),
+                if (widget.enabled)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                        minHeight: 32, minWidth: 32),
+                    icon: const Icon(Icons.close_rounded,
+                        size: 18, color: _kError),
+                    onPressed: () => _marcarRemocaoAnexoServidor(a.id),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAnexo() {
-    final has = widget.resposta != null;
+    final servidorVisivel = _itemAnexosServidor
+        .where((a) => !_itemAnexosServidorRemovidosIds.contains(a.id))
+        .toList();
+    final temAlgo =
+        _pathsLocaisItem.isNotEmpty || servidorVisivel.isNotEmpty;
+    final somenteImg = _itemEvidenceSomenteImagem;
+
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: has ? _kPrimaryLight : _kSurface,
+        color: temAlgo ? _kPrimaryLight : _kSurface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-            color: has ? _kPrimary.withOpacity(0.3) : _kBorder),
+          color: temAlgo ? _kPrimary.withOpacity(0.28) : _kBorder,
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-              has
-                  ? Icons.check_circle_outline_rounded
-                  : Icons.attach_file_rounded,
-              size: 20,
-              color: has ? _kPrimary : _kTextSecondary),
-          const SizedBox(width: 10),
-          Expanded(
-              child: Text(
-                  has ? 'Anexo(s) carregado(s)' : 'Sem anexo',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: has ? _kPrimary : _kTextSecondary))),
-          if (widget.enabled && !has)
-            const Icon(Icons.upload_outlined,
-                size: 18, color: _kPrimary),
+          if (widget.enabled) ...[
+            if (somenteImg)
+              Row(
+                children: [
+                  Expanded(
+                    child: _EvidenciaBtn(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Câmara',
+                      onTap: _addItemEvidenceFromCamera,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _EvidenciaBtn(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Galeria',
+                      onTap: _addItemEvidenceFromGallery,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _EvidenciaBtn(
+                      icon: Icons.attach_file_rounded,
+                      label: 'Ficheiro',
+                      onTap: _addItemEvidenceFromFiles,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _EvidenciaBtn(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Galeria',
+                      onTap: _addItemEvidenceFromGallery,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+          if (temAlgo) ...[
+            if (widget.enabled) const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...servidorVisivel.map(_chipEvidenciaItemServidor),
+                ..._pathsLocaisItem.map(_chipEvidenciaItemLocal),
+              ],
+            ),
+          ] else
+            Padding(
+              padding: EdgeInsets.only(top: widget.enabled ? 0 : 0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.attach_file_rounded,
+                    size: 18,
+                    color:
+                        temAlgo ? _kPrimary : _kTextSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.enabled
+                          ? 'Sem anexos — use os botões acima.'
+                          : 'Sem anexos registados.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: temAlgo ? _kPrimary : _kTextSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

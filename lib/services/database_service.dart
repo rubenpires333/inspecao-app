@@ -890,28 +890,61 @@ class DatabaseService {
     return Future.wait(roots.map(buildSecao));
   }
 
+  /// Último payload da fila offline por `itemChecklistId` (ordem temporal).
+  Future<Map<String, Map<String, dynamic>>> _latestPendingRespostaPayloadByItem(
+      String inspecaoLocalId) async {
+    final ops = await _database.getAllPendingRespostaOps();
+    final filtered =
+        ops.where((o) => o.inspecaoLocalId == inspecaoLocalId).toList()
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final latest = <String, Map<String, dynamic>>{};
+    for (final op in filtered) {
+      try {
+        final m = jsonDecode(op.payloadJson) as Map<String, dynamic>;
+        final itemId = m['itemChecklistId']?.toString().trim() ?? '';
+        if (itemId.isEmpty) continue;
+        latest[itemId] = m;
+      } catch (_) {}
+    }
+    return latest;
+  }
+
   Future<List<RespostaInspecaoCompleta>> listRespostasChecklistCompleta(
       String inspecaoLocalId) async {
     await initialize();
     final rows = await _database.getRespostasByInspecao(inspecaoLocalId);
-    return rows
-        .map(
-          (r) => RespostaInspecaoCompleta(
-            id: r.id,
-            inspecaoId: r.inspecaoId,
-            itemChecklistId: r.itemChecklistId,
-            opcaoId: r.opcaoId,
-            valorTexto: r.valorTexto,
-            valorNumero: r.valorNumero,
-            valorData: r.valorData?.toUtc().toIso8601String(),
-            valorDataHora: null,
-            valorRating: r.valorRating,
-            latitude: r.latitude,
-            longitude: r.longitude,
-            observacoes: r.observacoes,
-          ),
-        )
-        .toList();
+    final pendingByItem =
+        await _latestPendingRespostaPayloadByItem(inspecaoLocalId);
+    return rows.map((r) {
+      final pend = pendingByItem[r.itemChecklistId];
+      final paths = (pend?['evidenciasItemPaths'] as List?)
+              ?.map((e) => e.toString())
+              .where((p) => p.trim().isNotEmpty)
+              .toList() ??
+          const <String>[];
+      final rem = (pend?['anexosItemServidorRemovidosIds'] as List?)
+              ?.map((e) => e.toString())
+              .where((id) => id.trim().isNotEmpty)
+              .toList() ??
+          const <String>[];
+      return RespostaInspecaoCompleta(
+        id: r.id,
+        inspecaoId: r.inspecaoId,
+        itemChecklistId: r.itemChecklistId,
+        opcaoId: r.opcaoId,
+        valorTexto: r.valorTexto,
+        valorNumero: r.valorNumero,
+        valorData: r.valorData?.toUtc().toIso8601String(),
+        valorDataHora: null,
+        valorRating: r.valorRating,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        observacoes: r.observacoes,
+        anexos: const [],
+        evidenciasLocaisPendentesPaths: paths,
+        anexosServidorRemovidosPendentesIds: rem,
+      );
+    }).toList();
   }
 
   Future<Set<String>> _pendingItemChecklistIdsForInspecao(

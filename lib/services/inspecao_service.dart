@@ -240,6 +240,84 @@ class InspecaoService {
     }
   }
 
+  /// POST /api/v1/inspecoes/{inspecaoId}/respostas/{respostaId}/anexos (multipart)
+  Future<void> uploadAnexoRespostaInspecao({
+    required String inspecaoId,
+    required String respostaId,
+    required File arquivo,
+    String? tipoAnexo,
+  }) async {
+    final baseName = arquivo.path.replaceAll(r'\', '/').split('/').last;
+    AppLogger.log('📎 [InspecaoService.uploadAnexoRespostaInspecao] inspecao=$inspecaoId '
+        'resposta=$respostaId arquivo=$baseName tipo=$tipoAnexo');
+    final dio = await _buildDio();
+    dio.options.headers.remove('Content-Type');
+
+    final map = <String, dynamic>{
+      'arquivo': await MultipartFile.fromFile(
+        arquivo.path,
+        filename: baseName,
+      ),
+    };
+    if (tipoAnexo != null && tipoAnexo.trim().isNotEmpty) {
+      map['tipoAnexo'] = tipoAnexo.trim();
+    }
+
+    try {
+      await dio.post(
+        '/api/v1/inspecoes/$inspecaoId/respostas/$respostaId/anexos',
+        data: FormData.fromMap(map),
+      );
+      AppLogger.log('✅ [InspecaoService.uploadAnexoRespostaInspecao] OK');
+    } on DioException catch (e) {
+      throw _handleError('uploadAnexoRespostaInspecao', e);
+    }
+  }
+
+  /// DELETE /api/v1/inspecoes/anexos/{anexoId}
+  Future<void> removerAnexoRespostaInspecao(String anexoId) async {
+    final dio = await _buildDio();
+    AppLogger.log('🗑️ [InspecaoService.removerAnexoRespostaInspecao] anexo=$anexoId');
+    try {
+      await dio.delete('/api/v1/inspecoes/anexos/$anexoId');
+      AppLogger.log('✅ [InspecaoService.removerAnexoRespostaInspecao] OK');
+    } on DioException catch (e) {
+      throw _handleError('removerAnexoRespostaInspecao', e);
+    }
+  }
+
+  /// GET /api/v1/inspecoes/anexos/{anexoId}/download
+  ///
+  /// Bytes do anexo da inspeção/resposta (Alfresco via backend), com JWT.
+  Future<File> downloadAnexoRespostaInspecao(
+    String anexoId, {
+    String filename = 'anexo',
+  }) async {
+    final dio = await _buildDio();
+    AppLogger.log('⬇️ [InspecaoService.downloadAnexoRespostaInspecao] anexoId=$anexoId');
+    try {
+      final response = await dio.get<List<int>>(
+        '/api/v1/inspecoes/anexos/$anexoId/download',
+        options: Options(
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Ficheiro vazio no servidor');
+      }
+      final dir = await getTemporaryDirectory();
+      final safe = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
+      final path = p.join(dir.path, 'inspecao_resposta_anexo_${anexoId}_$safe');
+      final file = File(path);
+      await file.writeAsBytes(bytes);
+      return file;
+    } on DioException catch (e) {
+      throw _handleError('downloadAnexoRespostaInspecao', e);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Validação e Finalização
   // ─────────────────────────────────────────────────────────────────────────
