@@ -328,6 +328,8 @@ class _EvidenceGalleryScreenState extends State<EvidenceGalleryScreen> {
         return Icons.description;
       case EvidenceType.video:
         return Icons.videocam;
+      case EvidenceType.audio:
+        return Icons.mic;
     }
   }
 
@@ -339,6 +341,8 @@ class _EvidenceGalleryScreenState extends State<EvidenceGalleryScreen> {
         return 'Documento';
       case EvidenceType.video:
         return 'Vídeo';
+      case EvidenceType.audio:
+        return 'Áudio';
     }
   }
 

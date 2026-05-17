@@ -6,6 +6,8 @@ import 'package:inspecao/models/checklist_secao.dart';
 import 'package:inspecao/services/inspecao_service.dart';
 import 'package:inspecao/utils/app_logger.dart';
 import 'package:open_file/open_file.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:inspecao/widgets/item_evidence_widget.dart';
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const _kPrimary        = Color(0xFF18778A);
@@ -707,6 +709,10 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   }
 
   void _abrirPreviewFicheiroPlanoDescarregado(File file, {required String titulo}) {
+    final isImg = _isImage(titulo);
+    final isVid = _isVideo(titulo);
+    final isAud = _isAudio(titulo);
+
     showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
@@ -729,37 +735,64 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                   padding: const EdgeInsets.all(16),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      file,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Container(
-                        constraints: const BoxConstraints(maxWidth: 320),
-                        padding: const EdgeInsets.all(24),
-                        color: _kSurface,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.insert_drive_file_rounded,
-                                size: 56, color: _kTextSecondary),
-                            const SizedBox(height: 12),
-                            Text(
-                              titulo,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: _kTextPrimary, fontSize: 14),
+                    child: isImg
+                        ? Image.file(
+                            file,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Container(
+                              constraints: const BoxConstraints(maxWidth: 320),
+                              padding: const EdgeInsets.all(24),
+                              color: _kSurface,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.broken_image_outlined,
+                                      size: 56, color: _kTextSecondary),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    titulo,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: _kTextPrimary, fontSize: 14),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            FilledButton.icon(
-                              onPressed: () async {
-                                await OpenFile.open(file.path);
-                              },
-                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                              label: const Text('Abrir ficheiro'),
+                          )
+                        : Container(
+                            constraints: const BoxConstraints(maxWidth: 320),
+                            padding: const EdgeInsets.all(24),
+                            color: _kSurface,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isVid
+                                      ? Icons.videocam
+                                      : isAud
+                                          ? Icons.mic
+                                          : _getDocumentIcon(titulo),
+                                  size: 56,
+                                  color: isAud ? Colors.orange.shade800 : _kPrimary,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  titulo,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: _kTextPrimary, fontSize: 14),
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton.icon(
+                                  onPressed: () async {
+                                    await OpenFile.open(file.path);
+                                  },
+                                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                                  label: const Text('Abrir ficheiro'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
+                          ),
                   ),
                 ),
               ),
@@ -807,26 +840,103 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
   }
 
   Widget _buildEvidenciaThumbnail(int index, XFile file) {
-    return Stack(
-      children: [
-        // Thumbnail clicável → abre visualização ampliada
-        GestureDetector(
-          onTap: () => _abrirImagemAmpliada(file, index),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(file.path),
-              width: 72,
-              height: 72,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 72,
-                height: 72,
-                color: _kSurface,
-                child: const Icon(Icons.broken_image_outlined,
-                    color: _kTextSecondary, size: 28),
+    final isImg = _isImage(file.path);
+    final isVid = _isVideo(file.path);
+    final isAud = _isAudio(file.path);
+
+    Widget previewWidget;
+    if (isImg) {
+      previewWidget = Image.file(
+        File(file.path),
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 72,
+          height: 72,
+          color: _kSurface,
+          child: const Icon(Icons.broken_image_outlined,
+              color: _kTextSecondary, size: 28),
+        ),
+      );
+    } else if (isVid) {
+      previewWidget = Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: _kPrimary.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          children: [
+            const Center(
+              child: Icon(
+                Icons.videocam,
+                color: _kPrimary,
+                size: 28,
               ),
             ),
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (isAud) {
+      previewWidget = Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.mic,
+            color: Colors.orange.shade800,
+            size: 28,
+          ),
+        ),
+      );
+    } else {
+      previewWidget = Container(
+        width: 72,
+        height: 72,
+        color: _kSurface,
+        child: Icon(
+          _getDocumentIcon(file.path),
+          color: _kTextSecondary,
+          size: 28,
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () {
+            if (isImg) {
+              _abrirImagemAmpliada(file, index);
+            } else {
+              OpenFile.open(file.path);
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: previewWidget,
           ),
         ),
         // Botão de remover (só quando editável)
@@ -1066,6 +1176,33 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
                 _selecionarImagem(ImageSource.gallery);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined,
+                  color: _kPrimary),
+              title: const Text('Gravar vídeo'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarVideo();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.mic_none_outlined,
+                  color: _kPrimary),
+              title: const Text('Gravar áudio'),
+              onTap: () {
+                Navigator.pop(context);
+                _gravarAudio();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file_outlined,
+                  color: _kPrimary),
+              title: const Text('Anexar documento'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarDocumento();
+              },
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -1090,6 +1227,68 @@ class _ChecklistItemFieldState extends State<ChecklistItemField> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Não foi possível selecionar a imagem: $e'),
+            backgroundColor: _kError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selecionarVideo() async {
+    try {
+      final file = await _imagePicker.pickVideo(
+        source: ImageSource.camera,
+      );
+      if (file != null) {
+        setState(() => _evidenciasPlanoLocais.add(file));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível gravar o vídeo: $e'),
+            backgroundColor: _kError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _gravarAudio() async {
+    try {
+      final path = await showDialog<String>(
+        context: context,
+        builder: (context) => const AudioRecordDialog(),
+      );
+      if (path != null) {
+        setState(() => _evidenciasPlanoLocais.add(XFile(path)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao iniciar gravador de áudio: $e'),
+            backgroundColor: _kError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selecionarDocumento() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'mp4', 'avi', 'mov', 'mp3', 'wav', 'm4a'],
+      );
+      if (result != null && result.files.single.path != null) {
+        setState(() => _evidenciasPlanoLocais.add(XFile(result.files.single.path!)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível anexar o documento: $e'),
             backgroundColor: _kError,
           ),
         );
@@ -1908,6 +2107,11 @@ class _PlanoServidorEvidenciaThumbState extends State<_PlanoServidorEvidenciaThu
 
   @override
   Widget build(BuildContext context) {
+    final fileName = widget.anexo.nome;
+    final isImg = _isImage(fileName);
+    final isVid = _isVideo(fileName);
+    final isAud = _isAudio(fileName);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -1929,30 +2133,94 @@ class _PlanoServidorEvidenciaThumbState extends State<_PlanoServidorEvidenciaThu
                       ),
                     )
                   : _file != null
-                      ? Image.file(
-                          _file!,
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 72,
-                            height: 72,
-                            color: _kSurface,
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.insert_drive_file_outlined,
-                              color: _kTextSecondary,
-                              size: 32,
-                            ),
-                          ),
-                        )
+                      ? (isImg
+                          ? Image.file(
+                              _file!,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 72,
+                                height: 72,
+                                color: _kSurface,
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: _kTextSecondary,
+                                  size: 28,
+                                ),
+                              ),
+                            )
+                          : isVid
+                              ? Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    color: _kPrimary.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      const Center(
+                                        child: Icon(
+                                          Icons.videocam,
+                                          color: _kPrimary,
+                                          size: 28,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 2,
+                                        right: 2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.7),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Icon(
+                                            Icons.play_arrow,
+                                            color: Colors.white,
+                                            size: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : isAud
+                                  ? Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.mic,
+                                          color: Colors.orange.shade800,
+                                          size: 28,
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      width: 72,
+                                      height: 72,
+                                      color: _kSurface,
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        _getDocumentIcon(fileName),
+                                        color: _kTextSecondary,
+                                        size: 28,
+                                      ),
+                                    ))
                       : Container(
                           width: 72,
                           height: 72,
                           color: _kSurface,
                           alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.broken_image_outlined,
+                          child: Icon(
+                            _getDocumentIcon(fileName),
                             color: _kTextSecondary,
                             size: 28,
                           ),
@@ -2100,4 +2368,57 @@ Color _colorFromHex(String? hex, Color fallback) {
     if (h.length == 8) return Color(int.parse(h, radix: 16));
   } catch (_) {}
   return fallback;
+}
+
+String _getFileExtension(String filePath) {
+  final fileName = filePath.split('/').last.split('\\').last;
+  final lastDot = fileName.lastIndexOf('.');
+  if (lastDot == -1) return '';
+  return fileName.substring(lastDot + 1).toLowerCase();
+}
+
+bool _isImage(String filePath) {
+  final ext = _getFileExtension(filePath);
+  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext);
+}
+
+bool _isVideo(String filePath) {
+  final ext = _getFileExtension(filePath);
+  return ['mp4', 'mov', 'avi', 'mkv', 'flv', '3gp', 'webm'].contains(ext);
+}
+
+bool _isAudio(String filePath) {
+  final ext = _getFileExtension(filePath);
+  return ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'wma', 'caf'].contains(ext);
+}
+
+IconData _getDocumentIcon(String filePath) {
+  final extension = _getFileExtension(filePath);
+  switch (extension) {
+    case 'pdf':
+      return Icons.picture_as_pdf;
+    case 'doc':
+    case 'docx':
+      return Icons.description;
+    case 'xls':
+    case 'xlsx':
+      return Icons.table_chart;
+    case 'ppt':
+    case 'pptx':
+      return Icons.slideshow;
+    case 'txt':
+      return Icons.text_snippet;
+    case 'mp4':
+    case 'mov':
+    case 'avi':
+    case 'mkv':
+      return Icons.videocam;
+    case 'mp3':
+    case 'wav':
+    case 'm4a':
+    case 'aac':
+      return Icons.mic;
+    default:
+      return Icons.insert_drive_file;
+  }
 }

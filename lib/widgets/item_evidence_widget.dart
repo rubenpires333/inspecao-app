@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:inspecao/models/evidence.dart';
 import 'package:inspecao/models/user.dart';
 import 'package:inspecao/services/data_service.dart';
@@ -66,6 +69,45 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
     final itemEvidences = evidences.where((e) => e.description.contains('Item: ${widget.itemId}')).toList();
     if (mounted) {
       setState(() => _evidences = itemEvidences);
+    }
+  }
+
+  Future<void> _recordVideo() async {
+    try {
+      Navigator.pop(context); // Fechar diálogo primeiro
+      
+      final XFile? video = await _imagePicker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(seconds: 60),
+      );
+      
+      if (video != null) {
+        setState(() {
+          _selectedImagePath = video.path;
+          _selectedImageSource = 'Vídeo';
+        });
+        _showSaveDialog();
+      }
+    } catch (e) {
+      _showSnackBar('Erro ao gravar vídeo: ${e.toString()}');
+    }
+  }
+
+  Future<void> _recordAudio() async {
+    Navigator.pop(context); // Fechar diálogo primeiro
+    
+    final path = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AudioRecordDialog(),
+    );
+    
+    if (path != null) {
+      setState(() {
+        _selectedImagePath = path;
+        _selectedImageSource = 'Áudio';
+      });
+      _showSaveDialog();
     }
   }
 
@@ -162,6 +204,8 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
       EvidenceType evidenceType;
       if (_selectedImageSource == 'Vídeo') {
         evidenceType = EvidenceType.video;
+      } else if (_selectedImageSource == 'Áudio') {
+        evidenceType = EvidenceType.audio;
       } else if (_selectedImageSource == 'Documento') {
         evidenceType = EvidenceType.document;
       } else {
@@ -321,11 +365,39 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
                       icon: const Icon(Icons.camera_alt),
                       label: const Text('Tirar Foto'),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _recordVideo,
+                      icon: const Icon(Icons.videocam, color: Colors.white),
+                      label: const Text('Gravar Vídeo'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.red.shade600,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _recordAudio,
+                      icon: const Icon(Icons.mic, color: Colors.white),
+                      label: const Text('Gravar Áudio'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.orange.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -333,11 +405,11 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
                       icon: const Icon(Icons.photo_library),
                       label: const Text('Selecionar da Galeria'),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -345,7 +417,7 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
                       icon: const Icon(Icons.folder_open),
                       label: const Text('Selecionar Arquivo'),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
@@ -378,6 +450,25 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
         children: [
           Icon(
             Icons.videocam,
+            size: 64,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _getFileName(_selectedImagePath!),
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      );
+    } else if (_selectedImageSource == 'Áudio') {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.mic,
             size: 64,
             color: Theme.of(context).colorScheme.primary,
           ),
@@ -681,12 +772,27 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
           ],
         ),
       );
+    } else if (evidence.type == EvidenceType.audio) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.mic,
+            color: Colors.orange.shade800,
+            size: 24,
+          ),
+        ),
+      );
     }
     
     // Fallback para ícone
     return Icon(
       evidence.type == EvidenceType.photo ? Icons.photo : 
       evidence.type == EvidenceType.video ? Icons.videocam : 
+      evidence.type == EvidenceType.audio ? Icons.mic :
       _getDocumentIcon(evidence.filePath),
       color: Theme.of(context).colorScheme.primary,
       size: 24,
@@ -705,4 +811,162 @@ class _ItemEvidenceWidgetState extends State<ItemEvidenceWidget> {
     );
   }
 
+}
+
+class AudioRecordDialog extends StatefulWidget {
+  const AudioRecordDialog({super.key});
+
+  @override
+  State<AudioRecordDialog> createState() => _AudioRecordDialogState();
+}
+
+class _AudioRecordDialogState extends State<AudioRecordDialog> with SingleTickerProviderStateMixin {
+  final _recorder = AudioRecorder();
+  bool _isRecording = false;
+  int _seconds = 0;
+  Timer? _timer;
+  late AnimationController _animController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    _startRecording();
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _recorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        
+        await _recorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000),
+          path: path,
+        );
+        
+        if (!mounted) return;
+        setState(() {
+          _isRecording = true;
+        });
+        
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _seconds++;
+          });
+        });
+      } else {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Permissão do microfone negada.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao iniciar gravação: $e')),
+      );
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    _timer?.cancel();
+    final actualPath = await _recorder.stop();
+    if (!mounted) return;
+    setState(() {
+      _isRecording = false;
+    });
+    Navigator.pop(context, actualPath);
+  }
+
+  Future<void> _cancelRecording() async {
+    _timer?.cancel();
+    await _recorder.cancel();
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _recorder.dispose();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final minutesStr = (_seconds ~/ 60).toString().padLeft(2, '0');
+    final secondsStr = (_seconds % 60).toString().padLeft(2, '0');
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.mic, color: Colors.red),
+          SizedBox(width: 8),
+          Text('Gravação de Áudio'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 16),
+          // Pulsing central indicator
+          ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.1).animate(_animController),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _isRecording ? Colors.red.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.mic,
+                size: 48,
+                color: _isRecording ? Colors.red : Colors.grey,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '$minutesStr:$secondsStr',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Gravação de evidência em progresso...\nFale próximo ao microfone do dispositivo.',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.spaceEvenly,
+      actions: [
+        TextButton.icon(
+          onPressed: _cancelRecording,
+          icon: const Icon(Icons.close, color: Colors.grey),
+          label: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton.icon(
+          onPressed: _stopRecording,
+          icon: const Icon(Icons.stop, color: Colors.white),
+          label: const Text('Parar e Salvar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
 }

@@ -122,13 +122,14 @@ class DataService {
       );
       return refreshed;
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        await _handleHttpError(e);
+      }
       // Se erro de rede, retornar dados locais (modo offline)
       print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
       if (localInspections.isNotEmpty) {
         return localInspections;
       }
-      // Se não houver dados locais e for erro de autenticação, tratar
-      await _handleHttpError(e);
       throw Exception('Erro ao buscar inspeções: ${e.message}');
     } catch (e) {
       // Outros erros: retornar dados locais se disponíveis
@@ -730,13 +731,14 @@ class DataService {
       );
       return refreshed;
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        await _handleHttpError(e);
+      }
       // Se erro de rede, retornar dados locais (modo offline)
       print('Erro ao sincronizar com API: ${e.message} - usando dados locais');
       if (localInspections.isNotEmpty) {
         return localInspections;
       }
-      // Se não houver dados locais e for erro de autenticação, tratar
-      await _handleHttpError(e);
       throw Exception('Erro ao buscar inspeções: ${e.message}');
     } catch (e) {
       // Outros erros: retornar dados locais se disponíveis
@@ -1078,12 +1080,14 @@ class DataService {
         return await _dbService.getEstablishments();
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        await _handleHttpError(e);
+      }
       // Se erro de rede, retornar dados locais (modo offline)
       print('Erro ao sincronizar estabelecimentos: ${e.message} - usando dados locais');
       if (localEstablishments.isNotEmpty) {
         return localEstablishments;
       }
-      await _handleHttpError(e);
       throw Exception('Erro ao buscar estabelecimentos: ${e.message}');
     } catch (e) {
       // Outros erros: retornar dados locais se disponíveis

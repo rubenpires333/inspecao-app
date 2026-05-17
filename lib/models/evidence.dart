@@ -4,6 +4,7 @@ enum EvidenceType {
   photo,
   document,
   video,
+  audio,
 }
 
 class Evidence {
@@ -133,6 +134,8 @@ class Evidence {
         return 'Documento';
       case EvidenceType.video:
         return 'Vídeo';
+      case EvidenceType.audio:
+        return 'Áudio';
     }
   }
 }

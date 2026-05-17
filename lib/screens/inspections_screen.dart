@@ -9,9 +9,12 @@ import 'package:inspecao/screens/create_inspection_screen.dart';
 import 'package:inspecao/screens/inspection_detail_screen.dart';
 import 'package:inspecao/screens/notifications_screen.dart';
 import 'package:inspecao/services/database_service.dart';
+import 'package:inspecao/screens/login_screen.dart';
 
 class InspectionsScreen extends StatefulWidget {
-  const InspectionsScreen({super.key});
+  final Function(ThemeMode) changeThemeMode;
+
+  const InspectionsScreen({super.key, required this.changeThemeMode});
 
   @override
   State<InspectionsScreen> createState() => _InspectionsScreenState();
@@ -112,15 +115,20 @@ class _InspectionsScreenState extends State<InspectionsScreen> {
         // Forçar logout e redirecionar para tela de login
         if (mounted) {
           await _dataService.logout();
-          // Navegar para login usando Navigator.pop até chegar na tela de login
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          // Mostrar mensagem ao usuário
+          
+          // Mostrar mensagem ao usuário antes ou durante a navegação
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Sessão expirada. Faça login novamente.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
             ),
+          );
+          
+          // Navegar para login removendo todas as telas anteriores da pilha
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
+            (route) => false,
           );
         }
         return;

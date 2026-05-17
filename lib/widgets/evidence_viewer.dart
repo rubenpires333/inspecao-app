@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:open_file/open_file.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:inspecao/models/evidence.dart';
 
 class EvidenceViewer extends StatefulWidget {
@@ -24,11 +25,44 @@ class _EvidenceViewerState extends State<EvidenceViewer> {
   bool _isPlaying = false;
   bool _showVideoControls = false;
 
+  // Controle de áudio
+  AudioPlayer? _audioPlayer;
+  bool _isAudioPlaying = false;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+
   @override
   void initState() {
     super.initState();
     if (widget.evidence.type == EvidenceType.video) {
       _initializeVideo();
+    } else if (widget.evidence.type == EvidenceType.audio) {
+      _initializeAudio();
+    }
+  }
+
+  Future<void> _initializeAudio() async {
+    try {
+      _audioPlayer = AudioPlayer();
+      await _audioPlayer!.setSource(DeviceFileSource(widget.evidence.filePath));
+      
+      _audioPlayer!.onDurationChanged.listen((d) {
+        if (mounted) setState(() => _audioDuration = d);
+      });
+      
+      _audioPlayer!.onPositionChanged.listen((p) {
+        if (mounted) setState(() => _audioPosition = p);
+      });
+      
+      _audioPlayer!.onPlayerStateChanged.listen((state) {
+        if (mounted) {
+          setState(() {
+            _isAudioPlaying = state == PlayerState.playing;
+          });
+        }
+      });
+    } catch (e) {
+      print('Erro ao inicializar áudio: $e');
     }
   }
 
@@ -73,6 +107,7 @@ class _EvidenceViewerState extends State<EvidenceViewer> {
   @override
   void dispose() {
     _videoController?.dispose();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
@@ -262,9 +297,121 @@ class _EvidenceViewerState extends State<EvidenceViewer> {
       return _buildImagePreview(context);
     } else if (widget.evidence.type == EvidenceType.video) {
       return _buildVideoPreview(context);
+    } else if (widget.evidence.type == EvidenceType.audio) {
+      return _buildAudioPreview(context);
     } else {
       return _buildDocumentPreview(context);
     }
+  }
+
+  Widget _buildAudioPreview(BuildContext context) {
+    final posMinutes = _audioPosition.inMinutes.toString().padLeft(2, '0');
+    final posSeconds = (_audioPosition.inSeconds % 60).toString().padLeft(2, '0');
+    final durMinutes = _audioDuration.inMinutes.toString().padLeft(2, '0');
+    final durSeconds = (_audioDuration.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Microfone em destaque
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.orange.withOpacity(0.2),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.mic,
+                size: 64,
+                color: Colors.orange.shade800,
+              ),
+            ),
+            const SizedBox(height: 32),
+            // Slider / Seekbar
+            Slider(
+              value: _audioPosition.inMilliseconds.toDouble(),
+              max: _audioDuration.inMilliseconds > 0 
+                  ? _audioDuration.inMilliseconds.toDouble() 
+                  : 1.0,
+              activeColor: Colors.orange.shade800,
+              inactiveColor: Colors.orange.shade100,
+              onChanged: (value) async {
+                if (_audioPlayer != null) {
+                  await _audioPlayer!.seek(Duration(milliseconds: value.toInt()));
+                }
+              },
+            ),
+            // Timestamps
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$posMinutes:$posSeconds',
+                    style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    '$durMinutes:$durSeconds',
+                    style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Controles de Play / Pause / Stop
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_audioPlayer != null) {
+                      if (_isAudioPlaying) {
+                        await _audioPlayer!.pause();
+                      } else {
+                        await _audioPlayer!.resume();
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(16),
+                    backgroundColor: Colors.orange.shade800,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Icon(
+                    _isAudioPlaying ? Icons.pause : Icons.play_arrow,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: () async {
+                    if (_audioPlayer != null) {
+                      await _audioPlayer!.stop();
+                    }
+                  },
+                  icon: const Icon(Icons.stop),
+                  iconSize: 32,
+                  color: Colors.grey.shade700,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildImagePreview(BuildContext context) {
@@ -532,6 +679,8 @@ class _EvidenceViewerState extends State<EvidenceViewer> {
         return Icons.photo;
       case EvidenceType.video:
         return Icons.videocam;
+      case EvidenceType.audio:
+        return Icons.mic;
       case EvidenceType.document:
         return Icons.description;
     }

@@ -16,6 +16,9 @@ import 'package:inspecao/screens/database_viewer_screen.dart';
 import 'package:inspecao/screens/inspections_screen.dart';
 import 'package:inspecao/models/notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inspecao/services/api_service.dart';
+import 'package:inspecao/services/auth_service.dart';
+import 'package:inspecao/config/app_config.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) changeThemeMode;
@@ -26,7 +29,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _dataService = DataService();
   User? _currentUser;
   int _selectedIndex = 0;
@@ -41,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _searchController.addListener(_filterRecentInspections);
     _loadData().then((_) {
       // Sempre começar na tela de início (dashboard) - índice 0
@@ -52,8 +56,61 @@ class _HomeScreenState extends State<HomeScreen> {
   
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkSessionOnResume();
+    }
+  }
+
+  Future<void> _checkSessionOnResume() async {
+    try {
+      final apiService = ApiService();
+      if (apiService.baseUrl == null) {
+        apiService.initialize(baseUrl: AppConfig.apiBaseUrl);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final authService = AuthService(apiService, prefs);
+      
+      // Se não estiver autenticado e não conseguir recuperar a sessão por refresh token
+      final sessionValid = await authService.ensureSessionRestored();
+      if (!sessionValid) {
+        // Se a sessão não for válida, forçar logout e redirecionar
+        if (mounted) {
+          await _dataService.logout();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sessão expirada. Faça login novamente.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
+            (route) => false,
+          );
+        }
+      } else {
+        // Sessão recuperada/válida, podemos atualizar dados em background
+        _loadData();
+      }
+    } catch (_) {
+      // Se houver algum erro catastrófico na verificação da sessão, redirecionar por segurança
+      if (mounted) {
+        await _dataService.logout();
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
+          (route) => false,
+        );
+      }
+    }
   }
   
   void _filterRecentInspections() {
@@ -170,9 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Forçar logout e redirecionar para tela de login
       if (mounted) {
         await _dataService.logout();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
-        );
+        
         // Mostrar mensagem ao usuário
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -180,6 +235,12 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
+        );
+
+        // Navegar para login removendo todas as telas anteriores da pilha
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => LoginScreen(changeThemeMode: widget.changeThemeMode)),
+          (route) => false,
         );
       }
     } catch (e) {
@@ -226,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'dashboard':
         return _buildDashboard();
       case 'inspections':
-        return const InspectionsScreen(); // Usar tela dedicada de inspeções
+        return InspectionsScreen(changeThemeMode: widget.changeThemeMode); // Usar tela dedicada de inspeções
       case 'calendar':
         return const CalendarScreen();
       case 'map':
@@ -234,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'database':
         return const DatabaseViewerScreen(); // Tela temporária de debug
       default:
-        return const InspectionsScreen(); // Default para inspetores
+        return InspectionsScreen(changeThemeMode: widget.changeThemeMode); // Default para inspetores
     }
   }
   /// Retorna os itens de menu disponíveis baseado no usuário (permissões da API ou role)
